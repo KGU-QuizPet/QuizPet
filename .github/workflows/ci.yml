@@ -1,0 +1,40 @@
+name: Java CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: Compile (JDK 17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile Java sources
+        shell: bash
+        run: |
+          mkdir -p build/classes
+          sources=()
+          while IFS= read -r -d '' source; do
+            sources+=("$source")
+          done < <(find src/main/java -name '*.java' -print0)
+          javac --release 17 -encoding UTF-8 -d build/classes "${sources[@]}"

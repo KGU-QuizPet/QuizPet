@@ -291,6 +291,10 @@ QuizPet/
 
 **실행 환경:** 별도 서버·데이터베이스 설치 없이 로컬 PC에서 동작하도록 설계합니다.
 
+### 자동 빌드 검사
+
+[Java CI](.github/workflows/ci.yml)는 모든 push와 Pull Request에서 JDK 17로 `src/main/java`의 전체 Java 소스를 UTF-8로 컴파일합니다. 컴파일 오류와 Java 17에서 지원하지 않는 API·문법 사용을 검사하며, Swing 화면 실행과 동작 테스트는 포함하지 않습니다.
+
 ## 팀원별 역할 분담
 
 프론트엔드와 백엔드는 **서로 다른 언어/서버가 아니라 모두 Java 코드**입니다. FE는 Swing UI, BE는 애플리케이션 내부 로직·파일 관리를 담당합니다.
