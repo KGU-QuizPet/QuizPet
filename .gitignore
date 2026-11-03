@@ -1,0 +1,15 @@
+# Java 빌드 결과물
+*.class
+out/
+build/
+target/
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
+
+# 로컬 게임 저장 데이터
+/data/save/*.txt
+/data/save/*.bak
+/data/save/*.tmp
