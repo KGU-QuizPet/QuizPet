@@ -280,6 +280,14 @@ QuizPet/
 기본 경로는 프로젝트 루트 기준 `data/content/category.txt`이고, `Path` 생성자로 다른 파일을 지정할 수 있습니다.
 `findAll()`은 파일 순서의 읽기 전용 목록, `findById(String)`는 `Optional<Category>`를 반환합니다. 찾을 수 없는 ID는 빈 결과입니다.
 
+`content.txt`는 UTF-8로 카드당 2줄을 사용합니다. 첫 줄은 `contentId|categoryId|order|difficulty|title|tags`, 다음 줄은 본문입니다.
+태그는 쉼표로 구분하고, 태그가 없으면 마지막 필드를 비워 둡니다. 첫 줄의 필드에는 `|`, 개별 태그에는 `,`를 사용할 수 없습니다.
+카드 사이의 빈 줄은 무시하지만 본문은 비어 있을 수 없습니다. 순서는 0 이상, 난이도는 양수이며 ID는 중복될 수 없습니다.
+`ContentRepository`는 생성 시 읽고 파일·형식 오류는 `IOException`으로 전달합니다. 형식 오류에는 파일 경로와 카드 시작 줄 번호를 포함합니다.
+기본 경로는 `data/content/content.txt`이고 `Path` 생성자로 변경할 수 있습니다. 빈 파일은 빈 목록으로 읽습니다.
+`findAll()`은 파일 순서의 목록, `findById(String)`는 `Optional<LearningContent>`, `findByCategory(Category)`는 `order` 오름차순 목록을 반환합니다.
+조회 목록은 모두 읽기 전용이며, 포함된 기준 카드는 분야당 1개인 예시 4개입니다. 목표인 40개 콘텐츠는 별도 확충이 필요합니다.
+
 > [!IMPORTANT]
 > 사용자별 저장 파일(`data/save/*.txt`)은 개인 실행 데이터이므로 Git에 커밋하지 않습니다. `data/content/*.txt`는 팀이 함께 검토하고 Git으로 관리합니다. 저장 경로는 애플리케이션의 실행 작업 디렉터리에 영향을 받으므로, 개발 환경에서 프로젝트 루트를 기준으로 통일합니다.
 
