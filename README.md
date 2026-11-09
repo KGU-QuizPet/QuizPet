@@ -309,6 +309,9 @@ QuizPet/
 `submitAnswer(session, selectedAnswer)`는 정오 여부를 반환하고, `nextQuestion(session)`과 `endSession(session)`은 다음 문제 이동과 중도 종료를 처리합니다. 답안 검증·중복 제출 차단·제출 전 이동 차단은 `QuizSession`의 규칙을 따르며, 마지막 제출 시 자동 종료됩니다.
 현재 문제·정답·해설·제출 내역·정답 수·전체 수·종료 여부는 반환된 세션에서 조회합니다. 세션은 호출자가 보관하며 서로 독립적입니다. 중도 종료 시 제출 내역은 메모리에 유지되며, UI 연결·풀이 기록 파일 저장·최초 정답 보상 및 XP 집계는 아직 구현하지 않았습니다.
 
+종료된 세션의 `getResult()`는 변경할 수 없는 `QuizResult`를 반환합니다. `getTotalCount()`는 출제 수, `getAnsweredCount()`는 제출 수, `getCorrectCount()`는 정답 수, `getIncorrectCount()`는 제출한 오답 수입니다.
+`getAccuracy()`는 정답 수 ÷ 제출 수 × 100을 소수 첫째 자리로 반올림합니다(정답 2개·오답 1개 → `66.7`). 미제출 종료는 `0.0`이며, 중도 종료한 미제출 문제는 오답이나 정답률 계산에 포함하지 않습니다. 진행 중 최종 결과 조회는 `IllegalStateException`으로 거부합니다.
+
 > [!IMPORTANT]
 > 사용자별 저장 파일(`data/save/*.txt`)은 개인 실행 데이터이므로 Git에 커밋하지 않습니다. `data/content/*.txt`는 팀이 함께 검토하고 Git으로 관리합니다. 저장 경로는 애플리케이션의 실행 작업 디렉터리에 영향을 받으므로, 개발 환경에서 프로젝트 루트를 기준으로 통일합니다.
 

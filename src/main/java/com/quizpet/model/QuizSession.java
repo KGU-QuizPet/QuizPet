@@ -119,6 +119,13 @@ public final class QuizSession {
     return correctCount;
   }
 
+  public QuizResult getResult() {
+    if (!finished) {
+      throw new IllegalStateException("종료된 퀴즈 세션에서만 최종 결과를 조회할 수 있습니다.");
+    }
+    return new QuizResult(getTotalCount(), getAnsweredCount(), correctCount);
+  }
+
   public Map<String, String> getAnswers() {
     return Map.copyOf(answers);
   }
