@@ -17,7 +17,7 @@ public class LearningServiceTest {
       Files.writeString(file,
           "S2|SCIENCE|5|1|중력|물리\n물체는 서로 끌어당깁니다.\n"
               + "H1|HISTORY|0|1|역사|\n과거의 기록입니다.\n"
-              + "S1|SCIENCE|2|1|물의 상태|\n물은 세 가지 상태로 존재합니다.\n",
+              + "S1|SCIENCE|2|3|물의 상태|\n물은 세 가지 상태로 존재합니다.\n",
           StandardCharsets.UTF_8);
       LearningService service = new LearningService(
           new CategoryRepository(), new ContentRepository(file));
@@ -28,6 +28,10 @@ public class LearningServiceTest {
       assert service.getContents("SPORTS").isEmpty();
       assert service.getContent("SCIENCE", 0).getContentId().equals("S1");
       assert service.getContent("SCIENCE", 1).getContentId().equals("S2");
+      assert service.getContent("SCIENCE", 0).getOrder() == 2;
+      assert service.getContent("SCIENCE", 0).getDifficulty() == 3;
+      assert service.getContent("SCIENCE", 1).getOrder() == 5;
+      assert service.getContent("SCIENCE", 1).getDifficulty() == 1;
       assert service.getContent("HISTORY", 0).getCategory() == Category.HISTORY;
       for (String invalid : new String[] {null, "", " ", "UNKNOWN", "science", " SCIENCE "}) {
         expectInvalid(() -> service.getContents(invalid));
