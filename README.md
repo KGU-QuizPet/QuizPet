@@ -293,8 +293,16 @@ QuizPet/
 `getContent(categoryId, contentIndex)`는 0부터 시작하는 목록 인덱스로 카드 1개를 조회합니다. 카드의 `order` 값과 목록 인덱스는 별개입니다.
 정의되지 않은 분야 ID와 범위 밖 인덱스는 `IllegalArgumentException`으로 거부합니다. 진행 상태는 `contentIndex + 1`과 목록 크기로 표시하며, UI 연결과 연계 문제 확인은 아직 구현하지 않았습니다.
 
-두 Repository 모두 파일 누락·읽기 실패·잘못된 UTF-8을 파일 경로가 포함된 `IOException`으로 전달하고, 원인 예외는 `getCause()`로 확인할 수 있습니다.
-잘못된 레코드는 파일 경로·시작 줄 번호와 함께 거부하며, 오류가 발생하면 Repository 생성 전체가 실패합니다. 오류 파일을 덮어쓰거나 빈 데이터로 대체하지 않습니다.
+`question.txt`는 UTF-8로 문제당 3줄을 사용합니다. 첫 줄은 `questionId|categoryId|contentId|type|answer|options`, 둘째 줄은 문제, 셋째 줄은 해설입니다.
+유형은 `OX` 또는 `MULTIPLE_CHOICE`이며, 정답은 각각 `O`/`X`, `1`~`4`입니다. OX의 마지막 보기 필드는 비우고, 객관식 보기는 비어 있지 않은 4개를 쉼표로 구분합니다.
+첫 줄 필드에는 `|`, 개별 보기에는 `,`를 사용할 수 없습니다. 문제·해설은 각각 비어 있지 않은 한 줄이며 `|`를 포함할 수 있습니다. 문제 사이의 빈 줄은 무시합니다.
+`QuestionRepository`는 기본 경로 `data/content/question.txt` 또는 `Path` 생성자의 파일을 읽어 `Question` 하위 클래스로 변환합니다.
+`findAll()`, `findById(String)`, `findByCategory(Category)`, `findByContentId(String)`로 조회하며 목록은 파일 순서의 읽기 전용입니다. ID 조회는 `Optional<Question>`을 반환하고, 없는 ID와 빈 파일은 빈 결과입니다.
+잘못된 문제는 파일 경로·시작 줄 번호를 경고 로그에 남기고 해당 3줄을 제외합니다. 중복 ID는 처음 로딩된 유효 문제를 유지합니다. 줄 누락 시 이후 레코드의 경계를 복구하지 않으므로 반드시 문제당 3줄을 유지해야 합니다.
+포함된 문제는 기존 학습 카드에 연결된 분야당 1개인 예시 4개입니다. 목표인 80문제 확충, 임의 파일의 `contentId` 존재·분야 일치 검증, UI 연결은 포함하지 않습니다.
+
+세 Repository 모두 파일 누락·읽기 실패·잘못된 UTF-8을 파일 경로가 포함된 `IOException`으로 전달하고, 원인 예외는 `getCause()`로 확인할 수 있습니다.
+`CategoryRepository`와 `ContentRepository`는 잘못된 레코드를 파일 경로·시작 줄 번호와 함께 거부하며, 오류가 발생하면 Repository 생성 전체가 실패합니다. 오류 파일을 덮어쓰거나 빈 데이터로 대체하지 않습니다.
 
 > [!IMPORTANT]
 > 사용자별 저장 파일(`data/save/*.txt`)은 개인 실행 데이터이므로 Git에 커밋하지 않습니다. `data/content/*.txt`는 팀이 함께 검토하고 Git으로 관리합니다. 저장 경로는 애플리케이션의 실행 작업 디렉터리에 영향을 받으므로, 개발 환경에서 프로젝트 루트를 기준으로 통일합니다.

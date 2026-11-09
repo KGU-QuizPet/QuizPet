@@ -13,7 +13,8 @@ public class RepositoryFileErrorTest {
     Path invalid = directory.resolve("invalid.txt");
     try {
       Files.write(invalid, new byte[] {(byte) 0xC3, (byte) 0x28});
-      for (Loader loader : List.<Loader>of(CategoryRepository::new, ContentRepository::new)) {
+      for (Loader loader : List.<Loader>of(
+          CategoryRepository::new, ContentRepository::new, QuestionRepository::new)) {
         expectReadFailure(loader, directory.resolve("missing.txt"), NoSuchFileException.class);
         expectReadFailure(loader, invalid, MalformedInputException.class);
         expectReadFailure(loader, directory, IOException.class);

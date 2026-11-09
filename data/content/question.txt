@@ -1,0 +1,12 @@
+Q_SCIENCE_001|SCIENCE|SCIENCE_001|OX|O|
+얼음은 고체 상태의 물이다.
+물은 고체인 얼음, 액체인 물, 기체인 수증기로 존재할 수 있습니다.
+Q_SPORTS_001|SPORTS|SPORTS_001|MULTIPLE_CHOICE|2|10명,11명,12명,13명
+축구에서 경기를 시작하는 한 팀의 선수는 골키퍼를 포함해 몇 명인가요?
+축구는 한 팀당 골키퍼를 포함한 11명의 선수가 경기를 시작합니다.
+Q_HISTORY_001|HISTORY|HISTORY_001|OX|X|
+훈민정음은 1592년에 반포되었다.
+세종은 1446년에 훈민정음을 반포했습니다.
+Q_LANGUAGE_001|LANGUAGE|LANGUAGE_001|MULTIPLE_CHOICE|1|Hello,Goodbye,Sorry,Thanks
+사람을 만났을 때 사용하는 영어 인사 표현은 무엇인가요?
+Hello는 사람을 만났을 때 사용하는 영어 인사 표현입니다.
