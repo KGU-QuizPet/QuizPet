@@ -31,8 +31,16 @@ public class QuizSessionTest {
     assert session.getAnsweredCount() == 0;
     assert !session.isCurrentQuestionAnswered();
     for (int i = 0; i < 5; i++) {
+      assert !session.isFinished();
+      assert session.getCurrentIndex() == i;
+      assert session.getCurrentQuestion() == session.getQuestions().get(i);
+      assert session.getAnsweredCount() == i;
+      assert !session.isCurrentQuestionAnswered();
+      expect(IllegalStateException.class, session::nextQuestion);
       assert session.getCurrentIndex() == i;
       assert session.submitAnswer(i % 2 == 0 ? "O" : "X") == (i % 2 == 0);
+      assert session.getCurrentIndex() == i;
+      assert session.getAnsweredCount() == i + 1;
       assert session.isCurrentQuestionAnswered();
       expect(IllegalStateException.class, () -> session.submitAnswer("O"));
       if (i < 4) {
@@ -43,19 +51,35 @@ public class QuizSessionTest {
     assert session.isFinished();
     assert session.getCorrectCount() == 3;
     assert session.getAnsweredCount() == 5;
+    var completedAnswers = session.getAnswers();
+    expect(IllegalStateException.class, () -> session.submitAnswer("X"));
     expect(IllegalStateException.class, session::nextQuestion);
+    session.end();
+    session.end();
+    assert session.isFinished();
+    assert session.getCurrentIndex() == 4;
+    assert session.getAnswers().equals(completedAnswers);
+    assert session.getCorrectCount() == 3;
     expect(UnsupportedOperationException.class, () -> session.getAnswers().clear());
 
     QuizSession small = create(List.of(question("A", Category.SCIENCE),
         question("B", Category.SCIENCE), question("C", Category.SCIENCE)));
     assert small.getTotalCount() == 3;
     small.submitAnswer("X");
+    var partialAnswers = small.getAnswers();
+    small.nextQuestion();
+    assert !small.isCurrentQuestionAnswered();
     small.end();
     assert small.isFinished();
     assert small.getAnsweredCount() == 1;
     assert small.getCorrectCount() == 0;
     expect(IllegalStateException.class, () -> small.submitAnswer("O"));
     expect(IllegalStateException.class, small::nextQuestion);
+    small.end();
+    assert small.isFinished();
+    assert small.getCurrentIndex() == 1;
+    assert small.getAnswers().equals(partialAnswers);
+    assert small.getCorrectCount() == 0;
 
     QuizSession single = create(List.of(question("A", Category.SCIENCE), question("A", Category.SCIENCE)));
     assert single.getTotalCount() == 1;
@@ -90,6 +114,11 @@ public class QuizSessionTest {
     stopped.end();
     assert stopped.getAnswers().isEmpty();
     assert stopped.isFinished();
+    expect(IllegalStateException.class, () -> stopped.submitAnswer("O"));
+    expect(IllegalStateException.class, stopped::nextQuestion);
+    assert stopped.getCurrentIndex() == 0;
+    assert stopped.getAnsweredCount() == 0;
+    assert stopped.getCorrectCount() == 0;
     expect(IllegalArgumentException.class, () -> create(List.of()));
     expect(IllegalArgumentException.class, () -> create(List.of(question("A", Category.SPORTS))));
     expect(IllegalArgumentException.class, () -> create(null));
