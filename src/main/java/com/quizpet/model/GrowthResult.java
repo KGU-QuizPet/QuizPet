@@ -1,4 +1,4 @@
-package com.quizpet.model;
+package main.java.com.quizpet.model;
 
 /** 보상 1회 적용 결과 (UI-06 해설 화면, UI-07 결과 화면 표시용) */
 public class GrowthResult {

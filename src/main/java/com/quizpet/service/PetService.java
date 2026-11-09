@@ -1,14 +1,14 @@
-package com.quizpet.service;
+package main.java.com.quizpet.service;
 
 import java.util.Optional;
 
-import com.quizpet.exception.ValidationException;
-import com.quizpet.model.GrowthResult;
-import com.quizpet.model.Pet;
-import com.quizpet.model.PetAppearance;
-import com.quizpet.model.StatType;
-import com.quizpet.repository.PetRepository;
-import com.quizpet.repository.UserRepository;
+import main.java.com.quizpet.exception.ValidationException;
+import main.java.com.quizpet.model.GrowthResult;
+import main.java.com.quizpet.model.Pet;
+import main.java.com.quizpet.model.PetAppearance;
+import main.java.com.quizpet.model.StatType;
+import main.java.com.quizpet.repository.PetRepository;
+import main.java.com.quizpet.repository.UserRepository;
 
 /** 캐릭터 생성(FR-003)·조회, 경험치·능력치 반영(FR-004, FR-005) */
 public class PetService {

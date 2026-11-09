@@ -1,4 +1,4 @@
-package com.quizpet.model;
+package main.java.com.quizpet.model;
 
 /**
  * 캐릭터: 이름, 외형, 누적 경험치, 능력치.

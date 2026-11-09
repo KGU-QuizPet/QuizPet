@@ -1,4 +1,4 @@
-package com.quizpet.repository;
+package main.java.com.quizpet.repository;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -9,7 +9,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.quizpet.exception.DataFileException;
+import main.java.com.quizpet.exception.DataFileException;
 
 /**
  * '|'로 구분된 텍스트 파일 한 개를 읽고 쓰는 공통 도구 (DB 대신 파일 입출력).

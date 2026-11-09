@@ -1,6 +1,6 @@
-package com.quizpet.service;
+package main.java.com.quizpet.service;
 
-import com.quizpet.exception.ValidationException;
+import main.java.com.quizpet.exception.ValidationException;
 
 /** 닉네임·캐릭터 이름 공통 규칙: 앞뒤 공백 제거 후 1~12자, '|'·'_'·줄바꿈 금지 */
 class NameValidator {

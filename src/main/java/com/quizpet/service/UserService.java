@@ -1,12 +1,12 @@
-package com.quizpet.service;
+package main.java.com.quizpet.service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import com.quizpet.exception.ValidationException;
-import com.quizpet.model.User;
-import com.quizpet.repository.UserRepository;
+import main.java.com.quizpet.exception.ValidationException;
+import main.java.com.quizpet.model.User;
+import main.java.com.quizpet.repository.UserRepository;
 
 /** 사용자 프로필 생성(FR-001)·선택(FR-002) */
 public class UserService {

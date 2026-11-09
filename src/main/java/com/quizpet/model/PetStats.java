@@ -1,4 +1,4 @@
-package com.quizpet.model;
+package main.java.com.quizpet.model;
 
 /**
  * 체력·지성·집중력·지혜 능력치.

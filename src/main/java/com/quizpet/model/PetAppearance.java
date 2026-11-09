@@ -1,4 +1,4 @@
-package com.quizpet.model;
+package main.java.com.quizpet.model;
 
 /**
  * 캐릭터 생성 시 고를 수 있는 외형 (UI-02 외형 선택 3종).

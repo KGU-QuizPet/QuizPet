@@ -1,4 +1,4 @@
-package com.quizpet.model;
+package main.java.com.quizpet.model;
 
 /**
  * 시작 화면(UI-01) 기존 사용자 목록의 한 줄: 사용자 + 캐릭터(없으면 null).

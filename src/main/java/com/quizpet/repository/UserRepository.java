@@ -1,4 +1,4 @@
-package com.quizpet.repository;
+package main.java.com.quizpet.repository;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import com.quizpet.exception.DataFileException;
-import com.quizpet.model.User;
+import main.java.com.quizpet.exception.DataFileException;
+import main.java.com.quizpet.model.User;
 
 /**
  * data/save/user.txt 저장소. 한 줄 = 사용자 1명

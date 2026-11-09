@@ -1,12 +1,12 @@
-package com.quizpet.service;
+package main.java.com.quizpet.service;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.quizpet.model.Profile;
-import com.quizpet.model.User;
-import com.quizpet.repository.PetRepository;
-import com.quizpet.repository.UserRepository;
+import main.java.com.quizpet.model.Profile;
+import main.java.com.quizpet.model.User;
+import main.java.com.quizpet.repository.PetRepository;
+import main.java.com.quizpet.repository.UserRepository;
 
 /** 시작 화면(UI-01)의 "기존 사용자 선택" 목록 */
 public class ProfileService {
