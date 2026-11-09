@@ -1,71 +1,89 @@
 package main.java.com.quizpet.model;
 
 /**
- * 체력·지성·집중력·지혜 능력치.
- * 값 변경은 같은 패키지의 Pet을 통해서만 가능하다(캡슐화).
+ * 체력(STR)·지성(INT)·집중력(FOC)·지혜(WIS) 능력치입니다.
+ * statType은 Category.getStatType()과 같은 문자열을 사용하며, 값 변경은 Pet을 통해서만 가능합니다.
  */
-public class PetStats {
-    public static final int INITIAL_VALUE = 10;
+public final class PetStats {
+  public static final int INITIAL_VALUE = 10;
 
-    private int strength;
-    private int intelligence;
-    private int focus;
-    private int wisdom;
+  private int strength;
+  private int intelligence;
+  private int focus;
+  private int wisdom;
 
-    /** 신규 캐릭터용: 4종 모두 초기값 10 */
-    public PetStats() {
-        this(INITIAL_VALUE, INITIAL_VALUE, INITIAL_VALUE, INITIAL_VALUE);
+  public PetStats() {
+    this(INITIAL_VALUE, INITIAL_VALUE, INITIAL_VALUE, INITIAL_VALUE);
+  }
+
+  public PetStats(int strength, int intelligence, int focus, int wisdom) {
+    if (strength < 0 || intelligence < 0 || focus < 0 || wisdom < 0) {
+      throw new IllegalArgumentException("능력치는 음수가 될 수 없습니다.");
     }
+    this.strength = strength;
+    this.intelligence = intelligence;
+    this.focus = focus;
+    this.wisdom = wisdom;
+  }
 
-    /** 파일에서 불러올 때 사용 */
-    public PetStats(int strength, int intelligence, int focus, int wisdom) {
-        if (strength < 0 || intelligence < 0 || focus < 0 || wisdom < 0)
-            throw new IllegalArgumentException("능력치는 음수가 될 수 없습니다.");
-        this.strength = strength;
-        this.intelligence = intelligence;
-        this.focus = focus;
-        this.wisdom = wisdom;
-    }
-
-    public int get(StatType type) {
-        switch (type) {
-            case STR: return strength;
-            case INT: return intelligence;
-            case FOC: return focus;
-            case WIS: return wisdom;
-            default: throw new IllegalArgumentException("없는 능력치: " + type);
-        }
-    }
-
-    void increase(StatType type, int amount) {
-        if (amount < 0)
-            throw new IllegalArgumentException("능력치 증가량은 음수가 될 수 없습니다.");
-        switch (type) {
-            case STR: strength += amount; break;
-            case INT: intelligence += amount; break;
-            case FOC: focus += amount; break;
-            case WIS: wisdom += amount; break;
-        }
-    }
-
-    public int getStrength() {
+  public int get(String statType) {
+    switch (requireStatType(statType)) {
+      case "STR":
         return strength;
-    }
-
-    public int getIntelligence() {
+      case "INT":
         return intelligence;
-    }
-
-    public int getFocus() {
+      case "FOC":
         return focus;
-    }
-
-    public int getWisdom() {
+      default:
         return wisdom;
     }
+  }
 
-    @Override
-    public String toString() {
-        return "STR %d / INT %d / FOC %d / WIS %d".formatted(strength, intelligence, focus, wisdom);
+  void increase(String statType, int amount) {
+    if (amount < 0) {
+      throw new IllegalArgumentException("능력치 증가량은 음수가 될 수 없습니다.");
     }
+    switch (requireStatType(statType)) {
+      case "STR":
+        strength += amount;
+        break;
+      case "INT":
+        intelligence += amount;
+        break;
+      case "FOC":
+        focus += amount;
+        break;
+      default:
+        wisdom += amount;
+    }
+  }
+
+  private static String requireStatType(String statType) {
+    if (!"STR".equals(statType) && !"INT".equals(statType)
+        && !"FOC".equals(statType) && !"WIS".equals(statType)) {
+      throw new IllegalArgumentException("statType은 STR, INT, FOC, WIS 중 하나여야 합니다.");
+    }
+    return statType;
+  }
+
+  public int getStrength() {
+    return strength;
+  }
+
+  public int getIntelligence() {
+    return intelligence;
+  }
+
+  public int getFocus() {
+    return focus;
+  }
+
+  public int getWisdom() {
+    return wisdom;
+  }
+
+  @Override
+  public String toString() {
+    return "STR " + strength + " / INT " + intelligence + " / FOC " + focus + " / WIS " + wisdom;
+  }
 }
