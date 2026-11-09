@@ -30,8 +30,14 @@ public class LearningServiceTest {
       assert service.getContent("SCIENCE", 1).getContentId().equals("S2");
       assert service.getContent("SCIENCE", 0).getOrder() == 2;
       assert service.getContent("SCIENCE", 0).getDifficulty() == 3;
+      assert service.getContent("SCIENCE", 0).getTitle().equals("물의 상태");
+      assert service.getContent("SCIENCE", 0).getDescription().equals("물은 세 가지 상태로 존재합니다.");
+      assert service.getContent("SCIENCE", 0).getTags().isEmpty();
       assert service.getContent("SCIENCE", 1).getOrder() == 5;
       assert service.getContent("SCIENCE", 1).getDifficulty() == 1;
+      assert service.getContent("SCIENCE", 1).getTitle().equals("중력");
+      assert service.getContent("SCIENCE", 1).getDescription().equals("물체는 서로 끌어당깁니다.");
+      assert service.getContent("SCIENCE", 1).getTags().equals(List.of("물리"));
       assert service.getContent("HISTORY", 0).getCategory() == Category.HISTORY;
       for (String invalid : new String[] {null, "", " ", "UNKNOWN", "science", " SCIENCE "}) {
         expectInvalid(() -> service.getContents(invalid));
@@ -54,8 +60,25 @@ public class LearningServiceTest {
       Files.deleteIfExists(file);
     }
     LearningService defaults = new LearningService();
-    assert defaults.getCategories().size() == 4;
-    assert !defaults.getContents("SCIENCE").isEmpty();
+    assert defaults.getCategories().equals(List.of(Category.values()));
+    for (Category category : defaults.getCategories()) {
+      String categoryId = category.getCategoryId();
+      List<LearningContent> cards = defaults.getContents(categoryId);
+      assert cards.size() == 10;
+      expectReadOnly(cards);
+      for (int i = 0; i < cards.size(); i++) {
+        LearningContent card = defaults.getContent(categoryId, i);
+        assert card == cards.get(i);
+        assert card.getCategory() == category;
+        assert card.getOrder() == i;
+        assert !card.getTitle().isBlank();
+        assert !card.getDescription().isBlank();
+        assert card.getDifficulty() > 0;
+        assert !card.getTags().isEmpty();
+      }
+      expectInvalid(() -> defaults.getContent(categoryId, -1));
+      expectInvalid(() -> defaults.getContent(categoryId, cards.size()));
+    }
     System.out.println("LearningService checks passed");
   }
 
