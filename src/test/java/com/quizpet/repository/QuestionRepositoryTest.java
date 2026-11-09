@@ -70,10 +70,31 @@ public class QuestionRepositoryTest {
     }
     QuestionRepository defaults = new QuestionRepository();
     ContentRepository contents = new ContentRepository();
-    assert defaults.findAll().size() == 4;
+    assert defaults.findAll().size() == 80;
+    for (Category category : Category.values()) {
+      List<Question> questions = defaults.findByCategory(category);
+      assert questions.size() == 20;
+      assert questions.stream().filter(question -> question instanceof OXQuestion).count() == 10;
+      assert questions.stream().filter(question -> question instanceof MultipleChoiceQuestion).count() == 10;
+    }
+    for (var content : contents.findAll()) {
+      List<Question> linked = defaults.findByContentId(content.getContentId());
+      assert linked.size() == 2;
+      assert linked.stream().filter(question -> question instanceof OXQuestion).count() == 1;
+      assert linked.stream().filter(question -> question instanceof MultipleChoiceQuestion).count() == 1;
+    }
     for (Question question : defaults.findAll()) {
       assert contents.findById(question.getContentId()).orElseThrow().getCategory()
           == question.getCategory();
+      assert defaults.findById(question.getQuestionId()).orElseThrow() == question;
+      List<String> answers = List.of("O", "X");
+      if (question instanceof MultipleChoiceQuestion multiple) {
+        assert multiple.getOptions().stream().distinct().count() == 4;
+        answers = List.of("1", "2", "3", "4");
+      }
+      for (String answer : answers) {
+        assert question.checkAnswer(answer) == question.getAnswer().equals(answer);
+      }
     }
     System.out.println("QuestionRepository checks passed");
   }
