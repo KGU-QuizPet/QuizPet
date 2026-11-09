@@ -288,6 +288,11 @@ QuizPet/
 `findAll()`은 파일 순서의 목록, `findById(String)`는 `Optional<LearningContent>`, `findByCategory(Category)`는 `order` 오름차순 목록을 반환합니다.
 조회 목록은 모두 읽기 전용이며, 포함된 기준 카드는 분야당 1개인 예시 4개입니다. 목표인 40개 콘텐츠는 별도 확충이 필요합니다.
 
+`LearningService`는 기본 생성자로 위 두 Repository를 로딩하거나, 생성자에 기존 Repository를 전달해 사용합니다.
+`getCategories()`로 전체 분야를, `getContents(categoryId)`로 해당 분야의 정렬된 카드를 조회합니다. 콘텐츠가 없는 분야는 빈 목록이므로 UI에서 비활성화하거나 빈 상태를 표시할 수 있습니다.
+`getContent(categoryId, contentIndex)`는 0부터 시작하는 목록 인덱스로 카드 1개를 조회합니다. 카드의 `order` 값과 목록 인덱스는 별개입니다.
+정의되지 않은 분야 ID와 범위 밖 인덱스는 `IllegalArgumentException`으로 거부합니다. 진행 상태는 `contentIndex + 1`과 목록 크기로 표시하며, UI 연결과 연계 문제 확인은 아직 구현하지 않았습니다.
+
 > [!IMPORTANT]
 > 사용자별 저장 파일(`data/save/*.txt`)은 개인 실행 데이터이므로 Git에 커밋하지 않습니다. `data/content/*.txt`는 팀이 함께 검토하고 Git으로 관리합니다. 저장 경로는 애플리케이션의 실행 작업 디렉터리에 영향을 받으므로, 개발 환경에서 프로젝트 루트를 기준으로 통일합니다.
 
