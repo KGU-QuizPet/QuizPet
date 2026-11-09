@@ -293,6 +293,9 @@ QuizPet/
 `getContent(categoryId, contentIndex)`는 0부터 시작하는 목록 인덱스로 카드 1개를 조회합니다. 카드의 `order` 값과 목록 인덱스는 별개입니다.
 정의되지 않은 분야 ID와 범위 밖 인덱스는 `IllegalArgumentException`으로 거부합니다. 진행 상태는 `contentIndex + 1`과 목록 크기로 표시하며, UI 연결과 연계 문제 확인은 아직 구현하지 않았습니다.
 
+두 Repository 모두 파일 누락·읽기 실패·잘못된 UTF-8을 파일 경로가 포함된 `IOException`으로 전달하고, 원인 예외는 `getCause()`로 확인할 수 있습니다.
+잘못된 레코드는 파일 경로·시작 줄 번호와 함께 거부하며, 오류가 발생하면 Repository 생성 전체가 실패합니다. 오류 파일을 덮어쓰거나 빈 데이터로 대체하지 않습니다.
+
 > [!IMPORTANT]
 > 사용자별 저장 파일(`data/save/*.txt`)은 개인 실행 데이터이므로 Git에 커밋하지 않습니다. `data/content/*.txt`는 팀이 함께 검토하고 Git으로 관리합니다. 저장 경로는 애플리케이션의 실행 작업 디렉터리에 영향을 받으므로, 개발 환경에서 프로젝트 루트를 기준으로 통일합니다.
 

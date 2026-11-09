@@ -18,7 +18,12 @@ public class CategoryRepository {
 
   public CategoryRepository(Path path) throws IOException {
     List<Category> loaded = new ArrayList<>();
-    List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+    List<String> lines;
+    try {
+      lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new IOException(path + ": 파일을 읽을 수 없습니다.", e);
+    }
     for (int i = 0; i < lines.size(); i++) {
       String line = lines.get(i);
       if (line.isBlank()) {
