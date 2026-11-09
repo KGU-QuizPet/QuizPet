@@ -61,6 +61,31 @@ public class QuizSessionTest {
     assert single.getTotalCount() == 1;
     single.submitAnswer("O");
     assert single.isFinished();
+    Question first = question("A", Category.SCIENCE);
+    QuizSession duplicates = create(List.of(
+        question("A", Category.SPORTS), first, first,
+        question("A", Category.SCIENCE),
+        new MultipleChoiceQuestion("A", Category.SCIENCE, "C2", "별개의 문제", "2", "해설",
+            List.of("하나", "둘", "셋", "넷")),
+        question("B", Category.SCIENCE), question("B", Category.SCIENCE),
+        question("C", Category.SCIENCE), question("C", Category.SCIENCE)));
+    assert duplicates.getTotalCount() == 3;
+    assert duplicates.getQuestions().stream().map(Question::getQuestionId)
+        .collect(java.util.stream.Collectors.toSet()).equals(java.util.Set.of("A", "B", "C"));
+    assert duplicates.getQuestions().stream()
+        .filter(question -> question.getQuestionId().equals("A")).findFirst().orElseThrow() == first;
+    HashSet<String> presented = new HashSet<>();
+    for (int i = 0; i < duplicates.getTotalCount(); i++) {
+      assert presented.add(duplicates.getCurrentQuestion().getQuestionId());
+      assert duplicates.submitAnswer("O");
+      if (i < duplicates.getTotalCount() - 1) {
+        duplicates.nextQuestion();
+      }
+    }
+    assert duplicates.isFinished();
+    assert duplicates.getAnsweredCount() == 3;
+    assert duplicates.getCorrectCount() == 3;
+    assert duplicates.getAnswers().keySet().equals(presented);
     QuizSession stopped = create(List.of(question("A", Category.SCIENCE)));
     stopped.end();
     assert stopped.getAnswers().isEmpty();
