@@ -274,6 +274,12 @@ QuizPet/
 
 `Pet`과 `PetStats`는 Java에서는 클래스를 분리하더라도 **`pet.txt` 한 줄에 함께 저장**합니다. TXT 필드 순서 및 줄 구성은 데이터 구성 문서의 규격을 따릅니다.
 
+`category.txt`는 UTF-8로 한 줄에 `categoryId|name|statType|description`을 저장합니다.
+4개 분야를 각각 한 번씩 포함하고, 각 필드는 `Category` enum 정의와 일치해야 합니다. 빈 줄은 무시합니다.
+`CategoryRepository`는 생성 시 파일을 읽으며, 파일 오류·중복·누락·정의 불일치는 `IOException`으로 전달합니다.
+기본 경로는 프로젝트 루트 기준 `data/content/category.txt`이고, `Path` 생성자로 다른 파일을 지정할 수 있습니다.
+`findAll()`은 파일 순서의 읽기 전용 목록, `findById(String)`는 `Optional<Category>`를 반환합니다. 찾을 수 없는 ID는 빈 결과입니다.
+
 > [!IMPORTANT]
 > 사용자별 저장 파일(`data/save/*.txt`)은 개인 실행 데이터이므로 Git에 커밋하지 않습니다. `data/content/*.txt`는 팀이 함께 검토하고 Git으로 관리합니다. 저장 경로는 애플리케이션의 실행 작업 디렉터리에 영향을 받으므로, 개발 환경에서 프로젝트 루트를 기준으로 통일합니다.
 
