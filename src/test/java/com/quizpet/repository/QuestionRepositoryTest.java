@@ -90,12 +90,19 @@ public class QuestionRepositoryTest {
       List<String> answers = List.of("O", "X");
       if (question instanceof MultipleChoiceQuestion multiple) {
         assert multiple.getOptions().stream().distinct().count() == 4;
+        String correctOption = multiple.getOptions().get(Integer.parseInt(question.getAnswer()) - 1);
+        assert question.getExplanation().startsWith(
+            "정답은 " + question.getAnswer() + "번(" + correctOption + ")입니다. ");
         answers = List.of("1", "2", "3", "4");
+      } else {
+        assert question.getExplanation().startsWith("정답은 " + question.getAnswer() + "입니다. ");
       }
       for (String answer : answers) {
         assert question.checkAnswer(answer) == question.getAnswer().equals(answer);
       }
     }
+    assert defaults.findById("Q_HISTORY_001").orElseThrow().getExplanation().contains("1446년");
+    assert defaults.findById("Q_LANGUAGE_018").orElseThrow().getExplanation().contains("am");
     System.out.println("QuestionRepository checks passed");
   }
 
