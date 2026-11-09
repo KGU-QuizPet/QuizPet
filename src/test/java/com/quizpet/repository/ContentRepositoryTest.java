@@ -66,7 +66,23 @@ public class ContentRepositoryTest {
       throw new AssertionError("존재하지 않는 파일이 허용되었습니다.");
     } catch (IOException expected) {
     }
-    assert new ContentRepository().findAll().size() == 4;
+    ContentRepository defaults = new ContentRepository();
+    assert defaults.findAll().size() == 40;
+    for (Category category : Category.values()) {
+      List<LearningContent> cards = defaults.findByCategory(category);
+      assert cards.size() == 10;
+      for (int i = 0; i < cards.size(); i++) {
+        LearningContent card = cards.get(i);
+        assert card.getOrder() == i;
+        assert card.getContentId().equals(category.getCategoryId() + "_" + String.format("%03d", i + 1));
+        assert !card.getTags().isEmpty();
+        assert defaults.findById(card.getContentId()).orElseThrow() == card;
+      }
+    }
+    for (var question : new QuestionRepository().findAll()) {
+      assert defaults.findById(question.getContentId()).orElseThrow().getCategory()
+          == question.getCategory();
+    }
     System.out.println("ContentRepository checks passed");
   }
 
