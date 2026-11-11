@@ -3,6 +3,7 @@ package main.java.com.quizpet.ui;
 import javax.swing.JFrame;
 import main.java.com.quizpet.ui.screen.HomePanel;
 import main.java.com.quizpet.ui.screen.PetCreatePanel;
+import main.java.com.quizpet.ui.screen.StartPanel;
 
 public class MainFrame extends JFrame {
   public static final int FRAME_WIDTH = 480;
@@ -19,12 +20,13 @@ public class MainFrame extends JFrame {
 
     HomePanel homePanel = new HomePanel(screens);
     PetCreatePanel petCreatePanel = new PetCreatePanel(screens, homePanel);
-    screens.addScreen(ScreenManager.HOME, homePanel);
-    screens.addScreen(ScreenManager.PET_CREATE, petCreatePanel);
+    StartPanel startPanel = new StartPanel(screens, petCreatePanel, homePanel);
 
-    petCreatePanel.prepare("테스트");
-    screens.show(ScreenManager.PET_CREATE);
+    screens.addScreen(ScreenManager.START, startPanel);
+    screens.addScreen(ScreenManager.PET_CREATE, petCreatePanel);
+    screens.addScreen(ScreenManager.HOME, homePanel);
 
     add(screens.getContainer());
+    screens.show(ScreenManager.START);
   }
 }
