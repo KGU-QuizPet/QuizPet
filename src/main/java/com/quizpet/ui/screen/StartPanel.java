@@ -100,11 +100,24 @@ public class StartPanel extends JPanel {
       JOptionPane.showMessageDialog(this, "닉네임은 1~12자로 입력해 주세요.");
       return;
     }
+    if (isDuplicateNickname(nickname)) {
+      JOptionPane.showMessageDialog(this, "이미 있는 닉네임입니다. 다른 닉네임을 입력해 주세요.");
+      return;
+    }
     userListModel.addElement(new DummyUser(nickname, null, null, 0, 0, 0, 0, 0, 0));
     nicknameField.setText("");
 
     petCreatePanel.prepare(nickname);
     screens.show(ScreenManager.PET_CREATE);
+  }
+
+  private boolean isDuplicateNickname(String nickname) {
+    for (int i = 0; i < userListModel.size(); i++) {
+      if (userListModel.get(i).nickname.equals(nickname)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static class DummyUser {
@@ -144,3 +157,4 @@ public class StartPanel extends JPanel {
     }
   }
 }
+
