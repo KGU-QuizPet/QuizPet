@@ -67,15 +67,17 @@ public class UserRepository {
     if (user == null) {
       throw new IllegalArgumentException("user는 필수입니다.");
     }
-    List<String> lines = new ArrayList<>();
-    for (User saved : findAll()) {
-      if (saved.getUserId().equals(user.getUserId())) {
-        throw new IllegalArgumentException("이미 저장된 사용자 ID입니다: " + user.getUserId());
+    synchronized (SaveFile.LOCK) {
+      List<String> lines = new ArrayList<>();
+      for (User saved : findAll()) {
+        if (saved.getUserId().equals(user.getUserId())) {
+          throw new IllegalArgumentException("이미 저장된 사용자 ID입니다: " + user.getUserId());
+        }
+        lines.add(format(saved));
       }
-      lines.add(format(saved));
+      lines.add(format(user));
+      SaveFile.writeLines(path, lines);
     }
-    lines.add(format(user));
-    SaveFile.writeLines(path, lines);
   }
 
   /** U0001, U0002 순서로 다음 사용자 ID를 만듭니다. */

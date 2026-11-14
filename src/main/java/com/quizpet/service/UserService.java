@@ -10,6 +10,9 @@ import main.java.com.quizpet.repository.UserRepository;
 
 /** 사용자 프로필 생성(FR-001)·선택(FR-002) */
 public class UserService {
+  // 화면마다 UserService를 새로 만들어도 닉네임 중복 확인-저장이 겹치지 않도록 static 잠금을 씁니다.
+  private static final Object LOCK = new Object();
+
   private final UserRepository userRepository;
 
   public UserService() {
@@ -22,17 +25,19 @@ public class UserService {
 
   /**
    * 닉네임의 앞뒤 공백을 제거한 뒤 1~12자·중복 여부를 검사하고 저장합니다.
-   * synchronized: 버튼을 연달아 눌러도 같은 닉네임 프로필이 두 개 생기지 않습니다.
+   * 버튼을 연달아 누르거나 서비스 객체가 여러 개여도 같은 닉네임 프로필이 두 개 생기지 않습니다.
    */
-  public synchronized User createUser(String nickname) throws IOException {
+  public User createUser(String nickname) throws IOException {
     String trimmed = nickname == null ? null : nickname.strip();
-    if (trimmed != null && userRepository.existsByNickname(trimmed)) {
-      throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+    synchronized (LOCK) {
+      if (trimmed != null && userRepository.existsByNickname(trimmed)) {
+        throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+      }
+      User user = new User(userRepository.nextId(), trimmed,
+          LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+      userRepository.save(user);
+      return user;
     }
-    User user = new User(userRepository.nextId(), trimmed,
-        LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
-    userRepository.save(user);
-    return user;
   }
 
   public List<User> getUsers() throws IOException {

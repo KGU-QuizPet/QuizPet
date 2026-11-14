@@ -15,6 +15,9 @@ public class PetService {
   public static final int CORRECT_ANSWER_XP = 10;
   public static final int CORRECT_ANSWER_STAT = 1;
 
+  // 화면마다 PetService를 새로 만들어도 확인-생성·조회-적용-저장이 겹치지 않도록 static 잠금을 씁니다.
+  private static final Object LOCK = new Object();
+
   private final PetRepository petRepository;
   private final UserRepository userRepository;
 
@@ -32,18 +35,19 @@ public class PetService {
    * 없는 사용자·잘못된 이름·정의되지 않은 spriteKey는 IllegalArgumentException,
    * 이미 캐릭터가 있는 사용자는 IllegalStateException으로 거부합니다.
    */
-  public synchronized Pet createPet(String userId, String petName, String spriteKey)
-      throws IOException {
-    if (userId == null || userRepository.findById(userId).isEmpty()) {
-      throw new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId);
+  public Pet createPet(String userId, String petName, String spriteKey) throws IOException {
+    synchronized (LOCK) {
+      if (userId == null || userRepository.findById(userId).isEmpty()) {
+        throw new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId);
+      }
+      if (petRepository.findByUserId(userId).isPresent()) {
+        throw new IllegalStateException("이미 캐릭터가 있습니다. 사용자당 캐릭터는 1개만 만들 수 있습니다.");
+      }
+      Pet pet = new Pet(petRepository.nextId(), userId,
+          petName == null ? null : petName.strip(), toAppearance(spriteKey));
+      petRepository.save(pet);
+      return pet;
     }
-    if (petRepository.findByUserId(userId).isPresent()) {
-      throw new IllegalStateException("이미 캐릭터가 있습니다. 사용자당 캐릭터는 1개만 만들 수 있습니다.");
-    }
-    Pet pet = new Pet(petRepository.nextId(), userId,
-        petName == null ? null : petName.strip(), toAppearance(spriteKey));
-    petRepository.save(pet);
-    return pet;
   }
 
   /** 프로필 선택 후 분기용입니다. 있으면 메인(UI-03), 비어 있으면 캐릭터 생성(UI-02)으로 이동합니다. */
@@ -61,17 +65,19 @@ public class PetService {
    * 최초 정답인지는 호출하는 쪽(성장·기록)에서 판단하고, 최초 정답일 때만 호출합니다.
    * 저장에 실패하면 IOException이 발생하고 파일은 이전 상태로 남습니다.
    */
-  public synchronized GrowthResult applyCorrectAnswerReward(String petId, String categoryId)
+  public GrowthResult applyCorrectAnswerReward(String petId, String categoryId)
       throws IOException {
     if (categoryId == null) {
       throw new IllegalArgumentException("categoryId는 필수입니다.");
     }
     Category category = Category.valueOf(categoryId);
-    Pet pet = getPet(petId);
-    GrowthResult result = pet.applyReward(CORRECT_ANSWER_XP, category.getStatType(),
-        CORRECT_ANSWER_STAT);
-    petRepository.save(pet);
-    return result;
+    synchronized (LOCK) {
+      Pet pet = getPet(petId);
+      GrowthResult result = pet.applyReward(CORRECT_ANSWER_XP, category.getStatType(),
+          CORRECT_ANSWER_STAT);
+      petRepository.save(pet);
+      return result;
+    }
   }
 
   private static PetAppearance toAppearance(String spriteKey) {

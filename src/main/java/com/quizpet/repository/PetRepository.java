@@ -80,23 +80,25 @@ public class PetRepository {
     if (pet == null) {
       throw new IllegalArgumentException("pet은 필수입니다.");
     }
-    List<String> lines = new ArrayList<>();
-    boolean replaced = false;
-    for (Pet saved : findAll()) {
-      if (saved.getPetId().equals(pet.getPetId())) {
-        lines.add(format(pet));
-        replaced = true;
-      } else {
-        if (saved.getUserId().equals(pet.getUserId())) {
-          throw new IllegalArgumentException("이미 캐릭터가 있는 사용자입니다: " + pet.getUserId());
+    synchronized (SaveFile.LOCK) {
+      List<String> lines = new ArrayList<>();
+      boolean replaced = false;
+      for (Pet saved : findAll()) {
+        if (saved.getPetId().equals(pet.getPetId())) {
+          lines.add(format(pet));
+          replaced = true;
+        } else {
+          if (saved.getUserId().equals(pet.getUserId())) {
+            throw new IllegalArgumentException("이미 캐릭터가 있는 사용자입니다: " + pet.getUserId());
+          }
+          lines.add(format(saved));
         }
-        lines.add(format(saved));
       }
+      if (!replaced) {
+        lines.add(format(pet));
+      }
+      SaveFile.writeLines(path, lines);
     }
-    if (!replaced) {
-      lines.add(format(pet));
-    }
-    SaveFile.writeLines(path, lines);
   }
 
   /** P0001, P0002 순서로 다음 캐릭터 ID를 만듭니다. */
