@@ -55,18 +55,25 @@ public class HomePanel extends JPanel {
   }
 
   private JPanel createHeader() {
-    JPanel header = new JPanel(new BorderLayout());
+    JPanel header = new JPanel(new BorderLayout(0, 6));
     header.setBackground(UiStyle.POINT);
     header.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
 
-    JPanel textRow = new JPanel(new GridLayout(1, 3));
-    textRow.setOpaque(false);
     for (JLabel label : new JLabel[] {petNameLabel, levelLabel, expLabel}) {
       label.setFont(UiStyle.SUBTITLE_FONT);
       label.setForeground(Color.WHITE);
-      textRow.add(label);
     }
-    header.add(textRow, BorderLayout.CENTER);
+    levelLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    JPanel infoRow = new JPanel(new BorderLayout());
+    infoRow.setOpaque(false);
+    infoRow.add(levelLabel, BorderLayout.WEST);
+    infoRow.add(expLabel, BorderLayout.EAST);
+
+    JPanel textArea = new JPanel(new BorderLayout(0, 2));
+    textArea.setOpaque(false);
+    textArea.add(petNameLabel, BorderLayout.NORTH);
+    textArea.add(infoRow, BorderLayout.SOUTH);
+    header.add(textArea, BorderLayout.CENTER);
     expBar.setPreferredSize(new Dimension(0, 8));
     header.add(expBar, BorderLayout.SOUTH);
     return header;
