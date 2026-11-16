@@ -40,14 +40,7 @@ public class PetRepository {
         continue;
       }
       try {
-        String[] fields = line.split("\\|", -1);
-        if (fields.length != 9) {
-          throw new IllegalArgumentException("필드는 9개여야 합니다.");
-        }
-        PetStats stats = new PetStats(Integer.parseInt(fields[5]), Integer.parseInt(fields[6]),
-            Integer.parseInt(fields[7]), Integer.parseInt(fields[8]));
-        Pet pet = new Pet(fields[0], fields[1], fields[2], PetAppearance.valueOf(fields[3]),
-            Integer.parseInt(fields[4]), stats);
+        Pet pet = parse(line);
         if (!ids.add(pet.getPetId())) {
           throw new IllegalArgumentException("중복된 캐릭터 ID입니다.");
         }
@@ -113,7 +106,18 @@ public class PetRepository {
     return String.format("P%04d", max + 1);
   }
 
-  private static String format(Pet pet) {
+  static Pet parse(String line) {
+    String[] fields = line.split("\\|", -1);
+    if (fields.length != 9) {
+      throw new IllegalArgumentException("필드는 9개여야 합니다.");
+    }
+    PetStats stats = new PetStats(Integer.parseInt(fields[5]), Integer.parseInt(fields[6]),
+        Integer.parseInt(fields[7]), Integer.parseInt(fields[8]));
+    return new Pet(fields[0], fields[1], fields[2], PetAppearance.valueOf(fields[3]),
+        Integer.parseInt(fields[4]), stats);
+  }
+
+  static String format(Pet pet) {
     PetStats stats = pet.getStats();
     return String.join("|", pet.getPetId(), pet.getUserId(), pet.getName(), pet.getSpriteKey(),
         String.valueOf(pet.getTotalXp()),

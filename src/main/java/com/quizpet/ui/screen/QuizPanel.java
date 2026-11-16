@@ -4,49 +4,40 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
+import main.java.com.quizpet.model.MultipleChoiceQuestion;
+import main.java.com.quizpet.model.Question;
+import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.ui.component.MultipleChoicePanel;
 import main.java.com.quizpet.ui.component.OXQuestionPanel;
 
 public class QuizPanel extends JPanel {
-  private static final List<PreviewQuestion> PREVIEW_QUESTIONS = List.of(
-      new PreviewQuestion("Q. 물은 고체, 액체, 기체의 세 가지 상태로 존재할 수 있다."),
-      new PreviewQuestion("Q. 다음 중 태양계의 행성 이름을 하나 골라 보세요.",
-          "수성", "북극성", "달", "태양"),
-      new PreviewQuestion("Q. 지구의 자전으로 낮과 밤이 바뀐다."),
-      new PreviewQuestion("Q. 다음 중 지구의 움직임을 설명한 문장을 하나 골라 보세요.",
-          "지구는 스스로 회전한다.", "지구는 태양 주위를 돈다.",
-          "지구의 움직임은 낮과 밤, 계절을 이해하는 데 도움이 된다.",
-          "지구의 자전과 공전은 서로 다른 움직임이다."));
-
-  private final ScreenManager screens;
   private final JLabel questionTypeLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel progressLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel statusLabel = UiStyle.label("", UiStyle.BODY_FONT);
-  private final JLabel ruleLabel = UiStyle.label("", UiStyle.BODY_FONT.deriveFont(12f));
   private final JPanel questionContainer = new JPanel(new BorderLayout());
-  private final JButton nextButton = UiStyle.button("다음 문제");
+  private final JButton submitButton = UiStyle.button("답안 제출");
+  private final JButton endButton = UiStyle.button("종료");
+  private Consumer<String> onSubmit = answer -> { };
+  private Runnable onEnd = () -> { };
+  private QuizSession session;
   private OXQuestionPanel oxQuestionPanel;
   private MultipleChoicePanel multipleChoicePanel;
-  private int currentQuestionIndex;
-  private boolean finished;
-  private boolean answerRequired;
 
   public QuizPanel(ScreenManager screens) {
-    this.screens = Objects.requireNonNull(screens, "screens는 필수입니다.");
+    Objects.requireNonNull(screens, "screens는 필수입니다.");
     setLayout(new BorderLayout(0, 12));
     setBackground(UiStyle.BACKGROUND);
     setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
-
     JPanel header = new JPanel(new BorderLayout(0, 10));
     header.setOpaque(false);
     header.add(UiStyle.label("퀴즈", UiStyle.TITLE_FONT), BorderLayout.NORTH);
@@ -56,131 +47,93 @@ public class QuizPanel extends JPanel {
     information.add(progressLabel, BorderLayout.EAST);
     header.add(information, BorderLayout.SOUTH);
     add(header, BorderLayout.NORTH);
-
     questionContainer.setOpaque(false);
     add(questionContainer, BorderLayout.CENTER);
-
     JPanel footer = new JPanel(new BorderLayout(0, 10));
     footer.setOpaque(false);
     statusLabel.setPreferredSize(new Dimension(0, 24));
-    ruleLabel.setPreferredSize(new Dimension(0, 18));
     footer.add(statusLabel, BorderLayout.NORTH);
-    nextButton.addActionListener(e -> moveToNextQuestion());
-    JPanel navigation = new JPanel(new BorderLayout(0, 6));
-    navigation.setOpaque(false);
-    navigation.add(nextButton, BorderLayout.NORTH);
-    navigation.add(ruleLabel, BorderLayout.SOUTH);
-    footer.add(navigation, BorderLayout.CENTER);
+    submitButton.addActionListener(e -> submitAnswer());
+    footer.add(submitButton, BorderLayout.CENTER);
+    endButton.addActionListener(e -> onEnd.run());
+    footer.add(endButton, BorderLayout.SOUTH);
     add(footer, BorderLayout.SOUTH);
-    showCurrentQuestion();
+    submitButton.setEnabled(false);
+    endButton.setEnabled(false);
+  }
+
+  public void setOnSubmit(Consumer<String> action) {
+    onSubmit = Objects.requireNonNull(action);
+  }
+
+  public void setOnEnd(Runnable action) {
+    onEnd = Objects.requireNonNull(action);
   }
 
   public String getSelectedAnswer() {
-    return oxQuestionPanel != null
-        ? oxQuestionPanel.getSelectedAnswer() : multipleChoicePanel.getSelectedAnswer();
+    if (oxQuestionPanel != null) return oxQuestionPanel.getSelectedAnswer();
+    return multipleChoicePanel == null ? null : multipleChoicePanel.getSelectedAnswer();
   }
 
   public boolean isFinished() {
-    return finished;
+    return session != null && session.isFinished();
   }
 
-  private void showCurrentQuestion() {
-    PreviewQuestion question = PREVIEW_QUESTIONS.get(currentQuestionIndex);
+  public void showSession(QuizSession session) {
+    this.session = Objects.requireNonNull(session, "session은 필수입니다.");
+    Question question = session.getCurrentQuestion();
     questionContainer.removeAll();
     oxQuestionPanel = null;
     multipleChoicePanel = null;
-    if (question.options.isEmpty()) {
-      oxQuestionPanel = new OXQuestionPanel(question.text);
-      questionContainer.add(oxQuestionPanel, BorderLayout.CENTER);
-      questionTypeLabel.setText("과학&상식 · OX");
-    } else {
-      multipleChoicePanel = new MultipleChoicePanel(question.text, question.options);
+    if (question instanceof MultipleChoiceQuestion multipleChoice) {
+      multipleChoicePanel = new MultipleChoicePanel(question.getPrompt(), multipleChoice.getOptions());
       questionContainer.add(multipleChoicePanel, BorderLayout.CENTER);
-      questionTypeLabel.setText("과학&상식 · 4지선다");
+      questionTypeLabel.setText(session.getCategory().getName() + " · 4지선다");
+    } else {
+      oxQuestionPanel = new OXQuestionPanel(question.getPrompt());
+      questionContainer.add(oxQuestionPanel, BorderLayout.CENTER);
+      questionTypeLabel.setText(session.getCategory().getName() + " · OX");
     }
-    progressLabel.setText((currentQuestionIndex + 1) + " / " + PREVIEW_QUESTIONS.size());
-    boolean lastQuestion = currentQuestionIndex == PREVIEW_QUESTIONS.size() - 1;
-    nextButton.setText(lastQuestion ? "완료" : "다음 문제");
-    ruleLabel.setText(currentQuestionIndex == 0
-        ? "다음 문제로 이동하면 이전 답안을 수정할 수 없습니다." : "");
-    answerRequired = false;
+    progressLabel.setText((session.getCurrentIndex() + 1) + " / " + session.getTotalCount());
+    statusLabel.setText(session.getCurrentIndex() == session.getTotalCount() - 1 ? "마지막 문제입니다." : "");
+    boolean answered = session.isCurrentQuestionAnswered();
+    submitButton.setEnabled(!session.isFinished() && !answered);
+    endButton.setEnabled(!session.isFinished());
     observeAnswerSelection(questionContainer);
-    updateStatus();
+    if (answered || session.isFinished()) disableAnswerControls(questionContainer);
     revalidate();
     repaint();
   }
 
-  private void moveToNextQuestion() {
-    if (finished) {
-      return;
-    }
-    if (getSelectedAnswer() == null) {
-      answerRequired = true;
-      updateStatus();
-      return;
-    }
-    if (currentQuestionIndex == PREVIEW_QUESTIONS.size() - 1) {
-      finished = true;
-      nextButton.setText("완료됨");
-      nextButton.setEnabled(false);
-      statusLabel.setText("임시 퀴즈 완료 · 결과 화면 연결 없음");
-      disableAnswerControls(questionContainer);
-      return;
-    }
-    currentQuestionIndex++;
-    showCurrentQuestion();
-  }
-
-  private void updateStatus() {
-    if (finished) {
-      return;
-    }
-    if (getSelectedAnswer() != null) {
-      answerRequired = false;
-    }
-    if (answerRequired) {
+  private void submitAnswer() {
+    if (session == null || session.isFinished() || session.isCurrentQuestionAnswered()) return;
+    String answer = getSelectedAnswer();
+    if (answer == null) {
       statusLabel.setText("답안을 먼저 선택해 주세요.");
-    } else {
-      statusLabel.setText(currentQuestionIndex == PREVIEW_QUESTIONS.size() - 1
-          ? "마지막 문제입니다." : "");
+      return;
+    }
+    onSubmit.accept(answer);
+    if (session.isCurrentQuestionAnswered()) {
+      submitButton.setEnabled(false);
+      disableAnswerControls(questionContainer);
     }
   }
 
   private void observeAnswerSelection(Container container) {
-    for (Component component : container.getComponents()) {
-      if (component instanceof JToggleButton button) {
-        button.addItemListener(e -> updateStatus());
-      } else if (component instanceof JList<?> list) {
-        list.addListSelectionListener(e -> {
-          if (!e.getValueIsAdjusting()) {
-            updateStatus();
-          }
-        });
+    for (Component child : container.getComponents()) {
+      if (child instanceof JToggleButton button) {
+        button.addItemListener(e -> statusLabel.setText(""));
+      } else if (child instanceof JList<?> list) {
+        list.addListSelectionListener(e -> statusLabel.setText(""));
       }
-      if (component instanceof Container child) {
-        observeAnswerSelection(child);
-      }
+      if (child instanceof Container nested) observeAnswerSelection(nested);
     }
   }
 
   private static void disableAnswerControls(Container container) {
-    for (Component component : container.getComponents()) {
-      if (component instanceof JToggleButton || component instanceof JList<?>) {
-        component.setEnabled(false);
-      }
-      if (component instanceof Container child) {
-        disableAnswerControls(child);
-      }
-    }
-  }
-
-  private static class PreviewQuestion {
-    private final String text;
-    private final List<String> options;
-
-    PreviewQuestion(String text, String... options) {
-      this.text = text;
-      this.options = List.of(options);
+    for (Component child : container.getComponents()) {
+      if (child instanceof JToggleButton || child instanceof JList<?>) child.setEnabled(false);
+      if (child instanceof Container nested) disableAnswerControls(nested);
     }
   }
 }

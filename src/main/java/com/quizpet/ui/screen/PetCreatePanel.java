@@ -2,6 +2,8 @@ package main.java.com.quizpet.ui.screen;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.util.Objects;
+import java.util.function.BiConsumer;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -16,20 +18,23 @@ import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 
 public class PetCreatePanel extends JPanel {
-  private final ScreenManager screens;
-  private final HomePanel homePanel;
+  private Runnable onBack;
+  private BiConsumer<String, String> onCreate = (name, key) -> { };
 
   private final JLabel ownerLabel = UiStyle.label("", UiStyle.BODY_FONT);
   private final JLabel petBox = UiStyle.createPetBox();
   private final JTextField nameField = new JTextField(12);
   private final JToggleButton[] lookButtons = new JToggleButton[UiStyle.PET_KEYS.length];
 
-  private String currentNickname;
   private String selectedKey = UiStyle.PET_KEYS[0];
 
   public PetCreatePanel(ScreenManager screens, HomePanel homePanel) {
-    this.screens = screens;
-    this.homePanel = homePanel;
+    this(screens);
+  }
+
+  public PetCreatePanel(ScreenManager screens) {
+    Objects.requireNonNull(screens, "screens는 필수입니다.");
+    onBack = () -> screens.show(ScreenManager.START);
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     setBackground(UiStyle.BACKGROUND);
@@ -77,12 +82,15 @@ public class PetCreatePanel extends JPanel {
     JButton createButton = UiStyle.button("생성하기");
     createButton.addActionListener(e -> onCreatePet());
     add(createButton);
+    add(Box.createVerticalStrut(12));
+    JButton backButton = UiStyle.button("사용자 선택으로");
+    backButton.addActionListener(e -> onBack.run());
+    add(backButton);
 
     prepare(null);
   }
 
   public void prepare(String nickname) {
-    currentNickname = nickname;
     ownerLabel.setText(nickname == null ? "" : nickname + " 님의 캐릭터를 만들어 주세요");
     nameField.setText("");
     lookButtons[0].setSelected(true);
@@ -94,13 +102,20 @@ public class PetCreatePanel extends JPanel {
     UiStyle.showPet(petBox, spriteKey);
   }
 
+  public void setOnBack(Runnable action) {
+    onBack = Objects.requireNonNull(action);
+  }
+
+  public void setOnCreate(BiConsumer<String, String> action) {
+    onCreate = Objects.requireNonNull(action);
+  }
+
   private void onCreatePet() {
-    String petName = nameField.getText().trim();
-    if (petName.isEmpty() || petName.length() > 12) {
+    String petName = nameField.getText().strip();
+    if (petName.isEmpty() || petName.codePointCount(0, petName.length()) > 12) {
       JOptionPane.showMessageDialog(this, "캐릭터 이름은 1~12자로 입력해 주세요.");
       return;
     }
-    homePanel.showPet(petName, selectedKey, 1, 0, 10, 10, 10, 10);
-    screens.show(ScreenManager.HOME);
+    onCreate.accept(petName, selectedKey);
   }
 }

@@ -13,6 +13,7 @@ public class ScreenManager {
   public static final String CATEGORY = "CATEGORY";
   public static final String LEARNING = "LEARNING";
   public static final String QUIZ = "QUIZ";
+  public static final String ANSWER_FEEDBACK = "ANSWER_FEEDBACK";
   public static final String QUIZ_RESULT = "QUIZ_RESULT";
   public static final String HISTORY = "HISTORY";
 

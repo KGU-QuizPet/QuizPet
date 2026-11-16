@@ -2,6 +2,10 @@ package main.java.com.quizpet.ui.screen;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+import main.java.com.quizpet.model.Profile;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -18,18 +22,19 @@ import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 
 public class StartPanel extends JPanel {
-  private final ScreenManager screens;
-  private final PetCreatePanel petCreatePanel;
-  private final HomePanel homePanel;
+  private Consumer<String> onSelect = id -> { };
+  private Consumer<String> onCreate = nickname -> { };
 
-  private final DefaultListModel<DummyUser> userListModel = new DefaultListModel<>();
-  private final JList<DummyUser> userList = new JList<>(userListModel);
+  private final DefaultListModel<Profile> userListModel = new DefaultListModel<>();
+  private final JList<Profile> userList = new JList<>(userListModel);
   private final JTextField nicknameField = new JTextField(12);
 
   public StartPanel(ScreenManager screens, PetCreatePanel petCreatePanel, HomePanel homePanel) {
-    this.screens = screens;
-    this.petCreatePanel = petCreatePanel;
-    this.homePanel = homePanel;
+    this(screens);
+  }
+
+  public StartPanel(ScreenManager screens) {
+    Objects.requireNonNull(screens, "screens는 필수입니다.");
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     setBackground(UiStyle.BACKGROUND);
@@ -68,93 +73,38 @@ public class StartPanel extends JPanel {
     nicknameField.addActionListener(e -> onCreateUser());
     add(createButton);
 
-    loadUsers();
   }
 
-  private void loadUsers() {
+  public void showProfiles(List<Profile> profiles) {
     userListModel.clear();
-    userListModel.addElement(new DummyUser("수빈", "뭉치", "PET_A", 4, 20, 15, 20, 25, 40));
-    userListModel.addElement(new DummyUser("민수", "초록이", "PET_B", 3, 10, 12, 18, 11, 14));
-    userListModel.addElement(new DummyUser("지우", null, null, 0, 0, 0, 0, 0, 0));
+    profiles.forEach(userListModel::addElement);
+    userList.clearSelection();
+    nicknameField.setText("");
+  }
+
+  public void setOnSelect(Consumer<String> action) {
+    onSelect = Objects.requireNonNull(action);
+  }
+
+  public void setOnCreate(Consumer<String> action) {
+    onCreate = Objects.requireNonNull(action);
   }
 
   private void onStart() {
-    DummyUser user = userList.getSelectedValue();
-    if (user == null) {
+    Profile profile = userList.getSelectedValue();
+    if (profile == null) {
       JOptionPane.showMessageDialog(this, "사용자를 먼저 선택해 주세요.");
       return;
     }
-    if (user.hasPet()) {
-      homePanel.showPet(user.petName, user.spriteKey, user.level, user.expInLevel,
-          user.str, user.intel, user.foc, user.wis);
-      screens.show(ScreenManager.HOME);
-    } else {
-      petCreatePanel.prepare(user.nickname);
-      screens.show(ScreenManager.PET_CREATE);
-    }
+    onSelect.accept(profile.getUser().getUserId());
   }
 
   private void onCreateUser() {
-    String nickname = nicknameField.getText().trim();
-    if (nickname.isEmpty() || nickname.length() > 12) {
+    String nickname = nicknameField.getText().strip();
+    if (nickname.isEmpty() || nickname.codePointCount(0, nickname.length()) > 12) {
       JOptionPane.showMessageDialog(this, "닉네임은 1~12자로 입력해 주세요.");
       return;
     }
-    if (isDuplicateNickname(nickname)) {
-      JOptionPane.showMessageDialog(this, "이미 있는 닉네임입니다. 다른 닉네임을 입력해 주세요.");
-      return;
-    }
-    userListModel.addElement(new DummyUser(nickname, null, null, 0, 0, 0, 0, 0, 0));
-    nicknameField.setText("");
-
-    petCreatePanel.prepare(nickname);
-    screens.show(ScreenManager.PET_CREATE);
-  }
-
-  private boolean isDuplicateNickname(String nickname) {
-    for (int i = 0; i < userListModel.size(); i++) {
-      if (userListModel.get(i).nickname.equals(nickname)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static class DummyUser {
-    final String nickname;
-    final String petName;
-    final String spriteKey;
-    final int level;
-    final int expInLevel;
-    final int str;
-    final int intel;
-    final int foc;
-    final int wis;
-
-    DummyUser(String nickname, String petName, String spriteKey, int level, int expInLevel,
-        int str, int intel, int foc, int wis) {
-      this.nickname = nickname;
-      this.petName = petName;
-      this.spriteKey = spriteKey;
-      this.level = level;
-      this.expInLevel = expInLevel;
-      this.str = str;
-      this.intel = intel;
-      this.foc = foc;
-      this.wis = wis;
-    }
-
-    boolean hasPet() {
-      return petName != null;
-    }
-
-    @Override
-    public String toString() {
-      if (!hasPet()) {
-        return nickname + "  (캐릭터 없음)";
-      }
-      return nickname + "  (" + petName + ")      Lv " + level;
-    }
+    onCreate.accept(nickname);
   }
 }
-

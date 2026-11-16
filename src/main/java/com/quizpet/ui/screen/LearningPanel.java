@@ -4,6 +4,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
 import java.util.Objects;
+import java.util.List;
+import main.java.com.quizpet.model.Category;
+import main.java.com.quizpet.model.LearningContent;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -14,20 +17,12 @@ import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 
 public class LearningPanel extends JPanel {
-  private static final String PREVIEW_CATEGORY_NAME = "과학&상식";
-  private static final String[][] PREVIEW_CARDS = {
-    {"물의 세 가지 상태", "물은 고체, 액체, 기체의 세 가지 상태로 존재합니다.\n\n"
-        + "얼음은 고체, 흐르는 물은 액체, 수증기는 기체입니다.\n\n"
-        + "온도가 달라지면 물의 상태도 달라질 수 있습니다.", "1", "물, 상태 변화"},
-    {"태양계의 행성", "태양계에는 태양 주위를 도는 여덟 개의 행성이 있습니다.\n\n"
-        + "태양에서 가까운 순서대로 수성, 금성, 지구, 화성, 목성, 토성, 천왕성, 해왕성입니다.\n\n"
-        + "가장 큰 행성은 목성이며, 지구는 태양에서 세 번째 행성입니다.", "1", "태양계, 행성"},
-    {"지구의 자전과 낮과 밤", "지구는 스스로 회전하며, 이를 자전이라고 합니다.\n\n"
-        + "태양을 향한 쪽은 낮이 되고 반대쪽은 밤이 됩니다.\n\n"
-        + "지구가 한 바퀴 자전하는 데에는 약 하루가 걸립니다.", "2", "지구, 자전, 낮과 밤"}
-  };
-
-  private final ScreenManager screens;
+  private List<LearningContent> contents = List.of();
+  private Runnable onQuiz = () -> { };
+  private Runnable onBack = () -> { };
+  private final JLabel categoryLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
+  private final JButton quizButton = UiStyle.button("퀴즈 시작");
+  private boolean quizEnabled = true;
   private final JLabel progressLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel cardTitleLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel difficultyLabel = UiStyle.label("", UiStyle.BODY_FONT);
@@ -38,7 +33,7 @@ public class LearningPanel extends JPanel {
   private int currentCardIndex;
 
   public LearningPanel(ScreenManager screens) {
-    this.screens = Objects.requireNonNull(screens, "screens는 필수입니다.");
+    Objects.requireNonNull(screens, "screens는 필수입니다.");
     setLayout(new BorderLayout(0, 20));
     setBackground(UiStyle.BACKGROUND);
     setBorder(BorderFactory.createEmptyBorder(30, 24, 30, 24));
@@ -49,6 +44,33 @@ public class LearningPanel extends JPanel {
     showCurrentCard();
   }
 
+  public void showContents(Category category, List<LearningContent> cards, int startingIndex) {
+    Objects.requireNonNull(category, "category는 필수입니다.");
+    contents = List.copyOf(cards);
+    if (contents.stream().anyMatch(card -> card.getCategory() != category)) {
+      throw new IllegalArgumentException("선택한 분야와 학습 카드의 분야가 다릅니다.");
+    }
+    if (startingIndex < 0 || (!contents.isEmpty() && startingIndex >= contents.size())) {
+      throw new IllegalArgumentException("학습 카드 위치가 범위를 벗어났습니다.");
+    }
+    categoryLabel.setText(category.getName());
+    currentCardIndex = startingIndex;
+    showCurrentCard();
+  }
+
+  public void setOnQuiz(Runnable action) {
+    onQuiz = Objects.requireNonNull(action);
+  }
+
+  public void setOnBack(Runnable action) {
+    onBack = Objects.requireNonNull(action);
+  }
+
+  public void setQuizEnabled(boolean enabled) {
+    quizEnabled = enabled;
+    quizButton.setEnabled(enabled && !contents.isEmpty());
+  }
+
   private JPanel createHeader() {
     JPanel header = new JPanel(new BorderLayout(0, 14));
     header.setOpaque(false);
@@ -56,7 +78,7 @@ public class LearningPanel extends JPanel {
 
     JPanel information = new JPanel(new BorderLayout());
     information.setOpaque(false);
-    information.add(UiStyle.label(PREVIEW_CATEGORY_NAME, UiStyle.SUBTITLE_FONT), BorderLayout.WEST);
+    information.add(categoryLabel, BorderLayout.WEST);
     information.add(progressLabel, BorderLayout.EAST);
     header.add(information, BorderLayout.SOUTH);
     return header;
@@ -99,17 +121,17 @@ public class LearningPanel extends JPanel {
     navigation.add(nextButton);
     footer.add(navigation, BorderLayout.NORTH);
 
-    JButton quizButton = UiStyle.button("퀴즈 시작 (준비 중)");
-    quizButton.setEnabled(false);
+    quizButton.addActionListener(e -> onQuiz.run());
     footer.add(quizButton, BorderLayout.CENTER);
-    footer.add(UiStyle.label("UI 확인용 임시 데이터 · 퀴즈 연결 없음", UiStyle.BODY_FONT),
-        BorderLayout.SOUTH);
+    JButton backButton = UiStyle.button("뒤로");
+    backButton.addActionListener(e -> onBack.run());
+    footer.add(backButton, BorderLayout.SOUTH);
     return footer;
   }
 
   private void moveCard(int offset) {
     int nextIndex = currentCardIndex + offset;
-    if (nextIndex < 0 || nextIndex >= PREVIEW_CARDS.length) {
+    if (nextIndex < 0 || nextIndex >= contents.size()) {
       return;
     }
     currentCardIndex = nextIndex;
@@ -117,15 +139,25 @@ public class LearningPanel extends JPanel {
   }
 
   private void showCurrentCard() {
-    String[] card = PREVIEW_CARDS[currentCardIndex];
-    cardTitleLabel.setText(card[0]);
-    descriptionArea.setText(card[1]);
+    boolean empty = contents.isEmpty();
+    previousButton.setEnabled(!empty && currentCardIndex > 0);
+    nextButton.setEnabled(!empty && currentCardIndex < contents.size() - 1);
+    quizButton.setEnabled(quizEnabled && !empty);
+    if (empty) {
+      cardTitleLabel.setText("학습 카드가 없습니다.");
+      descriptionArea.setText("");
+      difficultyLabel.setText("");
+      keywordsLabel.setText("");
+      progressLabel.setText("0 / 0");
+      return;
+    }
+    LearningContent card = contents.get(currentCardIndex);
+    cardTitleLabel.setText(card.getTitle());
+    descriptionArea.setText(card.getDescription());
     descriptionArea.setCaretPosition(0);
-    difficultyLabel.setText("난이도 " + card[2]);
-    keywordsLabel.setText("키워드: " + card[3]);
-    progressLabel.setText((currentCardIndex + 1) + " / " + PREVIEW_CARDS.length);
-    previousButton.setEnabled(currentCardIndex > 0);
-    nextButton.setEnabled(currentCardIndex < PREVIEW_CARDS.length - 1);
+    difficultyLabel.setText("난이도 " + card.getDifficulty());
+    keywordsLabel.setText("키워드: " + String.join(", ", card.getTags()));
+    progressLabel.setText((currentCardIndex + 1) + " / " + contents.size());
   }
 
   private static void configureTextArea(JTextArea area) {

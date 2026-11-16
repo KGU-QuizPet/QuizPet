@@ -1,13 +1,21 @@
 package main.java.com.quizpet.ui;
 
+import java.awt.BorderLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.nio.file.Path;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JFrame;
-import main.java.com.quizpet.ui.screen.HomePanel;
-import main.java.com.quizpet.ui.screen.PetCreatePanel;
-import main.java.com.quizpet.ui.screen.StartPanel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
 public class MainFrame extends JFrame {
   public static final int FRAME_WIDTH = 480;
   public static final int FRAME_HEIGHT = 720;
+  private SaveDirectoryLock saveLock;
 
   public MainFrame() {
     super("QuizPet");
@@ -15,18 +23,43 @@ public class MainFrame extends JFrame {
     setSize(FRAME_WIDTH, FRAME_HEIGHT);
     setLocationRelativeTo(null);
     setResizable(false);
+    addWindowListener(new WindowAdapter() {
+      @Override
+      public void windowClosed(WindowEvent event) {
+        if (saveLock != null) {
+          try {
+            saveLock.close();
+          } catch (IOException e) {
+            System.getLogger(MainFrame.class.getName()).log(System.Logger.Level.WARNING, e.getMessage());
+          }
+        }
+      }
+    });
+    loadApplication();
+  }
 
-    ScreenManager screens = new ScreenManager();
-
-    HomePanel homePanel = new HomePanel(screens);
-    PetCreatePanel petCreatePanel = new PetCreatePanel(screens, homePanel);
-    StartPanel startPanel = new StartPanel(screens, petCreatePanel, homePanel);
-
-    screens.addScreen(ScreenManager.START, startPanel);
-    screens.addScreen(ScreenManager.PET_CREATE, petCreatePanel);
-    screens.addScreen(ScreenManager.HOME, homePanel);
-
-    add(screens.getContainer());
-    screens.show(ScreenManager.START);
+  private void loadApplication() {
+    try {
+      Path directory = Path.of("data/save");
+      if (saveLock == null) saveLock = new SaveDirectoryLock(directory);
+      setContentPane(new AppController(directory).getView());
+    } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+      JPanel error = new JPanel(new BorderLayout(0, 20));
+      error.setBorder(BorderFactory.createEmptyBorder(30, 25, 30, 25));
+      error.setBackground(UiStyle.BACKGROUND);
+      error.add(UiStyle.label("실행 데이터를 확인해 주세요", UiStyle.SUBTITLE_FONT), BorderLayout.NORTH);
+      JTextArea message = new JTextArea(e.getMessage());
+      message.setFont(UiStyle.BODY_FONT);
+      message.setEditable(false);
+      message.setLineWrap(true);
+      message.setWrapStyleWord(true);
+      error.add(new JScrollPane(message), BorderLayout.CENTER);
+      JButton retry = UiStyle.button("다시 불러오기");
+      retry.addActionListener(event -> loadApplication());
+      error.add(retry, BorderLayout.SOUTH);
+      setContentPane(error);
+    }
+    revalidate();
+    repaint();
   }
 }
