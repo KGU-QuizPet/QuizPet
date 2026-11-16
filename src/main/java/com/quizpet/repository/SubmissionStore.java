@@ -30,7 +30,11 @@ public final class SubmissionStore {
   public void commit(Pet before, Pet after, LearningRecord record) throws IOException {
     locked(() -> {
       if (Files.exists(pending)) throw new IOException(pending + ": 미복구 제출이 있습니다.");
-      validate(before, after, record);
+      try {
+        validate(before, after, record);
+      } catch (RuntimeException e) {
+        throw new SubmissionRejectedException(e);
+      }
       SaveFile.writeLines(pending, List.of(VERSION, PetRepository.format(before),
           PetRepository.format(after), RecordRepository.format(record)));
       recover();

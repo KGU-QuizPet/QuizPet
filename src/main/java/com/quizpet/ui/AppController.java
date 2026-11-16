@@ -209,7 +209,13 @@ public final class AppController {
     }
     session.getCurrentQuestion().checkAnswer(answer);
     pendingAnswer = answer;
-    LearningRecord record = submissions.submit(session, answer);
+    LearningRecord record;
+    try {
+      record = submissions.submit(session, answer);
+    } catch (SubmissionRejectedException e) {
+      pendingAnswer = null;
+      throw e;
+    }
     pendingAnswer = null;
     showFeedback(record);
     return record;
@@ -321,7 +327,12 @@ public final class AppController {
 
   private void ready() throws IOException {
     if (pendingAnswer != null) {
-      submissions.submit(session, pendingAnswer);
+      try {
+        submissions.submit(session, pendingAnswer);
+      } catch (SubmissionRejectedException e) {
+        pendingAnswer = null;
+        throw e;
+      }
       pendingAnswer = null;
     }
     submissions.recover();

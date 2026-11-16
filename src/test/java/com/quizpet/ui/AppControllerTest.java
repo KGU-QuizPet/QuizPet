@@ -22,6 +22,8 @@ public class AppControllerTest {
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
+        rejectedSubmissionAllowsNavigation();
+        partiallySavedSubmissionRetry();
       } catch (Exception e) {
         throw new AssertionError(e);
       }
@@ -191,6 +193,7 @@ public class AppControllerTest {
       assert session.getAnsweredCount() == 0;
       assert visible(app, QuizPanel.class);
     }
+    expectState(() -> app.submitAnswer(wrongAnswer(session.getCurrentQuestion())));
     Files.delete(save.resolve("record.txt"));
     app.submitAnswer(answer);
     app.submitAnswer(answer);
@@ -199,6 +202,99 @@ public class AppControllerTest {
     assert session.getAnsweredCount() == 1;
     assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
     assert new PetRepository(save.resolve("pet.txt")).findByUserId(user.getUserId()).orElseThrow().getTotalXp() == 10;
+  }
+
+  private static void rejectedSubmissionAllowsNavigation() throws Exception {
+    for (String destination : List.of("home", "start", "end", "user", "answer")) {
+      Path save = Files.createTempDirectory("quizpet-app-rejected-");
+      AppController app = new AppController(save);
+      User other = app.createUser("다른사용자");
+      app.createPet("정상펫", "DUCK");
+      User user = app.createUser("한계사용자");
+      Pet pet = app.createPet("한계펫", "DUCK");
+      new PetRepository(save.resolve("pet.txt")).save(new Pet(pet.getPetId(), user.getUserId(),
+          pet.getName(), pet.getAppearance(), 0, new PetStats(10, Integer.MAX_VALUE, 10, 10)));
+      Files.writeString(save.resolve("record.txt"), "");
+      byte[] beforePet = Files.readAllBytes(save.resolve("pet.txt"));
+      byte[] beforeRecords = Files.readAllBytes(save.resolve("record.txt"));
+      app.selectCategory("SCIENCE");
+      QuizSession session = app.startQuiz();
+      try {
+        app.submitAnswer(session.getCurrentQuestion().getAnswer());
+        throw new AssertionError("overflow accepted");
+      } catch (IllegalArgumentException expected) { }
+      assert session.getAnsweredCount() == 0;
+      assert java.util.Arrays.equals(beforePet, Files.readAllBytes(save.resolve("pet.txt")));
+      assert java.util.Arrays.equals(beforeRecords, Files.readAllBytes(save.resolve("record.txt")));
+      assert !Files.exists(save.resolve("submission-pending.txt"));
+      switch (destination) {
+        case "home" -> { app.showHome(); assert visible(app, HomePanel.class); }
+        case "start" -> { app.showStart(); assert visible(app, StartPanel.class); }
+        case "end" -> {
+          app.endQuiz();
+          assert visible(app, QuizResultPanel.class);
+          assert session.getResult().getAnsweredCount() == 0;
+        }
+        case "user" -> { app.selectUser(other.getUserId()); assert visible(app, HomePanel.class); }
+        case "answer" -> {
+          assert !app.submitAnswer(wrongAnswer(session.getCurrentQuestion())).isCorrect();
+          assert session.getAnsweredCount() == 1;
+        }
+      }
+      app.selectUser(other.getUserId());
+      app.selectCategory("SCIENCE");
+      QuizSession normal = app.startQuiz();
+      assert app.submitAnswer(normal.getCurrentQuestion().getAnswer()).getEarnedXp() == 10;
+      assert new PetRepository(save.resolve("pet.txt")).findByUserId(other.getUserId()).orElseThrow().getTotalXp() == 10;
+      assert new RecordRepository(save.resolve("record.txt")).findByUserId(other.getUserId()).size() == 1;
+    }
+  }
+
+  private static String wrongAnswer(Question question) {
+    return question instanceof OXQuestion ? (question.getAnswer().equals("O") ? "X" : "O")
+        : (question.getAnswer().equals("1") ? "2" : "1");
+  }
+
+  private static void partiallySavedSubmissionRetry() throws Exception {
+    for (boolean petSaved : List.of(false, true)) {
+      Path save = Files.createTempDirectory("quizpet-app-partial-");
+      AppController app = new AppController(save);
+      User user = app.createUser("부분저장");
+      Pet pet = app.createPet("복구펫", "DUCK");
+      app.selectCategory("SCIENCE");
+      QuizSession session = app.startQuiz();
+      Question question = session.getCurrentQuestion();
+      String before = Files.readString(save.resolve("pet.txt")).strip();
+      String after = pet.getPetId() + "|" + user.getUserId() + "|복구펫|DUCK|10|10|11|10|10";
+      Files.writeString(save.resolve("submission-pending.txt"), "QUIZPET_SUBMISSION_V1\n"
+          + before + "\n" + after + "\nR-PARTIAL|" + user.getUserId() + "|"
+          + question.getQuestionId() + "|" + session.getSessionId() + "|" + question.getAnswer()
+          + "|true|10|2026-11-16T20:00:00\n");
+      if (petSaved) Files.writeString(save.resolve("pet.txt"), after + "\n");
+      Files.createDirectory(save.resolve("record.txt"));
+      try {
+        app.submitAnswer(question.getAnswer());
+        throw new AssertionError("partial save failure ignored");
+      } catch (IOException expected) { }
+      assert session.getAnsweredCount() == 0;
+      assert Files.exists(save.resolve("submission-pending.txt"));
+      assert new PetRepository(save.resolve("pet.txt")).findById(pet.getPetId()).orElseThrow().getTotalXp()
+          == (petSaved ? 10 : 0);
+      expectState(() -> app.submitAnswer(wrongAnswer(question)));
+      try {
+        app.showHome();
+        throw new AssertionError("unresolved submission abandoned");
+      } catch (IOException expected) { }
+      Files.delete(save.resolve("record.txt"));
+      app.endQuiz();
+      assert visible(app, QuizResultPanel.class);
+      assert session.getAnsweredCount() == 1;
+      assert !Files.exists(save.resolve("submission-pending.txt"));
+      assert app.submitAnswer(question.getAnswer()).getRecordId().equals("R-PARTIAL");
+      assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
+      Pet restored = new PetRepository(save.resolve("pet.txt")).findById(pet.getPetId()).orElseThrow();
+      assert restored.getTotalXp() == 10 && restored.getStats().getIntelligence() == 11;
+    }
   }
 
   private static javax.swing.JButton findButton(Component root, String text) {
