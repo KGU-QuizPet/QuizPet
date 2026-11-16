@@ -24,6 +24,7 @@ public class SubmissionServiceTest {
       checkCorruptionAndConflict();
       checkConcurrentFirstCorrect();
       checkOverflowDoesNotPoisonJournal();
+      checkStatOverflowDoesNotPoisonJournal();
     } finally {
       for (Path directory : DIRECTORIES) {
         try (var paths = Files.walk(directory)) {
@@ -134,6 +135,48 @@ public class SubmissionServiceTest {
     assert quiz.getAnsweredCount() == 0;
     assert pet(dir).getTotalXp() == Integer.MAX_VALUE;
     assert !Files.exists(dir.resolve("submission-pending.txt"));
+  }
+
+  private static void checkStatOverflowDoesNotPoisonJournal() throws Exception {
+    for (Category category : Category.values()) {
+      for (int initial : List.of(Integer.MAX_VALUE, Integer.MAX_VALUE - 1)) {
+        Path dir = setup();
+        PetRepository pets = new PetRepository(dir.resolve("pet.txt"));
+        PetStats stats = new PetStats(
+            category == Category.SPORTS ? initial : 10,
+            category == Category.SCIENCE ? initial : 10,
+            category == Category.LANGUAGE ? initial : 10,
+            category == Category.HISTORY ? initial : 10);
+        pets.save(new Pet("P0001", "U0001", "펫", PetAppearance.DUCK, 0, stats));
+        byte[] original = Files.readAllBytes(dir.resolve("pet.txt"));
+        QuizSession quiz = new QuizSession("STAT-BOUNDARY", "U0001", category,
+            List.of(new OXQuestion("Q1", category, "C1", "질문", "O", "해설")));
+        SubmissionService service = new SubmissionService(dir);
+        if (initial == Integer.MAX_VALUE) {
+          try {
+            service.submit(quiz, "O");
+            throw new AssertionError(category + " overflow accepted");
+          } catch (IllegalArgumentException expected) { }
+          assert quiz.getAnsweredCount() == 0 && !quiz.isFinished();
+          assert java.util.Arrays.equals(original, Files.readAllBytes(dir.resolve("pet.txt")));
+          assert !Files.exists(dir.resolve("record.txt"));
+        } else {
+          assert service.submit(quiz, "O").getEarnedXp() == 10;
+          assert pet(dir).getStats().get(category.getStatType()) == Integer.MAX_VALUE;
+          assert pet(dir).getTotalXp() == 10;
+          assert quiz.isFinished();
+        }
+        assert !Files.exists(dir.resolve("submission-pending.txt"));
+        service.recover();
+        UserRepository users = new UserRepository(dir.resolve("user.txt"));
+        User other = new UserService(users).createUser("다른사용자");
+        new PetService(pets, users).createPet(other.getUserId(), "다른펫", "TURTLE");
+        QuizSession normal = new QuizSession("NORMAL", other.getUserId(), Category.SCIENCE,
+            List.of(new OXQuestion("Q1", Category.SCIENCE, "C1", "질문", "O", "해설")));
+        assert new SubmissionService(dir).submit(normal, "O").getEarnedXp() == 10;
+        assert pets.findByUserId(other.getUserId()).orElseThrow().getTotalXp() == 10;
+      }
+    }
   }
 
   private static Path setup() throws IOException {

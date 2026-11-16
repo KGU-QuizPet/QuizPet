@@ -87,14 +87,16 @@ public final class SubmissionStore {
         || !before.getUserId().equals(record.getUserId())
         || !before.getName().equals(after.getName())
         || before.getAppearance() != after.getAppearance()
+        || after.getTotalXp() < 0
         || after.getTotalXp() - (long) before.getTotalXp() != record.getEarnedXp()
         || (record.getEarnedXp() != 0 && record.getEarnedXp() != 10)) {
       throw new IllegalArgumentException("캐릭터와 보상 기록이 일치하지 않습니다.");
     }
-    int changed = 0;
+    long changed = 0;
     for (String stat : List.of("STR", "INT", "FOC", "WIS")) {
-      int delta = after.getStats().get(stat) - before.getStats().get(stat);
-      if (delta < 0 || delta > 1) throw new IllegalArgumentException("능력치 증가량이 올바르지 않습니다.");
+      int afterValue = after.getStats().get(stat);
+      long delta = (long) afterValue - before.getStats().get(stat);
+      if (afterValue < 0 || delta < 0 || delta > 1) throw new IllegalArgumentException("능력치 증가량이 올바르지 않습니다.");
       changed += delta;
     }
     if (changed != record.getEarnedXp() / 10) {
