@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizSession;
@@ -53,16 +54,36 @@ public class QuizServiceTest {
       assert other.getAnsweredCount() == 0;
       assert !other.isFinished();
 
-      QuizSession small = service.startSession("U1", "HISTORY");
-      assert small.getTotalCount() == 3;
-      for (int i = 0; i < 3; i++) {
-        assert service.submitAnswer(small, small.getCurrentQuestion().getAnswer());
-        if (i < 2) {
-          service.nextQuestion(small);
+      for (boolean correct : new boolean[] {true, false}) {
+        QuizSession small = service.startSession("U1", "HISTORY");
+        assert small.getTotalCount() == 3;
+        for (int i = 0; i < 3; i++) {
+          Question question = small.getCurrentQuestion();
+          for (String invalid : new String[] {null, "", " ", "invalid", "0", "5"}) {
+            expect(IllegalArgumentException.class, () -> service.submitAnswer(small, invalid));
+          }
+          assert small.getCurrentIndex() == i;
+          assert small.getAnsweredCount() == i;
+          assert small.getCorrectCount() == (correct ? i : 0);
+          assert !small.getAnswers().containsKey(question.getQuestionId());
+          assert !small.isCurrentQuestionAnswered();
+          String wrong = question.getType().equals("OX")
+              ? (question.getAnswer().equals("O") ? "X" : "O")
+              : (question.getAnswer().equals("1") ? "2" : "1");
+          String selected = correct ? question.getAnswer() : wrong;
+          assert service.submitAnswer(small, selected) == correct;
+          expect(IllegalStateException.class,
+              () -> service.submitAnswer(small, correct ? wrong : question.getAnswer()));
+          assert small.getAnswers().get(question.getQuestionId()).equals(selected);
+          assert small.getAnsweredCount() == i + 1;
+          assert small.getCorrectCount() == (correct ? i + 1 : 0);
+          if (i < 2) {
+            service.nextQuestion(small);
+          }
         }
+        assert small.isFinished();
+        assert small.getCorrectCount() == (correct ? 3 : 0);
       }
-      assert small.isFinished();
-      assert small.getCorrectCount() == 3;
       service.submitAnswer(other, "O");
       service.endSession(other);
       assert other.isFinished();
@@ -87,8 +108,20 @@ public class QuizServiceTest {
     } finally {
       Files.deleteIfExists(file);
     }
-    QuizSession defaults = new QuizService().startSession("U1", "SCIENCE");
-    assert defaults.getTotalCount() >= 1;
+    QuizService defaults = new QuizService();
+    QuestionRepository repository = new QuestionRepository();
+    for (Category category : Category.values()) {
+      List<Question> pool = repository.findByCategory(category);
+      QuizSession session = defaults.startSession("U1", category.getCategoryId());
+      assert session.getTotalCount() == 5;
+      HashSet<String> ids = new HashSet<>();
+      for (Question question : session.getQuestions()) {
+        assert question.getCategory() == category;
+        assert ids.add(question.getQuestionId());
+        assert pool.stream().anyMatch(candidate ->
+            candidate.getQuestionId().equals(question.getQuestionId()));
+      }
+    }
     System.out.println("QuizService checks passed");
   }
 
