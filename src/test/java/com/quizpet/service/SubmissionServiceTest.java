@@ -23,6 +23,7 @@ public class SubmissionServiceTest {
       checkRecovery();
       checkCorruptionAndConflict();
       checkConcurrentFirstCorrect();
+      checkMixedRewardPaths();
       checkOverflowDoesNotPoisonJournal();
       checkStatOverflowDoesNotPoisonJournal();
     } finally {
@@ -123,6 +124,54 @@ public class SubmissionServiceTest {
       assert xp == 10 && pet(dir).getTotalXp() == 10;
       assert new RecordRepository(dir.resolve("record.txt")).findAll().size() == 30;
     } finally { pool.shutdownNow(); }
+  }
+
+  private static void checkMixedRewardPaths() throws Exception {
+    Path dir = setup();
+    var read = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    PetRepository pausedRepository = new PetRepository(dir.resolve("pet.txt")) {
+      @Override
+      public java.util.Optional<Pet> findById(String id) throws IOException {
+        java.util.Optional<Pet> loaded = super.findById(id);
+        read.countDown();
+        try {
+          if (!release.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+            throw new IOException("timed out waiting to release pet read");
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IOException(e);
+        }
+        return loaded;
+      }
+    };
+    var pool = Executors.newFixedThreadPool(2);
+    try {
+      PetService legacy = new PetService(pausedRepository, new UserRepository(dir.resolve("user.txt")));
+      var sports = pool.submit(() -> legacy.applyCorrectAnswerReward("P0001", "SPORTS"));
+      assert read.await(5, java.util.concurrent.TimeUnit.SECONDS) : "legacy read did not start";
+      var science = pool.submit(() -> new SubmissionService(dir).submit(session("MIXED"), "O"));
+      try {
+        // The fixed path waits for the legacy read-modify-save to release the common lock.
+        science.get(1, java.util.concurrent.TimeUnit.SECONDS);
+      } catch (java.util.concurrent.TimeoutException expected) {
+        assert !science.isDone();
+      } finally {
+        release.countDown();
+      }
+      sports.get(5, java.util.concurrent.TimeUnit.SECONDS);
+      assert science.get(5, java.util.concurrent.TimeUnit.SECONDS).getEarnedXp() == 10;
+      Pet saved = pet(dir);
+      assert saved.getTotalXp() == 20 : "mixed rewards lost XP: " + saved.getTotalXp();
+      assert saved.getStats().getIntelligence() == 11 : "SCIENCE reward overwritten";
+      assert saved.getStats().getStrength() == 11 : "SPORTS reward overwritten";
+      assert new RecordRepository(dir.resolve("record.txt")).findAll().size() == 1;
+      assert !Files.exists(dir.resolve("submission-pending.txt"));
+    } finally {
+      release.countDown();
+      pool.shutdownNow();
+    }
   }
 
   private static void checkOverflowDoesNotPoisonJournal() throws Exception {

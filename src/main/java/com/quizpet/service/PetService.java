@@ -8,6 +8,7 @@ import main.java.com.quizpet.model.GrowthResult;
 import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetAppearance;
 import main.java.com.quizpet.repository.PetRepository;
+import main.java.com.quizpet.repository.SubmissionStore;
 import main.java.com.quizpet.repository.UserRepository;
 
 /** 캐릭터 생성(FR-003)·조회와 경험치·능력치 반영(FR-004, FR-005) */
@@ -15,7 +16,7 @@ public class PetService {
   public static final int CORRECT_ANSWER_XP = 10;
   public static final int CORRECT_ANSWER_STAT = 1;
 
-  // 화면마다 PetService를 새로 만들어도 확인-생성·조회-적용-저장이 겹치지 않도록 static 잠금을 씁니다.
+  // 여러 PetService 인스턴스의 캐릭터 중복 생성을 막습니다.
   private static final Object LOCK = new Object();
 
   private final PetRepository petRepository;
@@ -63,6 +64,7 @@ public class PetService {
   /**
    * 최초 정답 보상으로 XP +10, categoryId에 연결된 능력치 +1을 적용하고 저장합니다.
    * 최초 정답인지는 호출하는 쪽(성장·기록)에서 판단하고, 최초 정답일 때만 호출합니다.
+   * 퀴즈 제출은 기록과 보상을 함께 저장하는 SubmissionService를 사용합니다.
    * 저장에 실패하면 IOException이 발생하고 파일은 이전 상태로 남습니다.
    */
   public GrowthResult applyCorrectAnswerReward(String petId, String categoryId)
@@ -71,13 +73,13 @@ public class PetService {
       throw new IllegalArgumentException("categoryId는 필수입니다.");
     }
     Category category = Category.valueOf(categoryId);
-    synchronized (LOCK) {
+    return SubmissionStore.locked(() -> {
       Pet pet = getPet(petId);
       GrowthResult result = pet.applyReward(CORRECT_ANSWER_XP, category.getStatType(),
           CORRECT_ANSWER_STAT);
       petRepository.save(pet);
       return result;
-    }
+    });
   }
 
   private static PetAppearance toAppearance(String spriteKey) {
