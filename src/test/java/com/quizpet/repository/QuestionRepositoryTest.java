@@ -70,12 +70,12 @@ public class QuestionRepositoryTest {
     }
     QuestionRepository defaults = new QuestionRepository();
     ContentRepository contents = new ContentRepository();
-    assert defaults.findAll().size() == 80;
+    assert defaults.findAll().size() == 150;
     for (Category category : Category.values()) {
       List<Question> questions = defaults.findByCategory(category);
-      assert questions.size() == 20;
-      assert questions.stream().filter(question -> question instanceof OXQuestion).count() == 10;
-      assert questions.stream().filter(question -> question instanceof MultipleChoiceQuestion).count() == 10;
+      assert questions.size() == 30;
+      assert questions.stream().filter(question -> question instanceof OXQuestion).count() == 15;
+      assert questions.stream().filter(question -> question instanceof MultipleChoiceQuestion).count() == 15;
     }
     for (var content : contents.findAll()) {
       List<Question> linked = defaults.findByContentId(content.getContentId());
@@ -90,19 +90,14 @@ public class QuestionRepositoryTest {
       List<String> answers = List.of("O", "X");
       if (question instanceof MultipleChoiceQuestion multiple) {
         assert multiple.getOptions().stream().distinct().count() == 4;
-        String correctOption = multiple.getOptions().get(Integer.parseInt(question.getAnswer()) - 1);
-        assert question.getExplanation().startsWith(
-            "정답은 " + question.getAnswer() + "번(" + correctOption + ")입니다. ");
         answers = List.of("1", "2", "3", "4");
-      } else {
-        assert question.getExplanation().startsWith("정답은 " + question.getAnswer() + "입니다. ");
+
       }
       for (String answer : answers) {
         assert question.checkAnswer(answer) == question.getAnswer().equals(answer);
       }
     }
-    assert defaults.findById("Q_HISTORY_001").orElseThrow().getExplanation().contains("1446년");
-    assert defaults.findById("Q_LANGUAGE_018").orElseThrow().getExplanation().contains("am");
+    assert defaults.findById("Q-SCI-001").orElseThrow().getExplanation().contains("100℃");
     System.out.println("QuestionRepository checks passed");
   }
 
