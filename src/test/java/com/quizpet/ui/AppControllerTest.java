@@ -111,7 +111,7 @@ public class AppControllerTest {
       app.showHistory(category.getCategoryId());
       app.showHome();
     }
-    assert new PetRepository(save.resolve("pet.txt")).findById(pet.getPetId()).orElseThrow().getLevel() == 5;
+    assert new PetRepository(save.resolve("pet.txt")).findById(pet.getPetId()).orElseThrow().getLevel() == 6;
 
     app.selectCategory("SCIENCE");
     QuizSession empty = app.startQuiz();

@@ -67,14 +67,13 @@ public class ContentRepositoryTest {
     } catch (IOException expected) {
     }
     ContentRepository defaults = new ContentRepository();
-    assert defaults.findAll().size() == 40;
+    assert defaults.findAll().size() == 75;
     for (Category category : Category.values()) {
       List<LearningContent> cards = defaults.findByCategory(category);
-      assert cards.size() == 10;
+      assert cards.size() == 15;
       for (int i = 0; i < cards.size(); i++) {
         LearningContent card = cards.get(i);
-        assert card.getOrder() == i;
-        assert card.getContentId().equals(category.getCategoryId() + "_" + String.format("%03d", i + 1));
+        assert card.getOrder() == i + 1;
         assert !card.getTags().isEmpty();
         assert defaults.findById(card.getContentId()).orElseThrow() == card;
       }

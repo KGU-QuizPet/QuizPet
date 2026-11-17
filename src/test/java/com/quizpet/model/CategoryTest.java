@@ -2,11 +2,12 @@ package main.java.com.quizpet.model;
 
 public class CategoryTest {
   public static void main(String[] args) {
-    assert Category.values().length == 4;
-    check(Category.SCIENCE, "SCIENCE", "과학&상식", "INT");
+    assert Category.values().length == 5;
+    check(Category.SCIENCE, "SCIENCE", "과학", "INT");
+    check(Category.valueOf("COMMON"), "COMMON", "상식", "INT");
     check(Category.SPORTS, "SPORTS", "스포츠", "STR");
     check(Category.HISTORY, "HISTORY", "역사", "WIS");
-    check(Category.LANGUAGE, "LANGUAGE", "언어(영어)", "FOC");
+    check(Category.LANGUAGE, "LANGUAGE", "언어", "FOC");
     for (String invalid : new String[] {"UNKNOWN", "", "science", " SCIENCE "}) {
       try {
         Category.valueOf(invalid);

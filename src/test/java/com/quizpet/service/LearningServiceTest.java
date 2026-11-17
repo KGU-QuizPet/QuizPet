@@ -53,7 +53,7 @@ public class LearningServiceTest {
       Files.writeString(file, "", StandardCharsets.UTF_8);
       LearningService empty = new LearningService(
           new CategoryRepository(), new ContentRepository(file));
-      assert empty.getCategories().size() == 4;
+      assert empty.getCategories().size() == 5;
       assert empty.getContents("SCIENCE").isEmpty();
       expectInvalid(() -> empty.getContent("SCIENCE", 0));
     } finally {
@@ -64,13 +64,13 @@ public class LearningServiceTest {
     for (Category category : defaults.getCategories()) {
       String categoryId = category.getCategoryId();
       List<LearningContent> cards = defaults.getContents(categoryId);
-      assert cards.size() == 10;
+      assert cards.size() == 15;
       expectReadOnly(cards);
       for (int i = 0; i < cards.size(); i++) {
         LearningContent card = defaults.getContent(categoryId, i);
         assert card == cards.get(i);
         assert card.getCategory() == category;
-        assert card.getOrder() == i;
+        assert card.getOrder() == i + 1;
         assert !card.getTitle().isBlank();
         assert !card.getDescription().isBlank();
         assert card.getDifficulty() > 0;

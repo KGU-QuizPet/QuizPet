@@ -30,8 +30,8 @@ public class CategoryRepositoryTest {
           "", valid.replace("SCIENCE", "UNKNOWN"),
           valid.replace("SCIENCE|", "science|"),
           valid.replace("|INT|", "|STR|"),
-          valid.replace("과학&상식", "다른 이름"),
-          valid.replace("과학 원리와 일반 상식", ""),
+          valid.replace("과학", "다른 이름"),
+          valid.replace("자연 현상과 과학 원리를 배웁니다", ""),
           valid + "\n" + valid.lines().findFirst().orElseThrow(),
           valid.substring(valid.indexOf('\n') + 1),
           valid.replace("|INT|", "|INT|extra|"))) {
@@ -43,7 +43,7 @@ public class CategoryRepositoryTest {
           assert expected.getMessage().contains(file.toString());
         }
       }
-      assert repository.findAll().size() == 4;
+      assert repository.findAll().size() == 5;
     } finally {
       Files.deleteIfExists(file);
     }

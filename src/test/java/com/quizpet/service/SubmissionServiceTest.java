@@ -193,7 +193,7 @@ public class SubmissionServiceTest {
         PetRepository pets = new PetRepository(dir.resolve("pet.txt"));
         PetStats stats = new PetStats(
             category == Category.SPORTS ? initial : 10,
-            category == Category.SCIENCE ? initial : 10,
+            category.getStatType().equals("INT") ? initial : 10,
             category == Category.LANGUAGE ? initial : 10,
             category == Category.HISTORY ? initial : 10);
         pets.save(new Pet("P0001", "U0001", "펫", PetAppearance.DUCK, 0, stats));
