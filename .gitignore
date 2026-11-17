@@ -13,3 +13,4 @@ target/
 /data/save/*.txt
 /data/save/*.bak
 /data/save/*.tmp
+/data/save/.quizpet.lock

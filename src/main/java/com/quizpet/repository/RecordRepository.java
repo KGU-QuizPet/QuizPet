@@ -24,7 +24,7 @@ import main.java.com.quizpet.model.LearningRecord;
 public class RecordRepository {
   // 같은 JVM에서 서로 다른 Repository 인스턴스의 읽기-검사-저장을 직렬화합니다.
   // 다른 프로세스나 이 클래스를 거치지 않는 파일 변경은 보호하지 않습니다.
-  private static final Object SAVE_LOCK = new Object();
+  private static final Object SAVE_LOCK = SaveFile.LOCK;
   private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
   private final Path path;
 
@@ -123,7 +123,7 @@ public class RecordRepository {
     return List.of(record.getUserId(), record.getSessionId(), record.getQuestionId());
   }
 
-  private static LearningRecord parse(String line) {
+  static LearningRecord parse(String line) {
     String[] fields = line.split("\\|", -1);
     if (fields.length != 8) {
       throw new IllegalArgumentException("필드는 8개여야 합니다.");
@@ -138,7 +138,7 @@ public class RecordRepository {
     return record;
   }
 
-  private static String format(LearningRecord record) {
+  static String format(LearningRecord record) {
     requireField(record.getRecordId(), "recordId");
     requireField(record.getUserId(), "userId");
     requireField(record.getQuestionId(), "questionId");

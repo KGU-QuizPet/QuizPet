@@ -19,6 +19,9 @@ public class HomePanel extends JPanel {
   private static final int EXP_PER_LEVEL = 50;
 
   private final ScreenManager screens;
+  private Runnable onLearn;
+  private Runnable onHistory;
+  private Runnable onChangeUser;
 
   private final JLabel petNameLabel = new JLabel();
   private final JLabel levelLabel = new JLabel("", SwingConstants.CENTER);
@@ -33,12 +36,21 @@ public class HomePanel extends JPanel {
 
   public HomePanel(ScreenManager screens) {
     this.screens = screens;
+    onLearn = () -> screens.show(ScreenManager.CATEGORY);
+    onHistory = () -> screens.show(ScreenManager.HISTORY);
+    onChangeUser = () -> screens.show(ScreenManager.START);
     setLayout(new BorderLayout());
     setBackground(UiStyle.BACKGROUND);
 
     add(createHeader(), BorderLayout.NORTH);
     add(createCenter(), BorderLayout.CENTER);
   }
+
+  public void setOnLearn(Runnable action) { onLearn = action; }
+
+  public void setOnHistory(Runnable action) { onHistory = action; }
+
+  public void setOnChangeUser(Runnable action) { onChangeUser = action; }
 
   public void showPet(String petName, String spriteKey, int level, int expInLevel,
       int str, int intel, int foc, int wis) {
@@ -99,17 +111,17 @@ public class HomePanel extends JPanel {
     center.add(Box.createVerticalStrut(40));
 
     JButton learnButton = UiStyle.button("학습하기");
-    learnButton.addActionListener(e -> screens.show(ScreenManager.CATEGORY));
+    learnButton.addActionListener(e -> onLearn.run());
     center.add(learnButton);
     center.add(Box.createVerticalStrut(12));
 
     JButton historyButton = UiStyle.button("기록");
-    historyButton.addActionListener(e -> screens.show(ScreenManager.HISTORY));
+    historyButton.addActionListener(e -> onHistory.run());
     center.add(historyButton);
     center.add(Box.createVerticalStrut(12));
 
     JButton changeUserButton = UiStyle.button("사용자 변경");
-    changeUserButton.addActionListener(e -> screens.show(ScreenManager.START));
+    changeUserButton.addActionListener(e -> onChangeUser.run());
     center.add(changeUserButton);
     return center;
   }

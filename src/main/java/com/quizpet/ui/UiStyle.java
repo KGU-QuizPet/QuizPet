@@ -17,8 +17,8 @@ public final class UiStyle {
   public static final Font SUBTITLE_FONT = new Font(Font.DIALOG, Font.BOLD, 18);
   public static final Font BODY_FONT = new Font(Font.DIALOG, Font.PLAIN, 15);
 
-  public static final String[] PET_KEYS = {"PET_A", "PET_B", "PET_C"};
-  public static final String[] PET_LABELS = {"외형 1", "외형 2", "외형 3"};
+  public static final String[] PET_KEYS = {"DUCK", "TURTLE", "LIZARD"};
+  public static final String[] PET_LABELS = {"고라파카", "고북이", "파이리"};
   private static final Color[] PET_COLORS = {
     new Color(0xFFE08A), new Color(0x9ED9A0), new Color(0xF4A9A0)
   };

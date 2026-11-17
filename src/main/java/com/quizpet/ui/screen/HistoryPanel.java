@@ -188,6 +188,7 @@ public class HistoryPanel extends JPanel {
 
     // 코드로 콤보박스 값을 바꿀 때 콜백이 다시 불리지 않게 막습니다.
     private boolean updatingCombo = false;
+    private final JButton wrongNoteButton = button("오답노트");
 
     private Runnable onGoMain = () -> { };
     private Consumer<String> onCategoryChanged = id -> { };
@@ -264,7 +265,6 @@ public class HistoryPanel extends JPanel {
         page.add(body, BorderLayout.CENTER);
 
         JButton mainButton = button("메인으로");
-        JButton wrongNoteButton = button("오답노트");
         mainButton.addActionListener(e -> onGoMain.run());
         wrongNoteButton.addActionListener(e -> onOpenWrongNote.accept(selectedId(recordCategoryBox)));
         page.add(buttonRow(mainButton, wrongNoteButton), BorderLayout.SOUTH);
@@ -573,6 +573,11 @@ public class HistoryPanel extends JPanel {
         } finally {
             updatingCombo = false;
         }
+    }
+
+    public void setWrongNoteEnabled(boolean enabled) {
+        wrongNoteButton.setEnabled(enabled);
+        wrongNoteButton.setToolTipText(enabled ? null : "오답노트는 추후 지원 예정입니다.");
     }
 
     public void showRecordPage() {
