@@ -30,6 +30,21 @@ public class PetRepository {
   }
 
   public List<Pet> findAll() throws IOException {
+    return load(null);
+  }
+
+  /**
+   * findAll과 같지만, existingUserIds(user.txt의 사용자 ID)에 없는 사용자의 캐릭터가 있으면
+   * 다른 파일 손상과 같이 줄 번호와 함께 IOException을 던집니다. 파일은 수정하지 않습니다.
+   */
+  public List<Pet> findAllOwnedBy(Set<String> existingUserIds) throws IOException {
+    if (existingUserIds == null) {
+      throw new IllegalArgumentException("existingUserIds는 필수입니다.");
+    }
+    return load(existingUserIds);
+  }
+
+  private List<Pet> load(Set<String> existingUserIds) throws IOException {
     List<Pet> loaded = new ArrayList<>();
     Set<String> ids = new HashSet<>();
     Set<String> userIds = new HashSet<>();
@@ -46,6 +61,9 @@ public class PetRepository {
         }
         if (!userIds.add(pet.getUserId())) {
           throw new IllegalArgumentException("한 사용자에게 캐릭터가 2개 이상 있습니다.");
+        }
+        if (existingUserIds != null && !existingUserIds.contains(pet.getUserId())) {
+          throw new IllegalArgumentException("존재하지 않는 사용자의 캐릭터입니다: " + pet.getUserId());
         }
         loaded.add(pet);
       } catch (RuntimeException e) {
