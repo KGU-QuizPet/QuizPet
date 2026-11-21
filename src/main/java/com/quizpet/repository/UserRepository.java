@@ -52,6 +52,15 @@ public class UserRepository {
     return List.copyOf(loaded);
   }
 
+  /** 저장된 모든 사용자 ID입니다. 캐릭터 소유자 검증(PetRepository.findAllOwnedBy)에 씁니다. */
+  public Set<String> findAllIds() throws IOException {
+    Set<String> ids = new HashSet<>();
+    for (User user : findAll()) {
+      ids.add(user.getUserId());
+    }
+    return Set.copyOf(ids);
+  }
+
   public Optional<User> findById(String userId) throws IOException {
     return findAll().stream()
         .filter(user -> user.getUserId().equals(userId))

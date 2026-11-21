@@ -112,6 +112,17 @@ public class UserPetServiceTest {
         assert expected.getMessage().contains(petFile + ":1:") : expected.getMessage();
       }
       assert Files.readString(petFile, StandardCharsets.UTF_8).contains("abc");
+
+      // #44 존재하지 않는 사용자(U9999)의 캐릭터가 있으면 무시하지 않고 불러오기를 거부한다.
+      // 원래 주인(U0001)이 캐릭터 없는 사용자로 처리되어 캐릭터가 중복 생성되면 안 된다.
+      String orphan = "P0001|U9999|오류펫|DUCK|0|10|10|10|10\n";
+      Files.writeString(petFile, orphan, StandardCharsets.UTF_8);
+      ProfileService reloadedProfiles = new ProfileService(new UserRepository(userFile),
+          new PetRepository(petFile));
+      expectOrphan(petFile, reloadedProfiles::getProfiles);
+      expectOrphan(petFile, () -> reloadedPets.findPetByUserId("U0001"));
+      expectOrphan(petFile, () -> reloadedPets.createPet("U0001", "새펫", "DUCK"));
+      assert Files.readString(petFile, StandardCharsets.UTF_8).equals(orphan);
     } finally {
       for (Path file : new Path[] {userFile, petFile}) {
         Files.deleteIfExists(file);
@@ -120,6 +131,16 @@ public class UserPetServiceTest {
       Files.deleteIfExists(directory);
     }
     System.out.println("UserService/PetService checks passed");
+  }
+
+  private static void expectOrphan(Path petFile, ThrowingRunnable action) {
+    try {
+      action.run();
+      throw new AssertionError("존재하지 않는 사용자의 캐릭터가 허용되었습니다.");
+    } catch (IOException expected) {
+      assert expected.getMessage().contains(petFile + ":1:") : expected.getMessage();
+      assert expected.getMessage().contains("U9999") : expected.getMessage();
+    }
   }
 
   private static void expectIllegal(ThrowingRunnable action) throws IOException {

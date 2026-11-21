@@ -41,7 +41,8 @@ public class PetService {
       if (userId == null || userRepository.findById(userId).isEmpty()) {
         throw new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId);
       }
-      if (petRepository.findByUserId(userId).isPresent()) {
+      // 주인 없는 캐릭터가 섞인 파일에 새 캐릭터를 덧붙여 저장하지 않도록 소유자까지 검사합니다.
+      if (findOwnedPet(userId).isPresent()) {
         throw new IllegalStateException("이미 캐릭터가 있습니다. 사용자당 캐릭터는 1개만 만들 수 있습니다.");
       }
       Pet pet = new Pet(petRepository.nextId(), userId,
@@ -53,7 +54,17 @@ public class PetService {
 
   /** 프로필 선택 후 분기용입니다. 있으면 메인(UI-03), 비어 있으면 캐릭터 생성(UI-02)으로 이동합니다. */
   public Optional<Pet> findPetByUserId(String userId) throws IOException {
-    return petRepository.findByUserId(userId);
+    return findOwnedPet(userId);
+  }
+
+  /**
+   * pet.txt에 user.txt에 없는 사용자의 캐릭터가 있으면 손상으로 보고 IOException을 던집니다.
+   * 그대로 두면 원래 주인이 캐릭터 없는 사용자로 처리되어 캐릭터가 중복 생성됩니다.
+   */
+  private Optional<Pet> findOwnedPet(String userId) throws IOException {
+    return petRepository.findAllOwnedBy(userRepository.findAllIds()).stream()
+        .filter(pet -> pet.getUserId().equals(userId))
+        .findFirst();
   }
 
   public Pet getPet(String petId) throws IOException {
