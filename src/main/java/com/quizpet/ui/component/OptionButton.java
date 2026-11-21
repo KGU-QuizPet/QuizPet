@@ -3,6 +3,7 @@ package main.java.com.quizpet.ui.component;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.GridLayout;
 import javax.swing.BorderFactory;
 import javax.swing.JToggleButton;
 import javax.swing.JTextArea;
@@ -49,8 +50,10 @@ public final class OptionButton extends JToggleButton {
 
   @Override
   public Dimension getPreferredSize() {
+    int gap = getParent() != null && getParent().getLayout() instanceof GridLayout grid
+        ? grid.getHgap() : 12;
     int width = getParent() != null && getParent().getWidth() > 40
-        ? (getParent().getWidth() - 12) / 2 - 28 : 160;
+        ? (getParent().getWidth() - gap) / 2 - 28 : 160;
     text.setSize(Math.max(1, width), Short.MAX_VALUE);
     return new Dimension(180, Math.max(64, text.getPreferredSize().height + 32));
   }

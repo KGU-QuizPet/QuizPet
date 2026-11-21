@@ -28,6 +28,7 @@ public class ImageButton extends JButton {
     setContentAreaFilled(false);
     setOpaque(false);
     setBorderPainted(false);
+    setFocusPainted(false);
     setRolloverEnabled(true);
     setBorder(BorderFactory.createEmptyBorder(10, 16, 14, 16));
     setIconTextGap(8);
