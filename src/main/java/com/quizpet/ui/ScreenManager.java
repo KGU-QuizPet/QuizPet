@@ -16,6 +16,7 @@ public class ScreenManager {
   public static final String ANSWER_FEEDBACK = "ANSWER_FEEDBACK";
   public static final String QUIZ_RESULT = "QUIZ_RESULT";
   public static final String HISTORY = "HISTORY";
+  public static final String BOSS_BATTLE = "BOSS_BATTLE";
 
   private final CardLayout cardLayout = new CardLayout();
   private final JPanel container = new JPanel(cardLayout);

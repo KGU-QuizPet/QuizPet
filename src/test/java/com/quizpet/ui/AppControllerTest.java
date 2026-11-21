@@ -18,6 +18,7 @@ public class AppControllerTest {
     SwingUtilities.invokeAndWait(() -> {
       try {
         creationBackRefresh();
+        bossBattleFlow();
         fullFlow();
         loadErrors();
         unavailableContent();
@@ -29,6 +30,26 @@ public class AppControllerTest {
       }
     });
     System.out.println("AppController integration checks passed");
+  }
+
+  private static void bossBattleFlow() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-boss-flow-");
+    AppController app = new AppController(save);
+    expectState(app::showBossBattle);
+    app.createUser("보스도전자");
+    app.createPet("전투캐릭터", "TURTLE");
+    byte[] before = Files.readAllBytes(save.resolve("pet.txt"));
+    assert clickVisible(app.getView(), "보스 잡기");
+    assert visible(app, BossBattlePanel.class);
+    assert clickVisible(app.getView(), "전투 시작");
+    assert clickVisible(app.getView(), "나가기");
+    assert visible(app, HomePanel.class);
+    assert java.util.Arrays.equals(before, Files.readAllBytes(save.resolve("pet.txt")));
+    assert !Files.exists(save.resolve("record.txt"));
+    app.showBossBattle();
+    assert visible(app, BossBattlePanel.class);
+    app.showHome();
+    assert visible(app, HomePanel.class);
   }
 
   private static void creationBackRefresh() throws Exception {
