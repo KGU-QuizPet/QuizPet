@@ -1,6 +1,7 @@
 package main.java.com.quizpet.ui;
 
 import java.awt.BorderLayout;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -13,16 +14,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
 public class MainFrame extends JFrame {
-  public static final int FRAME_WIDTH = 480;
-  public static final int FRAME_HEIGHT = 720;
   private SaveDirectoryLock saveLock;
 
   public MainFrame() {
     super("QuizPet");
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    setSize(FRAME_WIDTH, FRAME_HEIGHT);
-    setLocationRelativeTo(null);
-    setResizable(false);
+    setBounds(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
+    setExtendedState(JFrame.MAXIMIZED_BOTH);
     addWindowListener(new WindowAdapter() {
       @Override
       public void windowClosed(WindowEvent event) {

@@ -92,13 +92,15 @@ public class HomePanel extends JPanel {
   }
 
   private JPanel createCenter() {
-    JPanel center = new JPanel();
-    center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+    JPanel center = new JPanel(new GridLayout(1, 2, 40, 0));
+    JPanel details = new JPanel();
+    details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
+    details.setOpaque(false);
     center.setOpaque(false);
     center.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
 
     center.add(petBox);
-    center.add(Box.createVerticalStrut(30));
+    center.add(details);
 
     JPanel stats = new JPanel(new GridLayout(2, 2, 20, 12));
     stats.setOpaque(false);
@@ -106,23 +108,22 @@ public class HomePanel extends JPanel {
     stats.add(intLabel);
     stats.add(focLabel);
     stats.add(wisLabel);
-    stats.setMaximumSize(new Dimension(360, 70));
-    center.add(stats);
-    center.add(Box.createVerticalStrut(40));
+    details.add(stats);
+    details.add(Box.createVerticalStrut(40));
 
     JButton learnButton = UiStyle.button("학습하기");
     learnButton.addActionListener(e -> onLearn.run());
-    center.add(learnButton);
-    center.add(Box.createVerticalStrut(12));
+    details.add(learnButton);
+    details.add(Box.createVerticalStrut(12));
 
     JButton historyButton = UiStyle.button("기록");
     historyButton.addActionListener(e -> onHistory.run());
-    center.add(historyButton);
-    center.add(Box.createVerticalStrut(12));
+    details.add(historyButton);
+    details.add(Box.createVerticalStrut(12));
 
     JButton changeUserButton = UiStyle.button("사용자 변경");
     changeUserButton.addActionListener(e -> onChangeUser.run());
-    center.add(changeUserButton);
+    details.add(changeUserButton);
     return center;
   }
 

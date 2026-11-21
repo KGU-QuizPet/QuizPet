@@ -1,6 +1,8 @@
 package main.java.com.quizpet.ui.component;
 
-import java.awt.BorderLayout;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -21,7 +23,7 @@ public class MultipleChoicePanel extends JPanel {
   private final JLabel selectionLabel = UiStyle.label("선택한 답안: 없음", UiStyle.BODY_FONT);
 
   public MultipleChoicePanel(String question, List<String> options) {
-    setLayout(new BorderLayout(0, 20));
+    setLayout(new GridBagLayout());
     setBackground(UiStyle.BACKGROUND);
     setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
@@ -32,8 +34,15 @@ public class MultipleChoicePanel extends JPanel {
     questionArea.setWrapStyleWord(true);
     questionArea.setOpaque(false);
     JScrollPane questionScroll = createScrollPane(questionArea);
-    questionScroll.setPreferredSize(new Dimension(0, 140));
-    add(questionScroll, BorderLayout.NORTH);
+    questionArea.setRows(3);
+    GridBagConstraints cell = new GridBagConstraints();
+    cell.gridx = 0;
+    cell.gridy = 0;
+    cell.weightx = 1;
+    cell.weighty = 0.3;
+    cell.fill = GridBagConstraints.BOTH;
+    cell.insets = new Insets(0, 0, 20, 0);
+    add(questionScroll, cell);
 
     optionsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     optionsList.setVisibleRowCount(4);
@@ -45,8 +54,13 @@ public class MultipleChoicePanel extends JPanel {
         selectionLabel.setText("선택한 답안: " + (answer == null ? "없음" : answer + "번"));
       }
     });
-    add(createScrollPane(optionsList), BorderLayout.CENTER);
-    add(selectionLabel, BorderLayout.SOUTH);
+    cell.gridy++;
+    cell.weighty = 0.7;
+    add(createScrollPane(optionsList), cell);
+    cell.gridy++;
+    cell.weighty = 0;
+    cell.insets = new Insets(0, 0, 0, 0);
+    add(selectionLabel, cell);
     setQuestion(question, options);
   }
 

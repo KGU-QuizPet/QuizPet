@@ -49,8 +49,7 @@ public class StartPanel extends JPanel {
     userList.setFont(UiStyle.BODY_FONT);
     userList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     JScrollPane listScroll = new JScrollPane(userList);
-    listScroll.setPreferredSize(new Dimension(360, 200));
-    listScroll.setMaximumSize(new Dimension(360, 200));
+    userList.setVisibleRowCount(6);
     add(listScroll);
     add(Box.createVerticalStrut(10));
     JButton startButton = UiStyle.button("시작");
@@ -66,7 +65,7 @@ public class StartPanel extends JPanel {
     nicknameField.setFont(UiStyle.BODY_FONT);
     nicknameRow.add(nicknameLabel);
     nicknameRow.add(nicknameField);
-    nicknameRow.setMaximumSize(new Dimension(360, 45));
+    nicknameRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, nicknameRow.getPreferredSize().height));
     add(nicknameRow);
     JButton createButton = UiStyle.button("새 사용자 만들기");
     createButton.addActionListener(e -> onCreateUser());
