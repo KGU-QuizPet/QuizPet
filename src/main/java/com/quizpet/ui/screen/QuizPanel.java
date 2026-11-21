@@ -13,15 +13,20 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizSession;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
-import main.java.com.quizpet.ui.component.MultipleChoicePanel;
 import main.java.com.quizpet.ui.component.ImageButton;
-import main.java.com.quizpet.ui.component.QuizProgressBar;
+import main.java.com.quizpet.ui.component.MultipleChoicePanel;
 import main.java.com.quizpet.ui.component.OXQuestionPanel;
+import main.java.com.quizpet.ui.component.QuizProgressBar;
+import main.java.com.quizpet.ui.component.ShortAnswerPanel;
 
 public class QuizPanel extends JPanel {
   private final JLabel questionTypeLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
@@ -36,6 +41,7 @@ public class QuizPanel extends JPanel {
   private QuizSession session;
   private OXQuestionPanel oxQuestionPanel;
   private MultipleChoicePanel multipleChoicePanel;
+  private ShortAnswerPanel shortAnswerPanel;
 
   public QuizPanel(ScreenManager screens) {
     Objects.requireNonNull(screens, "screens는 필수입니다.");
@@ -77,6 +83,7 @@ public class QuizPanel extends JPanel {
   }
 
   public String getSelectedAnswer() {
+    if (shortAnswerPanel != null) return shortAnswerPanel.getSelectedAnswer();
     if (oxQuestionPanel != null) return oxQuestionPanel.getSelectedAnswer();
     return multipleChoicePanel == null ? null : multipleChoicePanel.getSelectedAnswer();
   }
@@ -91,10 +98,15 @@ public class QuizPanel extends JPanel {
     questionContainer.removeAll();
     oxQuestionPanel = null;
     multipleChoicePanel = null;
+    shortAnswerPanel = null;
     if (question instanceof MultipleChoiceQuestion multipleChoice) {
       multipleChoicePanel = new MultipleChoicePanel(question.getPrompt(), multipleChoice.getOptions());
       questionContainer.add(multipleChoicePanel, BorderLayout.CENTER);
       questionTypeLabel.setText(session.getCategory().getName() + " · 4지선다");
+    } else if (question instanceof ShortAnswerQuestion) {
+      shortAnswerPanel = new ShortAnswerPanel(question.getPrompt());
+      questionContainer.add(shortAnswerPanel, BorderLayout.CENTER);
+      questionTypeLabel.setText(session.getCategory().getName() + " · 단답형");
     } else {
       oxQuestionPanel = new OXQuestionPanel(question.getPrompt());
       questionContainer.add(oxQuestionPanel, BorderLayout.CENTER);
@@ -116,7 +128,7 @@ public class QuizPanel extends JPanel {
     if (session == null || session.isFinished() || session.isCurrentQuestionAnswered()) return;
     String answer = getSelectedAnswer();
     if (answer == null) {
-      statusLabel.setText("답안을 먼저 선택해 주세요.");
+      statusLabel.setText("답안을 먼저 선택하거나 입력해 주세요.");
       return;
     }
     onSubmit.accept(answer);
@@ -132,6 +144,12 @@ public class QuizPanel extends JPanel {
         button.addItemListener(e -> updateSelection());
       } else if (child instanceof JList<?> list) {
         list.addListSelectionListener(e -> updateSelection());
+      } else if (child instanceof JTextField field) {
+        field.getDocument().addDocumentListener(new DocumentListener() {
+          @Override public void insertUpdate(DocumentEvent e) { updateSelection(); }
+          @Override public void removeUpdate(DocumentEvent e) { updateSelection(); }
+          @Override public void changedUpdate(DocumentEvent e) { updateSelection(); }
+        });
       }
       if (child instanceof Container nested) observeAnswerSelection(nested);
     }
@@ -145,7 +163,9 @@ public class QuizPanel extends JPanel {
 
   private static void disableAnswerControls(Container container) {
     for (Component child : container.getComponents()) {
-      if (child instanceof JToggleButton || child instanceof JList<?>) child.setEnabled(false);
+      if (child instanceof JToggleButton || child instanceof JList<?> || child instanceof JTextField) {
+        child.setEnabled(false);
+      }
       if (child instanceof Container nested) disableAnswerControls(nested);
     }
   }

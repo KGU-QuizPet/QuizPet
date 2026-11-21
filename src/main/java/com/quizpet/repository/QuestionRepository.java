@@ -14,6 +14,7 @@ import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.OXQuestion;
 import main.java.com.quizpet.model.Question;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 
 public class QuestionRepository {
   private final List<Question> questions;
@@ -63,6 +64,9 @@ public class QuestionRepository {
           case "MULTIPLE_CHOICE" -> question = new MultipleChoiceQuestion(
               fields[0], category, fields[2], prompt, fields[4], explanation,
               List.of(fields[5].split(",", -1)));
+          case "SA" -> question = new ShortAnswerQuestion(
+              fields[0], category, fields[2], prompt, fields[4], explanation,
+              fields[5].isEmpty() ? List.of() : List.of(fields[5].split(";", -1)));
           default -> throw new IllegalArgumentException("지원하지 않는 문제 유형입니다.");
         }
         if (!ids.add(question.getQuestionId())) {

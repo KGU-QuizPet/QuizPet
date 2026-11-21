@@ -9,6 +9,7 @@ import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.OXQuestion;
 import main.java.com.quizpet.model.Question;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 
 public class QuestionRepositoryTest {
   public static void main(String[] args) throws IOException {
@@ -70,28 +71,33 @@ public class QuestionRepositoryTest {
     }
     QuestionRepository defaults = new QuestionRepository();
     ContentRepository contents = new ContentRepository();
-    assert defaults.findAll().size() == 150;
+    assert defaults.findAll().size() == 225;
     for (Category category : Category.values()) {
       List<Question> questions = defaults.findByCategory(category);
-      assert questions.size() == 30;
+      assert questions.size() == 45;
       assert questions.stream().filter(question -> question instanceof OXQuestion).count() == 15;
       assert questions.stream().filter(question -> question instanceof MultipleChoiceQuestion).count() == 15;
+      assert questions.stream().filter(question -> question instanceof ShortAnswerQuestion).count() == 15;
     }
     for (var content : contents.findAll()) {
       List<Question> linked = defaults.findByContentId(content.getContentId());
-      assert linked.size() == 2;
+      assert linked.size() == 3;
       assert linked.stream().filter(question -> question instanceof OXQuestion).count() == 1;
       assert linked.stream().filter(question -> question instanceof MultipleChoiceQuestion).count() == 1;
+      assert linked.stream().filter(question -> question instanceof ShortAnswerQuestion).count() == 1;
     }
     for (Question question : defaults.findAll()) {
       assert contents.findById(question.getContentId()).orElseThrow().getCategory()
           == question.getCategory();
       assert defaults.findById(question.getQuestionId()).orElseThrow() == question;
-      List<String> answers = List.of("O", "X");
+      List<String> answers = question instanceof ShortAnswerQuestion ? List.of(question.getAnswer(), "틀린답안") : List.of("O", "X");
       if (question instanceof MultipleChoiceQuestion multiple) {
         assert multiple.getOptions().stream().distinct().count() == 4;
         answers = List.of("1", "2", "3", "4");
 
+      }
+      if (question instanceof ShortAnswerQuestion shortAnswer) {
+        for (String alternative : shortAnswer.getAlternativeAnswers()) assert question.checkAnswer(alternative);
       }
       for (String answer : answers) {
         assert question.checkAnswer(answer) == question.getAnswer().equals(answer);
