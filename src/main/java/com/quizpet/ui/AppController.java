@@ -225,6 +225,7 @@ public final class AppController {
 
   private void showFeedback(LearningRecord record) {
     Question question = session.getCurrentQuestion();
+    feedback.showSession(session);
     feedback.showFeedback(question, record.getSelectedAnswer(), record.isCorrect(),
         record.getEarnedXp() > 0 ? 1 : 0, record.getEarnedXp(),
         hasLearningCard(question), session.isFinished());

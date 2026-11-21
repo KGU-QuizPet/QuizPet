@@ -1,7 +1,6 @@
 package main.java.com.quizpet.ui.component;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
@@ -13,14 +12,13 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.JToggleButton;
 import main.java.com.quizpet.ui.UiStyle;
 
 public class OXQuestionPanel extends JPanel {
   private final JTextArea questionArea = new JTextArea();
   private final ButtonGroup answerGroup = new ButtonGroup();
-  private final JToggleButton oButton = new JToggleButton("O");
-  private final JToggleButton xButton = new JToggleButton("X");
+  private final OptionButton oButton = new OptionButton("O · 맞다", "O");
+  private final OptionButton xButton = new OptionButton("X · 아니다", "X");
   private final JLabel selectionLabel = UiStyle.label("선택한 답안: 없음", UiStyle.BODY_FONT);
 
   public OXQuestionPanel(String question) {
@@ -51,10 +49,8 @@ public class OXQuestionPanel extends JPanel {
 
     JPanel answers = new JPanel(new GridLayout(1, 2, 20, 0));
     answers.setOpaque(false);
-    for (JToggleButton button : new JToggleButton[] {oButton, xButton}) {
-      button.setFont(UiStyle.TITLE_FONT);
+    for (OptionButton button : new OptionButton[] {oButton, xButton}) {
       button.setFocusPainted(false);
-      button.setActionCommand(button.getText());
       button.addActionListener(e -> updateSelection());
       answerGroup.add(button);
       answers.add(button);
@@ -77,6 +73,8 @@ public class OXQuestionPanel extends JPanel {
     questionArea.setText(question);
     questionArea.setCaretPosition(0);
     answerGroup.clearSelection();
+    oButton.resetResult();
+    xButton.resetResult();
     updateSelection();
   }
 
@@ -88,11 +86,14 @@ public class OXQuestionPanel extends JPanel {
   private void updateSelection() {
     String answer = getSelectedAnswer();
     selectionLabel.setText("선택한 답안: " + (answer == null ? "없음" : answer));
-    for (JToggleButton button : new JToggleButton[] {oButton, xButton}) {
-      Color color = button.isSelected() ? UiStyle.POINT : Color.LIGHT_GRAY;
-      button.setBorder(BorderFactory.createLineBorder(color, 3));
-      button.setForeground(button.isSelected() ? UiStyle.POINT : Color.DARK_GRAY);
-    }
     repaint();
+  }
+
+  public void showResult(String selectedAnswer, String correctAnswer) {
+    selectionLabel.setText("내가 고른 답안: " + selectedAnswer + " · 정답: " + correctAnswer);
+    for (OptionButton button : new OptionButton[] {oButton, xButton}) {
+      button.showResult(button.getActionCommand().equals(correctAnswer),
+          button.getActionCommand().equals(selectedAnswer));
+    }
   }
 }

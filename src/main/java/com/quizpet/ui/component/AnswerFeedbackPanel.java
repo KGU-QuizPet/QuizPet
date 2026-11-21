@@ -2,6 +2,8 @@ package main.java.com.quizpet.ui.component;
 
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.Question;
+import main.java.com.quizpet.model.QuizSession;
+import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.service.GrowthService.RewardDecision;
 
 import javax.swing.BorderFactory;
@@ -53,21 +55,23 @@ public class AnswerFeedbackPanel extends JPanel {
         }
     }
 
-    // FE1 UiStyle과 같은 값 (UiStyle이 main에 머지되면 UiStyle로 교체)
-    private static final Color BACKGROUND = new Color(0xFFF8EE);
+    private static final Color BACKGROUND = UiStyle.BACKGROUND;
     private static final Color SURFACE = Color.WHITE;
-    private static final Color BORDER = new Color(0xDADCE3);
-    private static final Color TEXT = new Color(0x1F2330);
-    private static final Color TEXT_MUTED = new Color(0x6B7080);
-    private static final Color CORRECT = new Color(0x2F9E44);
-    private static final Color WRONG = new Color(0xE03131);
-    private static final Color HIGHLIGHT = new Color(0xF08C00);
+    private static final Color BORDER = UiStyle.BORDER;
+    private static final Color TEXT = UiStyle.TEXT;
+    private static final Color TEXT_MUTED = UiStyle.MUTED;
+    private static final Color CORRECT = UiStyle.CORRECT;
+    private static final Color WRONG = UiStyle.WRONG;
+    private static final Color HIGHLIGHT = UiStyle.BRAND;
     private static final Font HEADLINE = new Font(Font.DIALOG, Font.BOLD, 28);
     private static final Font SUBTITLE = new Font(Font.DIALOG, Font.BOLD, 15);
     private static final Font BODY = new Font(Font.DIALOG, Font.PLAIN, 15);
     private static final Font BODY_BOLD = new Font(Font.DIALOG, Font.BOLD, 15);
     private static final Font SMALL = new Font(Font.DIALOG, Font.PLAIN, 13);
 
+    private final QuizProgressBar progressBar = new QuizProgressBar();
+    private final JPanel answers = card();
+    private final JPanel questionPreview = new JPanel(new BorderLayout());
     private final JLabel verdictLabel = label(" ", HEADLINE, TEXT);
     private final JLabel myAnswerLabel = label(" ", BODY, TEXT);
     private final JLabel correctAnswerLabel = label(" ", BODY_BOLD, CORRECT);
@@ -76,8 +80,8 @@ public class AnswerFeedbackPanel extends JPanel {
     private final JLabel xpRewardLabel = label(" ", SUBTITLE, TEXT);
     private final JLabel rewardNoteLabel = label(" ", SMALL, TEXT_MUTED);
 
-    private final JButton viewCardButton = button("학습 카드 보기");
-    private final JButton nextButton = button("다음 문제");
+    private final JButton viewCardButton = new ImageButton("학습 카드 보기", "/images/pets/small/duck_focus.png", 24);
+    private final JButton nextButton = new ImageButton("다음 문제");
     private final JScrollPane bodyScroll = new JScrollPane(
             JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -87,12 +91,18 @@ public class AnswerFeedbackPanel extends JPanel {
     public AnswerFeedbackPanel() {
         setLayout(new BorderLayout(0, 16));
         setBackground(BACKGROUND);
+        setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         verdictLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        add(verdictLabel, BorderLayout.NORTH);
+        JPanel header = new JPanel(new BorderLayout(0, 8));
+        header.setOpaque(false);
+        header.add(progressBar, BorderLayout.NORTH);
+        header.add(verdictLabel, BorderLayout.CENTER);
+        add(header, BorderLayout.NORTH);
         add(buildBody(), BorderLayout.CENTER);
         add(buildButtons(), BorderLayout.SOUTH);
 
+        viewCardButton.setBackground(Color.WHITE);
         viewCardButton.addActionListener(e -> onViewCard.run());
         nextButton.addActionListener(e -> onNext.run());
     }
@@ -109,7 +119,13 @@ public class AnswerFeedbackPanel extends JPanel {
         cell.fill = GridBagConstraints.BOTH;
         cell.insets = new Insets(0, 0, 12, 0);
 
-        JPanel answers = card();
+        questionPreview.setOpaque(false);
+        questionPreview.setVisible(false);
+        cell.weighty = 0.5;
+        body.add(questionPreview, cell);
+        cell.gridy++;
+        cell.weighty = 0;
+
         answers.setLayout(new GridLayout(2, 1, 0, 6));
         answers.add(myAnswerLabel);
         answers.add(correctAnswerLabel);
@@ -162,15 +178,40 @@ public class AnswerFeedbackPanel extends JPanel {
     }
 
     private JComponent buildButtons() {
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        JPanel buttons = new JPanel(new GridLayout(1, 2, 12, 0));
         buttons.setOpaque(false);
         buttons.add(viewCardButton);
         buttons.add(nextButton);
         return buttons;
     }
 
+    public void showSession(QuizSession session) {
+        progressBar.showSession(Objects.requireNonNull(session));
+    }
+
+    private void showQuestion(Question question, String selectedAnswer) {
+        questionPreview.removeAll();
+        if (question instanceof MultipleChoiceQuestion choice) {
+            MultipleChoicePanel panel = new MultipleChoicePanel(question.getPrompt(), choice.getOptions());
+            panel.showResult(selectedAnswer, question.getAnswer());
+            questionPreview.add(panel);
+        } else {
+            OXQuestionPanel panel = new OXQuestionPanel(question.getPrompt());
+            panel.showResult(selectedAnswer, question.getAnswer());
+            questionPreview.add(panel);
+        }
+        questionPreview.setPreferredSize(new Dimension(380, 284));
+        questionPreview.setMaximumSize(new Dimension(Integer.MAX_VALUE, 284));
+        questionPreview.setVisible(true);
+        answers.setVisible(false);
+        revalidate();
+        repaint();
+    }
+
     public void showFeedback(AnswerFeedbackView view) {
         Objects.requireNonNull(view, "AnswerFeedbackView가 null입니다. 채점 결과를 먼저 받아오세요.");
+        questionPreview.setVisible(false);
+        answers.setVisible(true);
 
         if (view.correct()) {
             verdictLabel.setText("정답입니다!");
@@ -214,6 +255,7 @@ public class AnswerFeedbackPanel extends JPanel {
                 answerText(question, selectedAnswer), answerText(question, question.getAnswer()),
                 question.getExplanation(), question.getCategory().getStatType(),
                 statGain, gainedXp, hasLearningCard, lastQuestion));
+        showQuestion(question, selectedAnswer);
     }
 
     /** rewardSaved가 false면 보상을 "(예정)"으로 표시합니다 (이슈 #28). */
@@ -225,6 +267,7 @@ public class AnswerFeedbackPanel extends JPanel {
                 answerText(question, selectedAnswer), answerText(question, question.getAnswer()),
                 question.getExplanation(), question.getCategory().getStatType(),
                 reward.getPlannedStatGain(), reward.getPlannedXp(), hasLearningCard, lastQuestion, rewardSaved));
+        showQuestion(question, selectedAnswer);
     }
 
     private static String answerText(Question question, String answer) {
@@ -278,13 +321,6 @@ public class AnswerFeedbackPanel extends JPanel {
                 BorderFactory.createLineBorder(BORDER),
                 BorderFactory.createEmptyBorder(14, 16, 14, 16)));
         return panel;
-    }
-
-    private static JButton button(String text) {
-        JButton button = new JButton(text);
-        button.setFont(BODY);
-        button.setFocusPainted(false);
-        return button;
     }
 
     private static String signed(int value) {

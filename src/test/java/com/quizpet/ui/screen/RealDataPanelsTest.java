@@ -68,7 +68,7 @@ public final class RealDataPanelsTest {
     AtomicReference<String> selected = new AtomicReference<>();
     categories.setOnSelect(selected::set);
     categories.showCategories(List.of(Category.SPORTS));
-    button(categories, "선택").doClick();
+    button(categories, "스포츠").doClick();
     assert Category.SPORTS.name().equals(selected.get());
     categories.showCategories(List.of(Category.HISTORY));
     assert categories.getSelectedCategoryId() == null;
@@ -110,6 +110,7 @@ public final class RealDataPanelsTest {
     QuizSession first = new QuizSession("S1", "U1", Category.SCIENCE, List.of(
         new OXQuestion("Q1", Category.SCIENCE, "C1", "실제문제 ".repeat(500), "O", "해설")));
     quiz.showSession(first);
+    assert !button(quiz, "답안 제출").isEnabled();
     button(quiz, "답안 제출").doClick();
     assert answer.get() == null;
     components(quiz, JToggleButton.class).get(0).doClick();
@@ -123,7 +124,7 @@ public final class RealDataPanelsTest {
             List.of("보기".repeat(300), "둘", "셋", "넷"))));
     quiz.showSession(second);
     assert quiz.getSelectedAnswer() == null;
-    components(quiz, JList.class).get(0).setSelectedIndex(1);
+    components(quiz, JToggleButton.class).get(1).doClick();
     button(quiz, "답안 제출").doClick();
     assert "2".equals(answer.get());
     second.submitAnswer("2");
