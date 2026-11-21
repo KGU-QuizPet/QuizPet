@@ -30,6 +30,7 @@ public final class AppController {
   private final QuestionRepository questions;
   private final RecordService records;
   private final StatisticsService statistics;
+  private final RecordQuestionLookup recordQuestions;
   private final SubmissionService submissions;
   private final StartPanel start = new StartPanel(screens);
   private final PetCreatePanel petCreate = new PetCreatePanel(screens);
@@ -62,7 +63,8 @@ public final class AppController {
     questions = new QuestionRepository(contentDirectory.resolve("question.txt"));
     quizzes = new QuizService(questions);
     records = new RecordService(new RecordRepository(saveDirectory.resolve("record.txt")));
-    statistics = new StatisticsService(records, id -> questions.findById(id).map(Question::getCategory));
+    recordQuestions = new RecordQuestionLookup(questions, contentDirectory.resolve("question-legacy.txt"));
+    statistics = new StatisticsService(records, id -> recordQuestions.findById(id).map(Question::getCategory));
     submissions = new SubmissionService(saveDirectory);
     registerScreens();
     connectActions();
@@ -297,17 +299,24 @@ public final class AppController {
     screens.show(ScreenManager.HISTORY);
     try {
       ready();
+      boolean unresolved = records.getRecords(currentUser.getUserId()).stream()
+          .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
+      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지합니다.
+      if (unresolved) categoryId = null;
       List<HistoryView.CategoryRate> rates = new ArrayList<>();
-      for (Category category : learning.getCategories()) {
+      for (Category category : unresolved ? List.<Category>of() : learning.getCategories()) {
         rates.add(HistoryView.CategoryRate.of(category,
             statistics.getCategoryStatistics(currentUser.getUserId(), category.getCategoryId())));
       }
       List<HistoryView.RecordRow> rows = new ArrayList<>();
       for (LearningRecord record : records.getRecentRecords(currentUser.getUserId(), Integer.MAX_VALUE)) {
-        Question question = questions.findById(record.getQuestionId()).orElseThrow(
-            () -> new IllegalStateException("기록의 문제를 찾을 수 없습니다: " + record.getQuestionId()));
-        if (categoryId == null || question.getCategoryId().equals(categoryId)) {
-          rows.add(HistoryView.RecordRow.of(question, record));
+        Question question = recordQuestions.findById(record.getQuestionId()).orElse(null);
+        if (categoryId == null || (question != null && question.getCategoryId().equals(categoryId))) {
+          rows.add(question == null
+              ? new HistoryView.RecordRow(record.getAnsweredAt(), "분야 확인 불가",
+                  "문제 정보 없음: " + record.getQuestionId(), record.getSelectedAnswer(),
+                  record.isCorrect(), record.getEarnedXp())
+              : HistoryView.RecordRow.of(question, record));
           if (rows.size() == 20) break;
         }
       }

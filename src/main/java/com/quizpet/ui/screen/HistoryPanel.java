@@ -387,7 +387,7 @@ public class HistoryPanel extends JPanel {
     private void rebuildCategoryRates(List<HistoryView.CategoryRate> rates) {
         categoryRatesPanel.removeAll();
         if (rates.isEmpty()) {
-            categoryRatesPanel.add(label("분야 정보가 없습니다.", SMALL, TEXT_MUTED));
+            categoryRatesPanel.add(label("문제 정보를 확인할 수 없어 분야별 통계를 제공하지 않습니다.", SMALL, TEXT_MUTED));
             return;
         }
         int row = 0;
