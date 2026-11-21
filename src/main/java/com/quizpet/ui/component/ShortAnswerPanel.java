@@ -7,6 +7,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.ui.UiStyle;
 
 public final class ShortAnswerPanel extends JPanel {
@@ -43,7 +44,7 @@ public final class ShortAnswerPanel extends JPanel {
 
   public String getSelectedAnswer() {
     String answer = answerField.getText();
-    return answer.replaceAll("(?U)\\s+", "").isEmpty() || answer.contains("|") ? null : answer;
+    return ShortAnswerQuestion.isSubmittable(answer) ? answer : null;
   }
 
   public void showResult(String selectedAnswer) {

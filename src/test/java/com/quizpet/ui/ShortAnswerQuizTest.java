@@ -29,8 +29,9 @@ public final class ShortAnswerQuizTest {
       assert question.checkAnswer(" 이산화 탄소 ");
       assert question.checkAnswer(" cO2 ");
       assert question.checkAnswer("CO₂");
+      assert question.checkAnswer("ＣＯ２") && question.checkAnswer("이산화탄소.");
       assert !question.checkAnswer("산소");
-      for (String invalid : new String[] {null, "", "　 ", "CO|2", "CO\n2", "CO\r2", "CO\u20282"}) {
+      for (String invalid : new String[] {null, "", "　 ", ".", "CO|2", "CO\n2", "CO\r2", "CO\u20282"}) {
         try { question.checkAnswer(invalid); throw new AssertionError("Invalid answer accepted: " + invalid); }
         catch (IllegalArgumentException expected) { }
       }

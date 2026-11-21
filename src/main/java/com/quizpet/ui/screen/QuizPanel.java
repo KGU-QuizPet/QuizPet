@@ -15,17 +15,17 @@ import javax.swing.JToggleButton;
 import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import main.java.com.quizpet.model.ShortAnswerQuestion;
-import main.java.com.quizpet.ui.component.ShortAnswerPanel;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizSession;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
-import main.java.com.quizpet.ui.component.MultipleChoicePanel;
 import main.java.com.quizpet.ui.component.ImageButton;
-import main.java.com.quizpet.ui.component.QuizProgressBar;
+import main.java.com.quizpet.ui.component.MultipleChoicePanel;
 import main.java.com.quizpet.ui.component.OXQuestionPanel;
+import main.java.com.quizpet.ui.component.QuizProgressBar;
+import main.java.com.quizpet.ui.component.ShortAnswerPanel;
 
 public class QuizPanel extends JPanel {
   private final JLabel questionTypeLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
@@ -145,9 +145,9 @@ public class QuizPanel extends JPanel {
         list.addListSelectionListener(e -> updateSelection());
       } else if (child instanceof JTextField field) {
         field.getDocument().addDocumentListener(new DocumentListener() {
-          public void insertUpdate(DocumentEvent e) { updateSelection(); }
-          public void removeUpdate(DocumentEvent e) { updateSelection(); }
-          public void changedUpdate(DocumentEvent e) { updateSelection(); }
+          @Override public void insertUpdate(DocumentEvent e) { updateSelection(); }
+          @Override public void removeUpdate(DocumentEvent e) { updateSelection(); }
+          @Override public void changedUpdate(DocumentEvent e) { updateSelection(); }
         });
       }
       if (child instanceof Container nested) observeAnswerSelection(nested);
@@ -162,7 +162,9 @@ public class QuizPanel extends JPanel {
 
   private static void disableAnswerControls(Container container) {
     for (Component child : container.getComponents()) {
-      if (child instanceof JToggleButton || child instanceof JList<?> || child instanceof JTextField) child.setEnabled(false);
+      if (child instanceof JToggleButton || child instanceof JList<?> || child instanceof JTextField) {
+        child.setEnabled(false);
+      }
       if (child instanceof Container nested) disableAnswerControls(nested);
     }
   }

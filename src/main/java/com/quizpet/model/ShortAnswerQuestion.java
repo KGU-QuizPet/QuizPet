@@ -1,5 +1,6 @@
 package main.java.com.quizpet.model;
 
+import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
 
@@ -32,14 +33,21 @@ public final class ShortAnswerQuestion extends Question {
         || alternativeAnswers.stream().anyMatch(answer -> normalize(answer).equals(normalized));
   }
 
+  /** 화면의 제출 가능 여부도 이 규칙을 그대로 씁니다. */
+  public static boolean isSubmittable(String answer) {
+    return answer != null && !normalize(answer).isEmpty() && !answer.contains("|")
+        && !answer.matches("(?s).*\\R.*");
+  }
+
   private static void validateAnswer(String answer) {
-    if (answer == null || normalize(answer).isEmpty() || answer.contains("|")
-        || answer.matches("(?s).*\\R.*")) {
+    if (!isSubmittable(answer)) {
       throw new IllegalArgumentException("답안은 필수이며 구분자(|)나 줄바꿈을 포함할 수 없습니다.");
     }
   }
 
+  // NFKC로 전각 문자·아래첨자(ＣＯ２, N₂)를 맞추고, 끝의 문장부호(낮아진다.)는 무시합니다.
   private static String normalize(String answer) {
-    return answer.replaceAll("(?U)\\s+", "").toLowerCase(Locale.ROOT);
+    return Normalizer.normalize(answer, Normalizer.Form.NFKC)
+        .replaceAll("(?U)\\s+", "").replaceAll("[.!?。]+$", "").toLowerCase(Locale.ROOT);
   }
 }
