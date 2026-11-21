@@ -1,7 +1,6 @@
 package main.java.com.quizpet.ui.screen;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -14,7 +13,8 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
+import main.java.com.quizpet.ui.component.CategoryCard;
+import main.java.com.quizpet.ui.component.ImageButton;
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
@@ -45,7 +45,8 @@ public class CategoryPanel extends JPanel {
     JPanel footer = new JPanel(new BorderLayout(0, 10));
     footer.setOpaque(false);
     footer.add(selectionLabel, BorderLayout.NORTH);
-    JButton back = UiStyle.button("홈으로");
+    JButton back = new ImageButton("홈으로");
+    back.setBackground(java.awt.Color.WHITE);
     back.addActionListener(e -> screens.show(ScreenManager.HOME));
     footer.add(back, BorderLayout.SOUTH);
     add(footer, BorderLayout.SOUTH);
@@ -68,33 +69,14 @@ public class CategoryPanel extends JPanel {
     return selectedCategoryId;
   }
 
-  private JPanel createCategoryCard(Category category) {
-    JPanel card = new JPanel(new BorderLayout(0, 12));
-    card.setOpaque(false);
-    card.setBorder(BorderFactory.createCompoundBorder(
-        BorderFactory.createLineBorder(Color.LIGHT_GRAY, 2),
-        BorderFactory.createEmptyBorder(16, 12, 16, 12)));
-    card.add(UiStyle.label(category.getName(), UiStyle.SUBTITLE_FONT), BorderLayout.NORTH);
-    JTextArea description = new JTextArea(category.getDescription());
-    description.setFont(UiStyle.BODY_FONT);
-    description.setEditable(false);
-    description.setFocusable(false);
-    description.setLineWrap(true);
-    description.setWrapStyleWord(true);
-    description.setOpaque(false);
-    card.add(description, BorderLayout.CENTER);
-    JPanel actions = new JPanel(new BorderLayout(0, 10));
-    actions.setOpaque(false);
-    actions.add(UiStyle.label(category.getStatType() + " +1", UiStyle.BODY_FONT), BorderLayout.NORTH);
-    JButton button = UiStyle.button("선택");
+  private JButton createCategoryCard(Category category) {
+    JButton button = new CategoryCard(category);
     button.addActionListener(e -> {
       selectedCategoryId = category.getCategoryId();
       selectionLabel.setText("선택한 분야: " + category.getName());
       onSelect.accept(selectedCategoryId);
     });
-    actions.add(button, BorderLayout.SOUTH);
-    card.add(actions, BorderLayout.SOUTH);
-    return card;
+    return button;
   }
   private static final class CategoryGrid extends JPanel implements Scrollable {
     CategoryGrid() { super(new GridLayout(0, 3, 12, 12)); }

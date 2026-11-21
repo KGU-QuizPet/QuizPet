@@ -332,7 +332,7 @@ QuizPet/
 ```bash
 mkdir -p build/classes
 find src/main/java -name '*.java' -print0 | xargs -0 javac --release 17 -encoding UTF-8 -d build/classes
-java -cp build/classes main.java.com.quizpet.Main
+java -cp "build/classes:src/main/resources" main.java.com.quizpet.Main
 ```
 
 앱은 현재 디스플레이의 사용 가능한 영역에 맞춰 최대화 상태로 시작합니다. 시작 해상도는 고정하지 않으며, 창을 복원하거나 크기를 바꾸면 분야 카드의 열 수와 퀴즈·피드백 영역이 자동으로 조절됩니다. 최소 창 크기는 1280×800이며, 사용 가능한 화면 영역이 더 작으면 너비·높이 각각 해당 영역까지로 제한합니다. 긴 내용은 스크롤로 확인할 수 있습니다.
@@ -358,7 +358,7 @@ mkdir -p build/test-classes
 find src/main/java src/test/java -name '*.java' -print0 | xargs -0 javac --release 17 -encoding UTF-8 -d build/test-classes
 while IFS= read -r -d '' file; do
   package=$(sed -n 's/^package \(.*\);/\1/p' "$file")
-  java -ea -Djava.awt.headless=true -cp build/test-classes "$package.$(basename "$file" .java)" || exit 1
+  java -ea -Djava.awt.headless=true -cp "build/test-classes:src/main/resources" "$package.$(basename "$file" .java)" || exit 1
 done < <(find src/test/java -name '*Test.java' -print0)
 ```
 

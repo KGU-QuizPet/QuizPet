@@ -3,29 +3,32 @@ package main.java.com.quizpet.ui.component;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.Rectangle;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
+import javax.swing.Scrollable;
 import main.java.com.quizpet.ui.UiStyle;
 
 public class MultipleChoicePanel extends JPanel {
   private final JTextArea questionArea = new JTextArea();
-  private final JList<String> optionsList = new OptionList();
+  private final ButtonGroup answerGroup = new ButtonGroup();
+  private final JPanel optionsPanel = new OptionsGrid();
+  private final ArrayList<OptionButton> buttons = new ArrayList<>();
   private final JLabel selectionLabel = UiStyle.label("선택한 답안: 없음", UiStyle.BODY_FONT);
 
   public MultipleChoicePanel(String question, List<String> options) {
     setLayout(new GridBagLayout());
     setBackground(UiStyle.BACKGROUND);
-    setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
     questionArea.setFont(UiStyle.SUBTITLE_FONT);
     questionArea.setEditable(false);
@@ -44,19 +47,10 @@ public class MultipleChoicePanel extends JPanel {
     cell.insets = new Insets(0, 0, 20, 0);
     add(questionScroll, cell);
 
-    optionsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    optionsList.setVisibleRowCount(4);
-    optionsList.setBackground(UiStyle.BACKGROUND);
-    optionsList.setCellRenderer(new OptionRenderer());
-    optionsList.addListSelectionListener(e -> {
-      if (!e.getValueIsAdjusting()) {
-        String answer = getSelectedAnswer();
-        selectionLabel.setText("선택한 답안: " + (answer == null ? "없음" : answer + "번"));
-      }
-    });
+    optionsPanel.setOpaque(false);
     cell.gridy++;
     cell.weighty = 0.7;
-    add(createScrollPane(optionsList), cell);
+    add(createScrollPane(optionsPanel), cell);
     cell.gridy++;
     cell.weighty = 0;
     cell.insets = new Insets(0, 0, 0, 0);
@@ -78,15 +72,31 @@ public class MultipleChoicePanel extends JPanel {
     }
     questionArea.setText(question);
     questionArea.setCaretPosition(0);
-    optionsList.setListData(options.toArray(String[]::new));
-    optionsList.clearSelection();
-    optionsList.ensureIndexIsVisible(0);
+    for (OptionButton button : buttons) answerGroup.remove(button);
+    buttons.clear();
+    optionsPanel.removeAll();
+    for (int i = 0; i < options.size(); i++) {
+      OptionButton button = new OptionButton((i + 1) + ". " + options.get(i), String.valueOf(i + 1));
+      button.addActionListener(e -> selectionLabel.setText("선택한 답안: " + getSelectedAnswer() + "번"));
+      answerGroup.add(button);
+      buttons.add(button);
+      optionsPanel.add(button);
+    }
+    revalidate();
+    repaint();
     selectionLabel.setText("선택한 답안: 없음");
   }
 
   public String getSelectedAnswer() {
-    int selectedIndex = optionsList.getSelectedIndex();
-    return selectedIndex < 0 ? null : Integer.toString(selectedIndex + 1);
+    return answerGroup.getSelection() == null ? null : answerGroup.getSelection().getActionCommand();
+  }
+
+  public void showResult(String selectedAnswer, String correctAnswer) {
+    selectionLabel.setText("내가 고른 답안: " + selectedAnswer + "번 · 정답: " + correctAnswer + "번");
+    for (OptionButton button : buttons) {
+      button.showResult(button.getActionCommand().equals(correctAnswer),
+          button.getActionCommand().equals(selectedAnswer));
+    }
   }
 
   private static JScrollPane createScrollPane(Component content) {
@@ -99,42 +109,19 @@ public class MultipleChoicePanel extends JPanel {
     return scroll;
   }
 
-  private static class OptionList extends JList<String> {
-    @Override
-    public boolean getScrollableTracksViewportWidth() {
-      return true;
+  private static final class OptionsGrid extends JPanel implements Scrollable {
+    OptionsGrid() { super(new GridLayout(2, 2, 12, 12)); }
+    public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+    public int getScrollableUnitIncrement(Rectangle r, int orientation, int direction) { return 16; }
+    public int getScrollableBlockIncrement(Rectangle r, int orientation, int direction) { return r.height; }
+    public boolean getScrollableTracksViewportWidth() { return true; }
+    public boolean getScrollableTracksViewportHeight() {
+      return getParent() != null && getPreferredSize().height <= getParent().getHeight();
     }
-
-    @Override
-    public void setBounds(int x, int y, int width, int height) {
+    @Override public void setBounds(int x, int y, int width, int height) {
+      boolean resized = width != getWidth();
       super.setBounds(x, y, width, height);
-      if (width > 0 && getFixedCellWidth() != width) {
-        setFixedCellWidth(width);
-      }
-    }
-  }
-
-  private static class OptionRenderer extends JTextArea implements ListCellRenderer<String> {
-    OptionRenderer() {
-      setFont(UiStyle.BODY_FONT);
-      setEditable(false);
-      setFocusable(false);
-      setLineWrap(true);
-      setWrapStyleWord(true);
-    }
-
-    @Override
-    public Component getListCellRendererComponent(JList<? extends String> list, String value,
-        int index, boolean selected, boolean focused) {
-      setText((index + 1) + ". " + value);
-      setBackground(selected ? UiStyle.POINT : UiStyle.BACKGROUND);
-      setForeground(selected ? Color.WHITE : Color.DARK_GRAY);
-      setBorder(BorderFactory.createCompoundBorder(
-          BorderFactory.createLineBorder(selected ? UiStyle.POINT : Color.LIGHT_GRAY, 2),
-          BorderFactory.createEmptyBorder(12, 12, 12, 12)));
-      int width = list.getWidth() > 0 ? list.getWidth() : 320;
-      setSize(width, Short.MAX_VALUE);
-      return this;
+      if (resized) revalidate();
     }
   }
 }

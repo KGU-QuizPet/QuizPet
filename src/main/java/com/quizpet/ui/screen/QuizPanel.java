@@ -18,15 +18,18 @@ import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.ui.component.MultipleChoicePanel;
+import main.java.com.quizpet.ui.component.ImageButton;
+import main.java.com.quizpet.ui.component.QuizProgressBar;
 import main.java.com.quizpet.ui.component.OXQuestionPanel;
 
 public class QuizPanel extends JPanel {
   private final JLabel questionTypeLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
+  private final QuizProgressBar progressBar = new QuizProgressBar();
   private final JLabel progressLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel statusLabel = UiStyle.label("", UiStyle.BODY_FONT);
   private final JPanel questionContainer = new JPanel(new BorderLayout());
-  private final JButton submitButton = UiStyle.button("답안 제출");
-  private final JButton endButton = UiStyle.button("종료");
+  private final JButton submitButton = new ImageButton("답안 제출", "/images/pets/small/duck_focus.png", 28);
+  private final JButton endButton = new ImageButton("종료");
   private Consumer<String> onSubmit = answer -> { };
   private Runnable onEnd = () -> { };
   private QuizSession session;
@@ -45,7 +48,8 @@ public class QuizPanel extends JPanel {
     information.setOpaque(false);
     information.add(questionTypeLabel, BorderLayout.WEST);
     information.add(progressLabel, BorderLayout.EAST);
-    header.add(information, BorderLayout.SOUTH);
+    header.add(information, BorderLayout.CENTER);
+    header.add(progressBar, BorderLayout.SOUTH);
     add(header, BorderLayout.NORTH);
     questionContainer.setOpaque(false);
     add(questionContainer, BorderLayout.CENTER);
@@ -55,6 +59,7 @@ public class QuizPanel extends JPanel {
     footer.add(statusLabel, BorderLayout.NORTH);
     submitButton.addActionListener(e -> submitAnswer());
     footer.add(submitButton, BorderLayout.CENTER);
+    endButton.setBackground(java.awt.Color.WHITE);
     endButton.addActionListener(e -> onEnd.run());
     footer.add(endButton, BorderLayout.SOUTH);
     add(footer, BorderLayout.SOUTH);
@@ -94,10 +99,11 @@ public class QuizPanel extends JPanel {
       questionContainer.add(oxQuestionPanel, BorderLayout.CENTER);
       questionTypeLabel.setText(session.getCategory().getName() + " · OX");
     }
+    progressBar.showSession(session);
     progressLabel.setText((session.getCurrentIndex() + 1) + " / " + session.getTotalCount());
     statusLabel.setText(session.getCurrentIndex() == session.getTotalCount() - 1 ? "마지막 문제입니다." : "");
     boolean answered = session.isCurrentQuestionAnswered();
-    submitButton.setEnabled(!session.isFinished() && !answered);
+    submitButton.setEnabled(false);
     endButton.setEnabled(!session.isFinished());
     observeAnswerSelection(questionContainer);
     if (answered || session.isFinished()) disableAnswerControls(questionContainer);
@@ -122,12 +128,18 @@ public class QuizPanel extends JPanel {
   private void observeAnswerSelection(Container container) {
     for (Component child : container.getComponents()) {
       if (child instanceof JToggleButton button) {
-        button.addItemListener(e -> statusLabel.setText(""));
+        button.addItemListener(e -> updateSelection());
       } else if (child instanceof JList<?> list) {
-        list.addListSelectionListener(e -> statusLabel.setText(""));
+        list.addListSelectionListener(e -> updateSelection());
       }
       if (child instanceof Container nested) observeAnswerSelection(nested);
     }
+  }
+
+  private void updateSelection() {
+    statusLabel.setText("");
+    submitButton.setEnabled(session != null && !session.isFinished()
+        && !session.isCurrentQuestionAnswered() && getSelectedAnswer() != null);
   }
 
   private static void disableAnswerControls(Container container) {

@@ -130,6 +130,15 @@ public final class QuizSession {
     return Map.copyOf(answers);
   }
 
+  public Map<String, Boolean> getAnswerResults() {
+    Map<String, Boolean> results = new LinkedHashMap<>();
+    for (Question question : questions) {
+      String id = question.getQuestionId();
+      if (answers.containsKey(id)) results.put(id, question.checkAnswer(answers.get(id)));
+    }
+    return Map.copyOf(results);
+  }
+
   public boolean isCurrentQuestionAnswered() {
     return answers.containsKey(getCurrentQuestion().getQuestionId());
   }

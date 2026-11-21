@@ -74,8 +74,7 @@ public final class DesktopLayoutTest {
   private static Component growingArea(JPanel panel) {
     if (panel instanceof OXQuestionPanel) return find(panel, JToggleButton.class).get(0);
     if (panel instanceof AnswerFeedbackPanel) return find(panel, JTextArea.class).get(0);
-    return find(panel, JScrollPane.class).stream()
-        .filter(scroll -> scroll.getViewport().getView() instanceof JList).findFirst().orElseThrow();
+    return find(panel, OptionButton.class).get(0);
   }
 
   private static void resize(JPanel panel, int width, int height) {

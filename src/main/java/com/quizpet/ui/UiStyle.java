@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import main.java.com.quizpet.model.Category;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -11,6 +12,14 @@ import javax.swing.SwingConstants;
 
 public final class UiStyle {
   public static final Color BACKGROUND = new Color(0xFFF8EE);
+  public static final Color BRAND = new Color(0xFF8A00);
+  public static final Color BORDER = new Color(0xEBDDC5);
+  public static final Color TEXT = new Color(0x2B2440);
+  public static final Color MUTED = new Color(0x6E6787);
+  public static final Color CORRECT = new Color(0x12B76A);
+  public static final Color WRONG = new Color(0xF04438);
+  public static final Color CORRECT_SOFT = new Color(0xE3F8EE);
+  public static final Color WRONG_SOFT = new Color(0xFDE8E7);
   public static final Color POINT = new Color(0x6C8EBF);
 
   public static final Font TITLE_FONT = new Font(Font.DIALOG, Font.BOLD, 28);
@@ -24,6 +33,16 @@ public final class UiStyle {
   };
 
   private UiStyle() {}
+
+  public static Color categoryColor(Category category) {
+    return switch (category) {
+      case SCIENCE -> new Color(0x3D8BFD);
+      case COMMON -> new Color(0x06B6D4);
+      case SPORTS -> new Color(0xE8467C);
+      case LANGUAGE -> new Color(0x8B5CF6);
+      case HISTORY -> new Color(0x10A37F);
+    };
+  }
 
   public static JLabel label(String text, Font font) {
     JLabel label = new JLabel(text, SwingConstants.CENTER);
