@@ -116,10 +116,8 @@ public final class ShortAnswerQuizTest {
     Files.copy(content.resolve("question.txt"), archive);
     Path changed = root.resolve("changed.txt");
     Files.writeString(changed, Files.readString(archive).replace("CO2;CO₂", "CO2"));
-    try {
-      new RecordQuestionLookup(new QuestionRepository(changed), archive);
-      throw new AssertionError("Changed SA aliases reused an archived ID");
-    } catch (IllegalStateException expected) { }
+    // 대체 정답 수정은 기록의 정오를 바꾸지 않으므로 ID 재사용으로 보지 않습니다.
+    new RecordQuestionLookup(new QuestionRepository(changed), archive);
   }
 
   private static void checkUi(Question question) {
@@ -135,6 +133,8 @@ public final class ShortAnswerQuizTest {
     input.setText("산소");
     assert submit.isEnabled();
     input.setText("");
+    assert !submit.isEnabled();
+    input.setText("산|소");
     assert !submit.isEnabled();
     input.setText(" cO2 ");
     submit.doClick();

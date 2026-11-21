@@ -37,13 +37,13 @@ public final class ShortAnswerPanel extends JPanel {
     answerField.setFont(UiStyle.SUBTITLE_FONT);
     answerField.getAccessibleContext().setAccessibleName("단답형 답안");
     answer.add(answerField, BorderLayout.CENTER);
-    answer.add(UiStyle.label("공백과 영문 대소문자는 구분하지 않습니다.", UiStyle.BODY_FONT), BorderLayout.SOUTH);
+    answer.add(UiStyle.label("공백과 영문 대소문자는 구분하지 않으며, |는 입력할 수 없습니다.", UiStyle.BODY_FONT), BorderLayout.SOUTH);
     add(answer, BorderLayout.SOUTH);
   }
 
   public String getSelectedAnswer() {
     String answer = answerField.getText();
-    return answer.replaceAll("(?U)\\s+", "").isEmpty() ? null : answer;
+    return answer.replaceAll("(?U)\\s+", "").isEmpty() || answer.contains("|") ? null : answer;
   }
 
   public void showResult(String selectedAnswer) {

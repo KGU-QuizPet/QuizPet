@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.Optional;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
-import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.repository.QuestionRepository;
 
 /** 기록 조회 전용입니다. 보존 문제는 새 퀴즈 출제에 사용하지 않습니다. */
@@ -43,9 +42,7 @@ public final class RecordQuestionLookup {
             || !old.getContentId().equals(now.getContentId())
             || !old.getExplanation().equals(now.getExplanation())
             || (old instanceof MultipleChoiceQuestion a && now instanceof MultipleChoiceQuestion b
-                && !a.getOptions().equals(b.getOptions()))
-            || (old instanceof ShortAnswerQuestion a && now instanceof ShortAnswerQuestion b
-                && !a.getAlternativeAnswers().equals(b.getAlternativeAnswers()))) {
+                && !a.getOptions().equals(b.getOptions()))) {
           throw new IllegalStateException("기존 문제 ID가 다른 콘텐츠에 재사용됐습니다: " + old.getQuestionId());
         }
       });
