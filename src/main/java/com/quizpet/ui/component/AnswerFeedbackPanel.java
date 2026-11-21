@@ -6,7 +6,6 @@ import main.java.com.quizpet.service.GrowthService.RewardDecision;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -18,11 +17,13 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -99,14 +100,22 @@ public class AnswerFeedbackPanel extends JPanel {
     private JComponent buildBody() {
         JPanel body = new JPanel();
         body.setOpaque(false);
-        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+        body.setLayout(new GridBagLayout());
+        GridBagConstraints cell = new GridBagConstraints();
+        cell.gridx = 0;
+        cell.gridy = 0;
+        cell.weightx = 1;
+        cell.weighty = 0;
+        cell.fill = GridBagConstraints.BOTH;
+        cell.insets = new Insets(0, 0, 12, 0);
 
         JPanel answers = card();
         answers.setLayout(new GridLayout(2, 1, 0, 6));
         answers.add(myAnswerLabel);
         answers.add(correctAnswerLabel);
-        body.add(leftAligned(answers));
-        body.add(Box.createVerticalStrut(12));
+        body.add(answers, cell);
+        cell.gridy++;
+        cell.weighty = 0.8;
 
         JPanel explanationCard = card();
         explanationCard.setLayout(new BorderLayout(0, 6));
@@ -126,8 +135,9 @@ public class AnswerFeedbackPanel extends JPanel {
             }
         });
         explanationCard.add(explanationArea, BorderLayout.CENTER);
-        body.add(leftAligned(explanationCard));
-        body.add(Box.createVerticalStrut(12));
+        body.add(explanationCard, cell);
+        cell.gridy++;
+        cell.weighty = 0.2;
 
         JPanel reward = card();
         reward.setLayout(new BorderLayout(0, 4));
@@ -138,10 +148,10 @@ public class AnswerFeedbackPanel extends JPanel {
         rewardRow.add(xpRewardLabel);
         reward.add(rewardRow, BorderLayout.NORTH);
         reward.add(rewardNoteLabel, BorderLayout.CENTER);
-        body.add(leftAligned(reward));
+        body.add(reward, cell);
 
         JPanel wrapper = new WidthTrackingPanel();
-        wrapper.add(body, BorderLayout.NORTH);
+        wrapper.add(body, BorderLayout.CENTER);
         // 긴 해설은 본문만 세로 스크롤하고, 판정 문구와 버튼은 고정합니다 (PR #37 리뷰).
         bodyScroll.setViewportView(wrapper);
         bodyScroll.setBorder(BorderFactory.createEmptyBorder());
@@ -277,11 +287,6 @@ public class AnswerFeedbackPanel extends JPanel {
         return button;
     }
 
-    private static JComponent leftAligned(JComponent component) {
-        component.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return component;
-    }
-
     private static String signed(int value) {
         return (value >= 0 ? "+" : "") + value;
     }
@@ -318,7 +323,7 @@ public class AnswerFeedbackPanel extends JPanel {
 
         @Override
         public boolean getScrollableTracksViewportHeight() {
-            return false;
+            return getParent() != null && getPreferredSize().height <= getParent().getHeight();
         }
     }
 }

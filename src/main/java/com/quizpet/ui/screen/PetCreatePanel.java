@@ -45,6 +45,7 @@ public class PetCreatePanel extends JPanel {
     add(ownerLabel);
     add(Box.createVerticalStrut(20));
 
+    petBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
     add(petBox);
     add(Box.createVerticalStrut(20));
 
@@ -55,7 +56,7 @@ public class PetCreatePanel extends JPanel {
     nameField.setFont(UiStyle.BODY_FONT);
     nameRow.add(nameLabel);
     nameRow.add(nameField);
-    nameRow.setMaximumSize(new Dimension(400, 45));
+    nameRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, nameRow.getPreferredSize().height));
     add(nameRow);
     add(Box.createVerticalStrut(10));
 
@@ -73,7 +74,7 @@ public class PetCreatePanel extends JPanel {
       lookRow.add(button);
       lookButtons[i] = button;
     }
-    lookRow.setMaximumSize(new Dimension(400, 50));
+    lookRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, lookRow.getPreferredSize().height));
     add(lookRow);
     add(Box.createVerticalStrut(10));
 

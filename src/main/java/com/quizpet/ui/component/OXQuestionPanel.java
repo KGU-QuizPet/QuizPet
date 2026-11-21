@@ -2,7 +2,9 @@ package main.java.com.quizpet.ui.component;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Dimension;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
 import java.awt.GridLayout;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -22,7 +24,7 @@ public class OXQuestionPanel extends JPanel {
   private final JLabel selectionLabel = UiStyle.label("선택한 답안: 없음", UiStyle.BODY_FONT);
 
   public OXQuestionPanel(String question) {
-    setLayout(new BorderLayout(0, 24));
+    setLayout(new GridBagLayout());
     setBackground(UiStyle.BACKGROUND);
     setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
@@ -37,11 +39,18 @@ public class OXQuestionPanel extends JPanel {
     questionScroll.setOpaque(false);
     questionScroll.getViewport().setOpaque(false);
     questionScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    add(questionScroll, BorderLayout.CENTER);
+    questionArea.setRows(3);
+    GridBagConstraints cell = new GridBagConstraints();
+    cell.gridx = 0;
+    cell.gridy = 0;
+    cell.weightx = 1;
+    cell.weighty = 0.5;
+    cell.fill = GridBagConstraints.BOTH;
+    cell.insets = new Insets(0, 0, 24, 0);
+    add(questionScroll, cell);
 
     JPanel answers = new JPanel(new GridLayout(1, 2, 20, 0));
     answers.setOpaque(false);
-    answers.setPreferredSize(new Dimension(0, 100));
     for (JToggleButton button : new JToggleButton[] {oButton, xButton}) {
       button.setFont(UiStyle.TITLE_FONT);
       button.setFocusPainted(false);
@@ -55,7 +64,9 @@ public class OXQuestionPanel extends JPanel {
     answerArea.setOpaque(false);
     answerArea.add(answers, BorderLayout.CENTER);
     answerArea.add(selectionLabel, BorderLayout.SOUTH);
-    add(answerArea, BorderLayout.SOUTH);
+    cell.gridy++;
+    cell.insets = new Insets(0, 0, 0, 0);
+    add(answerArea, cell);
     setQuestion(question);
   }
 
