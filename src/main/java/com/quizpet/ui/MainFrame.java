@@ -1,7 +1,9 @@
 package main.java.com.quizpet.ui;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -19,7 +21,9 @@ public class MainFrame extends JFrame {
   public MainFrame() {
     super("QuizPet");
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    setBounds(GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
+    Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+    setMinimumSize(new Dimension(Math.min(1280, screen.width), Math.min(800, screen.height)));
+    setBounds(screen);
     setExtendedState(JFrame.MAXIMIZED_BOTH);
     addWindowListener(new WindowAdapter() {
       @Override
