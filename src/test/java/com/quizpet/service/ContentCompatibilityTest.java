@@ -18,7 +18,7 @@ public class ContentCompatibilityTest {
       QuestionRepository archive = new QuestionRepository(Path.of("data/content/question-legacy.txt"));
       RecordQuestionLookup lookup = new RecordQuestionLookup(current, Path.of("data/content/question-legacy.txt"));
       assert archive.findAll().size() == 80;
-      assert current.findAll().size() == 150;
+      assert current.findAll().size() == 225;
       assert archive.findAll().stream().allMatch(q -> current.findById(q.getQuestionId()).isEmpty());
       for (Question q : archive.findAll()) assert lookup.findById(q.getQuestionId()).orElseThrow().getPrompt().equals(q.getPrompt());
       Question old = archive.findAll().get(0);

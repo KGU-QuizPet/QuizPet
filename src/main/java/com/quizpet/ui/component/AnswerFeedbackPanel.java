@@ -2,6 +2,7 @@ package main.java.com.quizpet.ui.component;
 
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.Question;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.service.GrowthService.RewardDecision;
@@ -195,6 +196,10 @@ public class AnswerFeedbackPanel extends JPanel {
             MultipleChoicePanel panel = new MultipleChoicePanel(question.getPrompt(), choice.getOptions());
             panel.showResult(selectedAnswer, question.getAnswer());
             questionPreview.add(panel);
+        } else if (question instanceof ShortAnswerQuestion) {
+            ShortAnswerPanel panel = new ShortAnswerPanel(question.getPrompt());
+            panel.showResult(selectedAnswer);
+            questionPreview.add(panel);
         } else {
             OXQuestionPanel panel = new OXQuestionPanel(question.getPrompt());
             panel.showResult(selectedAnswer, question.getAnswer());
@@ -203,7 +208,7 @@ public class AnswerFeedbackPanel extends JPanel {
         questionPreview.setPreferredSize(new Dimension(380, 284));
         questionPreview.setMaximumSize(new Dimension(Integer.MAX_VALUE, 284));
         questionPreview.setVisible(true);
-        answers.setVisible(false);
+        answers.setVisible(question instanceof ShortAnswerQuestion);
         revalidate();
         repaint();
     }
