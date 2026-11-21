@@ -1,6 +1,7 @@
 package main.java.com.quizpet.ui.screen;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -46,7 +47,7 @@ public class CategoryPanel extends JPanel {
     footer.setOpaque(false);
     footer.add(selectionLabel, BorderLayout.NORTH);
     JButton back = new ImageButton("홈으로");
-    back.setBackground(java.awt.Color.WHITE);
+    back.setBackground(Color.WHITE);
     back.addActionListener(e -> screens.show(ScreenManager.HOME));
     footer.add(back, BorderLayout.SOUTH);
     add(footer, BorderLayout.SOUTH);

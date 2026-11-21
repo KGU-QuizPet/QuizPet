@@ -1,6 +1,7 @@
 package main.java.com.quizpet.ui.screen;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -59,7 +60,7 @@ public class QuizPanel extends JPanel {
     footer.add(statusLabel, BorderLayout.NORTH);
     submitButton.addActionListener(e -> submitAnswer());
     footer.add(submitButton, BorderLayout.CENTER);
-    endButton.setBackground(java.awt.Color.WHITE);
+    endButton.setBackground(Color.WHITE);
     endButton.addActionListener(e -> onEnd.run());
     footer.add(endButton, BorderLayout.SOUTH);
     add(footer, BorderLayout.SOUTH);

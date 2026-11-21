@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.BasicStroke;
 import java.awt.RenderingHints;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import javax.swing.JTextArea;
@@ -45,7 +46,7 @@ public final class CategoryCard extends ImageButton {
     g.setColor(color);
     g.fillRoundRect(16, 16, 56, 34, 14, 14);
     g.setColor(Color.WHITE);
-    g.setFont(UiStyle.BODY_FONT.deriveFont(java.awt.Font.BOLD));
+    g.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD));
     g.drawString(category.getStatType(), 26, 39);
     g.setColor(UiStyle.TEXT);
     g.setFont(UiStyle.SUBTITLE_FONT);
@@ -59,6 +60,7 @@ public final class CategoryCard extends ImageButton {
     g.drawString(category.getStatType() + " +1  ·  학습하기 →", 16, getHeight() - 20);
     g.dispose();
   }
+
   private void paintCategoryIcon(Graphics2D graphics, int x, int y, Color color) {
     Graphics2D g = (Graphics2D) graphics.create(x, y, 40, 40);
     g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 24));
@@ -98,5 +100,4 @@ public final class CategoryCard extends ImageButton {
     }
     g.dispose();
   }
-
 }
