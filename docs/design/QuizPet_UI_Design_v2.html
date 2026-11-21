@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuizPet 데스크탑 UI 디자인 v2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF6E9; --surface:#FFFFFF; --sunken:#FBEFD9; --line:#EBDDC5; --shadow:#E6D5B8;
+  --ink:#2B2440; --ink2:#6E6787; --ink3:#A49DB5;
+  --brand:#FF8A00; --brandDark:#D96F00; --brandSoft:#FFF0DC;
+  --exp:#FFC233; --expDark:#E09A00;
+  --ok:#12B76A; --okDark:#0B8A4F; --okSoft:#E3F8EE;
+  --err:#F04438; --errDark:#C42B20; --errSoft:#FDE8E7;
+  --int:#3D8BFD; --str:#E8467C; --foc:#8B5CF6; --wis:#10A37F; --common:#06B6D4;
+  --dark:#2B2440;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#EFE7DA;color:var(--ink);font-family:'Noto Sans KR',sans-serif;}
+.jua{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400}
+
+/* ---------- 문서 레이아웃 ---------- */
+.doc{max-width:1400px;margin:0 auto;padding:40px 32px 80px}
+.doc-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:28px}
+.doc-head h1{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;font-size:44px;line-height:1.1}
+.doc-head p{color:var(--ink2);font-size:15px;margin-top:8px;max-width:760px;line-height:1.6}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 36px}
+.toc a{font-size:13px;font-weight:700;color:var(--ink);text-decoration:none;background:#fff;border:2px solid var(--line);border-radius:999px;padding:6px 14px}
+.toc a:hover{border-color:var(--brand);color:var(--brandDark)}
+.sec{margin:0 0 56px;scroll-margin-top:20px}
+.sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+.sec-h .id{font-family:'Jua','Noto Sans KR',sans-serif;color:var(--brandDark);font-size:18px}
+.sec-h h2{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;font-size:28px}
+.sec-desc{color:var(--ink2);font-size:14px;line-height:1.6;margin-bottom:16px;max-width:1000px}
+.frame-wrap{width:100%;position:relative;border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px #d9ccb6,0 10px 30px rgba(43,36,64,.12)}
+.frame-scale{transform-origin:0 0;width:1280px;height:800px}
+.notes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.note{background:#fff;border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;color:var(--ink2)}
+.note b{color:var(--ink);display:block;margin-bottom:4px;font-size:13px}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--sunken);padding:1px 5px;border-radius:5px;color:var(--ink)}
+
+/* ---------- 디자인 시스템 시트 ---------- */
+.ds{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.ds-card{background:#fff;border:2px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 4px 0 var(--shadow)}
+.ds-card h3{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;font-size:20px;margin-bottom:14px}
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sw{border-radius:12px;overflow:hidden;border:2px solid var(--line);font-size:11px}
+.sw i{display:block;height:46px}
+.sw span{display:block;padding:6px 8px;line-height:1.35;color:var(--ink2)}
+.sw span b{color:var(--ink);font-size:12px}
+.typo-row{display:flex;align-items:baseline;gap:16px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.typo-row:last-child{border:0}
+.typo-row small{width:150px;flex:none;color:var(--ink3);font-size:11px;font-family:ui-monospace,Menlo,monospace}
+.comp-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
+pre{background:var(--dark);color:#F6EFFF;border-radius:14px;padding:16px 18px;font-size:12px;line-height:1.6;overflow:auto;font-family:ui-monospace,Menlo,monospace}
+pre .c{color:#A49DB5}
+pre .k{color:#FFC233}
+.tree{font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;color:var(--ink2);white-space:pre}
+
+/* ---------- 앱 프레임 (Swing 대응) ---------- */
+.frame{width:1280px;height:800px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;position:relative;font-size:15px}
+.topbar{height:64px;flex:none;background:#fff;border-bottom:2px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:28px}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Jua','Noto Sans KR',sans-serif;font-size:26px;color:var(--ink);width:272px}
+.logo .paw{width:36px;height:36px;border-radius:12px;background:var(--brand);display:grid;place-items:center;box-shadow:0 3px 0 var(--brandDark)}
+.tabs{display:flex;gap:6px;flex:1}
+.tab{height:40px;padding:0 18px;border-radius:12px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--ink2)}
+.tab.on{background:var(--brandSoft);color:var(--brandDark)}
+.tab.dis{color:var(--ink3)}
+.userchip{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 14px;border:2px solid var(--line);border-radius:999px;font-size:14px;font-weight:700}
+.userchip .av{width:30px;height:30px;border-radius:50%;background:var(--sunken);display:grid;place-items:center;overflow:hidden}
+.userchip .sw-user{font-size:12px;color:var(--ink2);font-weight:500;border-left:1px solid var(--line);padding-left:10px;margin-right:6px}
+.app-body{flex:1;display:flex;min-height:0}
+.sidebar{width:320px;flex:none;background:#fff;border-right:2px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:14px}
+.content{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:20px;min-width:0}
+
+/* 펫 스테이지 */
+.stage{height:276px;border-radius:20px;position:relative;overflow:hidden;background:linear-gradient(180deg,#FFF3DE 0%,#FFE7C2 100%);border:2px solid var(--line)}
+.stage .floor{position:absolute;left:0;right:0;bottom:0;height:58px;background:#F7D9A8}
+.stage .shadow{position:absolute;left:50%;bottom:30px;width:120px;height:18px;margin-left:-60px;border-radius:50%;background:rgba(150,100,40,.22)}
+.stage .petimg{position:absolute;left:50%;bottom:30px;transform:translateX(-50%)}
+.bubble{position:absolute;top:14px;right:12px;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:6px 11px;font-size:13px;font-weight:700;max-width:170px;line-height:1.35}
+.bubble:after{content:"";position:absolute;left:22px;bottom:-9px;width:12px;height:12px;background:#fff;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg)}
+.moodtag{position:absolute;left:12px;top:14px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.85);border:2px solid var(--line)}
+.pet-name{display:flex;align-items:center;justify-content:space-between}
+.pet-name .n{font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px}
+.pet-name .kind{font-size:12px;color:var(--ink3);margin-left:6px;font-family:'Noto Sans KR'}
+.lv{font-family:'Jua','Noto Sans KR',sans-serif;font-size:16px;background:var(--dark);color:#fff;border-radius:10px;padding:3px 10px}
+.lv.big{font-size:22px;padding:4px 14px}
+.bar{height:14px;border-radius:999px;background:var(--sunken);border:2px solid var(--line);overflow:hidden;position:relative}
+.bar i{display:block;height:100%;border-radius:999px}
+.bar.exp i{background:var(--exp);box-shadow:inset 0 -3px 0 var(--expDark)}
+.bar .gain{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,#FFE08A 0 6px,#FFD15C 6px 12px)}
+.bar-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);font-weight:700;margin-top:5px}
+.stats{display:flex;flex-direction:column;gap:12px}
+.stat{display:grid;grid-template-columns:54px 34px 1fr 40px;align-items:center;gap:10px}
+.stat .chip{font-size:11px;font-weight:900;color:#fff;border-radius:8px;text-align:center;padding:4px 0;letter-spacing:.5px}
+.stat .bar{height:10px;border-width:0;background:#F3EADB}
+.stat .v{font-family:'Jua','Noto Sans KR',sans-serif;font-size:17px;text-align:right}
+.stat .plus{color:var(--ok);font-size:12px;font-family:'Noto Sans KR';font-weight:900;margin-left:2px}
+.side-title{font-size:12px;font-weight:900;color:var(--ink3);letter-spacing:1px}
+.mini{margin-top:auto;background:var(--sunken);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.mini .k{font-size:12px;color:var(--ink2);font-weight:700}
+.mini .val{font-family:'Jua','Noto Sans KR',sans-serif;font-size:20px}
+.dots{display:flex;gap:6px}
+.dots i{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--line)}
+.dots i.o{background:var(--ok);border-color:var(--okDark)}
+.dots i.x{background:var(--err);border-color:var(--errDark)}
+.dots i.cur{border-color:var(--brand);border-width:3px}
+
+/* 공통 컴포넌트 */
+.card{background:#fff;border:2px solid var(--line);border-radius:20px;box-shadow:0 4px 0 var(--shadow)}
+.btn{height:52px;padding:0 26px;border-radius:14px;font-weight:900;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:2px solid transparent;white-space:nowrap;cursor:default}
+.btn.primary{background:var(--brand);color:#fff;box-shadow:0 4px 0 var(--brandDark)}
+.btn.dark{background:var(--dark);color:#fff;box-shadow:0 4px 0 #120E20}
+.btn.ghost{background:#fff;color:var(--ink);border-color:var(--line);box-shadow:0 4px 0 var(--shadow)}
+.btn.ok{background:var(--ok);color:#fff;box-shadow:0 4px 0 var(--okDark)}
+.btn.disabled{background:#EFE6D6;color:var(--ink3);box-shadow:0 4px 0 #E1D4BE}
+.btn.sm{height:40px;font-size:14px;padding:0 16px;border-radius:12px}
+.btn.lg{height:60px;font-size:18px;padding:0 34px}
+.chipx{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;background:var(--sunken);color:var(--ink2)}
+.h1{font-family:'Jua','Noto Sans KR',sans-serif;font-size:32px;line-height:1.15}
+.h2{font-family:'Jua','Noto Sans KR',sans-serif;font-size:22px}
+.sub{color:var(--ink2);font-size:15px}
+.input{height:52px;border:2px solid var(--line);border-radius:14px;background:#fff;display:flex;align-items:center;padding:0 16px;font-size:16px;color:var(--ink3)}
+.input.focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brandSoft);color:var(--ink)}
+.input .caret{width:2px;height:22px;background:var(--brand);margin-left:2px}
+.label{font-size:13px;font-weight:900;color:var(--ink2);margin-bottom:8px}
+.row{display:flex;gap:16px;align-items:center}
+.spacer{flex:1}
+
+/* Shell A (시작/생성) */
+.auth{display:flex;height:100%}
+.hero{width:560px;flex:none;background:var(--brand);position:relative;overflow:hidden;color:#fff;padding:56px 52px;display:flex;flex-direction:column}
+.hero .blob{position:absolute;border-radius:50%;background:rgba(255,255,255,.12)}
+.hero .ttl{font-family:'Jua','Noto Sans KR',sans-serif;font-size:72px;line-height:1;text-shadow:0 5px 0 var(--brandDark)}
+.hero .tag{font-size:19px;font-weight:700;margin-top:14px;opacity:.95}
+.hero .ground{position:absolute;left:0;right:0;bottom:0;height:150px;background:#FFB44D;border-top:4px solid #FFC978}
+.auth-main{flex:1;padding:48px 72px;display:flex;flex-direction:column;justify-content:center;gap:22px;overflow:hidden}
+.user-row{display:flex;align-items:center;gap:16px;padding:12px 16px;border-radius:16px;border:2px solid var(--line);background:#fff;box-shadow:0 3px 0 var(--shadow)}
+.user-row.sel{border-color:var(--brand);box-shadow:0 3px 0 var(--brandDark);background:#FFFAF2}
+.user-row .av{width:52px;height:52px;border-radius:14px;background:var(--sunken);display:grid;place-items:center;overflow:hidden;flex:none}
+.user-row .nm{font-weight:900;font-size:17px}
+.user-row .ds2{font-size:13px;color:var(--ink2)}
+.divider{display:flex;align-items:center;gap:14px;color:var(--ink3);font-size:13px;font-weight:700}
+.divider:before,.divider:after{content:"";flex:1;height:2px;background:var(--line)}
+.pick{flex:1;border:2px solid var(--line);border-radius:18px;background:#fff;padding:14px 10px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 4px 0 var(--shadow);position:relative}
+.pick.sel{border-color:var(--brand);box-shadow:0 4px 0 var(--brandDark);background:#FFFAF2}
+.pick .check{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:900}
+.pick b{font-size:16px}
+.pick small{font-size:12px;color:var(--ink3)}
+
+/* 카테고리 */
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:20px;flex:1}
+.cat{border-radius:22px;background:#fff;border:2px solid var(--line);box-shadow:0 5px 0 var(--shadow);padding:22px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.cat.hover{transform:translateY(-3px);box-shadow:0 8px 0 var(--c);border-color:var(--c)}
+.cat .ic{width:72px;height:72px;border-radius:20px;display:grid;place-items:center;background:var(--cs)}
+.cat .nm{font-family:'Jua','Noto Sans KR',sans-serif;font-size:28px;margin-top:16px;display:flex;align-items:center;gap:10px}
+.cat .stc{font-family:'Noto Sans KR';font-size:12px;font-weight:900;color:#fff;background:var(--c);border-radius:8px;padding:3px 8px}
+.cat .ds3{font-size:14px;color:var(--ink2);margin-top:6px;line-height:1.5}
+.cat .foot{margin-top:auto;display:flex;align-items:center;gap:12px}
+.cat .foot .bar{flex:1;height:10px;border:0;background:#F3EADB}
+.cat .foot .bar i{background:var(--c)}
+.cat .foot span{font-size:13px;font-weight:900;color:var(--ink2);white-space:nowrap}
+.cat .deco{position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:var(--cs);opacity:.6}
+
+/* 학습 카드 */
+.lcard{flex:1;background:#fff;border:2px solid var(--line);border-radius:26px;box-shadow:0 6px 0 var(--shadow);display:flex;overflow:hidden}
+.lcard .side{width:10px;background:var(--int)}
+.lcard .in{flex:1;padding:40px 52px;display:flex;flex-direction:column}
+.progress-seg{display:flex;gap:6px}
+.progress-seg i{flex:1;height:8px;border-radius:999px;background:#F3EADB}
+.progress-seg i.done{background:var(--int)}
+.progress-seg i.cur{background:var(--brand)}
+
+/* 퀴즈 */
+.qhead{display:flex;align-items:center;gap:14px}
+.qbox{background:#fff;border:2px solid var(--line);border-radius:26px;box-shadow:0 6px 0 var(--shadow);padding:36px 44px}
+.qnum{font-family:'Jua','Noto Sans KR',sans-serif;color:var(--brandDark);font-size:20px}
+.qtext{font-family:'Jua','Noto Sans KR',sans-serif;font-size:34px;line-height:1.35;margin-top:8px}
+.ox{display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1}
+.oxbtn{border-radius:26px;background:#fff;border:3px solid var(--line);box-shadow:0 6px 0 var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.oxbtn .sym{font-family:'Jua','Noto Sans KR',sans-serif;font-size:150px;line-height:1}
+.oxbtn .cap{font-weight:900;color:var(--ink2);font-size:16px}
+.oxbtn.o .sym{color:var(--int)}
+.oxbtn.x .sym{color:var(--err)}
+.oxbtn.o.sel{border-color:var(--int);background:#EEF5FF;box-shadow:0 6px 0 #2A6BD1}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1}
+.opt{border-radius:20px;background:#fff;border:3px solid var(--line);box-shadow:0 5px 0 var(--shadow);display:flex;align-items:center;gap:18px;padding:0 26px;font-size:22px;font-weight:700}
+.opt .no{width:46px;height:46px;border-radius:14px;background:var(--sunken);display:grid;place-items:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;color:var(--ink2);flex:none}
+.opt.sel{border-color:var(--brand);background:#FFF7EB;box-shadow:0 5px 0 var(--brandDark)}
+.opt.sel .no{background:var(--brand);color:#fff}
+.opt.right{border-color:var(--ok);background:var(--okSoft);box-shadow:0 5px 0 var(--okDark)}
+.opt.right .no{background:var(--ok);color:#fff}
+.opt.wrong{border-color:var(--err);background:var(--errSoft);box-shadow:0 5px 0 var(--errDark)}
+.opt.wrong .no{background:var(--err);color:#fff}
+.opt .tag{margin-left:auto;font-size:13px;font-weight:900;padding:4px 10px;border-radius:999px}
+.actionbar{display:flex;align-items:center;gap:14px}
+
+/* 피드백 패널 */
+.fb{border-radius:22px;padding:22px 26px;display:flex;gap:20px;align-items:flex-start;border:3px solid}
+.fb.ok{background:var(--okSoft);border-color:var(--ok)}
+.fb.no{background:var(--errSoft);border-color:var(--err)}
+.fb .badge{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;flex:none;font-family:'Jua','Noto Sans KR',sans-serif;font-size:40px;color:#fff}
+.fb.ok .badge{background:var(--ok);box-shadow:0 4px 0 var(--okDark)}
+.fb.no .badge{background:var(--err);box-shadow:0 4px 0 var(--errDark)}
+.fb .t{font-family:'Jua','Noto Sans KR',sans-serif;font-size:28px}
+.fb.ok .t{color:var(--okDark)} .fb.no .t{color:var(--errDark)}
+.fb p{font-size:16px;line-height:1.6;margin-top:4px;color:var(--ink)}
+.reward{display:flex;gap:10px;margin-top:12px}
+.reward span{font-weight:900;font-size:14px;padding:6px 12px;border-radius:10px;background:#fff;border:2px solid var(--line)}
+
+/* 결과 */
+.ring{width:168px;height:168px;border-radius:50%;display:grid;place-items:center;position:relative}
+.ring .inner{width:130px;height:130px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.kpi{background:#fff;border:2px solid var(--line);border-radius:18px;box-shadow:0 4px 0 var(--shadow);padding:16px 18px}
+.kpi .k{font-size:13px;color:var(--ink2);font-weight:700}
+.kpi .v{font-family:'Jua','Noto Sans KR',sans-serif;font-size:34px;margin-top:2px}
+.kpi .v small{font-size:16px;color:var(--ink3)}
+.qlist{display:flex;flex-direction:column;gap:8px}
+.qitem{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:var(--sunken);font-size:14px}
+.qitem .r{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:14px;flex:none}
+.qitem .xp{margin-left:auto;font-weight:900;font-size:13px;color:var(--expDark);white-space:nowrap}
+.lvup{background:var(--dark);color:#fff;border-radius:20px;padding:16px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 0 #120E20}
+
+/* 기록 */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+.tbl th{text-align:left;font-size:12px;color:var(--ink3);font-weight:900;padding:10px 14px;border-bottom:2px solid var(--line)}
+.tbl td{padding:10px 14px;white-space:nowrap;border-bottom:1px solid #F3EADB}
+.pill{font-size:12px;font-weight:900;padding:3px 10px;border-radius:999px;color:#fff;white-space:nowrap}
+.seg{display:flex;background:var(--sunken);border-radius:12px;padding:4px;gap:4px}
+.seg span{font-size:13px;font-weight:700;padding:6px 14px;border-radius:9px;color:var(--ink2)}
+.seg span.on{background:#fff;color:var(--ink);box-shadow:0 2px 0 var(--shadow)}
+.catbar{display:grid;grid-template-columns:80px 1fr 56px;gap:14px;align-items:center}
+.catbar .bar{height:18px;border:0;background:#F3EADB}
+.wnote{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;border:2px solid var(--line);background:#fff}
+.wnote.sel{border-color:var(--brand);background:#FFFAF2}
+.cb{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:none;display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900}
+.cb.on{background:var(--brand);border-color:var(--brandDark)}
+.confetti i{position:absolute;width:10px;height:14px;border-radius:3px}
+@media (max-width:900px){.ds{grid-template-columns:1fr}.notes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="doc-head">
+    <div>
+      <h1>QuizPet 데스크탑 UI 디자인 v2.0</h1>
+      <p>Java Swing(표준 라이브러리만)으로 그대로 옮길 수 있도록 단색·라운드 사각형·오프셋 그림자만 사용한 통일 디자인입니다. 기준 해상도는 <b>1280×800</b>(최소 크기)이며, 창을 키우면 가운데 콘텐츠 영역이 늘어나 화면을 꽉 채웁니다. 게임 화면에서는 왼쪽 <b>펫 사이드바</b>가 항상 떠 있어 학습·퀴즈 중에도 캐릭터의 기분·레벨·경험치·능력치 변화가 실시간으로 보입니다.</p>
+    </div>
+  </div>
+  <nav class="toc" id="toc"></nav>
+  <div id="sections"></div>
+</div>
+
+<script>
+/* ================= 펫 일러스트 (원본 디자인, 실제 앱에선 PNG로 교체) ================= */
+const PET = {
+  DUCK:  {label:'고라파카', body:'#FFD54F', dark:'#E9B21F', belly:'#FFF1B8'},
+  TURTLE:{label:'고북이',   body:'#8EDB9B', dark:'#4FA866', belly:'#E9F8E4', shell:'#5BAF6E'},
+  LIZARD:{label:'파이리',   body:'#F7A28B', dark:'#D9735A', belly:'#FFE3D6'}
+};
+function face(cx, cy, mood, s=1){
+  const e = 15*s, ey = cy;
+  let eyes='', mouth='', extra='';
+  const eyeL = cx-e, eyeR = cx+e;
+  const star=(x,y,r)=>{let pts=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*0.45:r;pts.push((x+rr*Math.cos(a)).toFixed(1)+','+(y+rr*Math.sin(a)).toFixed(1));}return `<polygon points="${pts.join(' ')}" fill="#FFC233" stroke="#2B2440" stroke-width="2.5" stroke-linejoin="round"/>`;};
+  if(mood==='levelup'){
+    eyes = star(eyeL,ey,11)+star(eyeR,ey,11);
+  } else if(mood==='happy'){
+    eyes = `<path d="M${eyeL-6} ${ey+2} Q${eyeL} ${ey-7} ${eyeL+6} ${ey+2}" stroke="#2B2440" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <path d="M${eyeR-6} ${ey+2} Q${eyeR} ${ey-7} ${eyeR+6} ${ey+2}" stroke="#2B2440" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+  } else {
+    eyes = `<circle cx="${eyeL}" cy="${ey}" r="6.5" fill="#2B2440"/><circle cx="${eyeR}" cy="${ey}" r="6.5" fill="#2B2440"/>
+            <circle cx="${eyeL+2}" cy="${ey-2.5}" r="2.2" fill="#fff"/><circle cx="${eyeR+2}" cy="${ey-2.5}" r="2.2" fill="#fff"/>`;
+  }
+  if(mood==='focus'){
+    extra += `<path d="M${eyeL-8} ${ey-13} L${eyeL+5} ${ey-10}" stroke="#2B2440" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M${eyeR+8} ${ey-13} L${eyeR-5} ${ey-10}" stroke="#2B2440" stroke-width="3.5" stroke-linecap="round"/>`;
+  }
+  if(mood==='sad'){
+    extra += `<path d="M${eyeL-8} ${ey-10} L${eyeL+5} ${ey-14}" stroke="#2B2440" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M${eyeR+8} ${ey-10} L${eyeR-5} ${ey-14}" stroke="#2B2440" stroke-width="3.5" stroke-linecap="round"/>
+`;
+  }
+  extra += `<ellipse cx="${eyeL-9}" cy="${ey+12}" rx="7" ry="4.5" fill="#FF8FA3" opacity=".55"/><ellipse cx="${eyeR+9}" cy="${ey+12}" rx="7" ry="4.5" fill="#FF8FA3" opacity=".55"/>`;
+  if(mood==='sad') extra += `<path d="M${eyeR+3} ${ey+5} C${eyeR+12} ${ey+17} ${eyeR+12} ${ey+25} ${eyeR+5} ${ey+26} C${eyeR-2} ${ey+25} ${eyeR-3} ${ey+17} ${eyeR+3} ${ey+5}Z" fill="#5AA9FF" stroke="#2B7BD6" stroke-width="1.5"/><circle cx="${eyeR+3}" cy="${ey+19}" r="2" fill="#fff"/>`;
+  const my = ey+16;
+  if(mood==='happy'||mood==='levelup') mouth = `<path d="M${cx-8} ${my-2} Q${cx} ${my+10} ${cx+8} ${my-2} Z" fill="#B23A48"/>`;
+  else if(mood==='sad') mouth = `<path d="M${cx-6} ${my+4} Q${cx} ${my-3} ${cx+6} ${my+4}" stroke="#2B2440" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  else if(mood==='focus') mouth = `<path d="M${cx-5} ${my+1} L${cx+5} ${my+1}" stroke="#2B2440" stroke-width="3.5" stroke-linecap="round"/>`;
+  else mouth = `<path d="M${cx-6} ${my} Q${cx} ${my+6} ${cx+6} ${my}" stroke="#2B2440" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  return {eyes, mouth, extra};
+}
+function pet(kind='DUCK', mood='idle', size=160){
+  const p = PET[kind]; let g='';
+  if(kind==='DUCK'){
+    const f = face(100,92,mood);
+    g = `<ellipse cx="78" cy="182" rx="16" ry="7" fill="#FF9F43"/><ellipse cx="122" cy="182" rx="16" ry="7" fill="#FF9F43"/>
+      <ellipse cx="100" cy="118" rx="66" ry="64" fill="${p.body}"/>
+      <ellipse cx="100" cy="140" rx="40" ry="34" fill="${p.belly}"/>
+      <ellipse cx="38" cy="128" rx="14" ry="24" fill="${p.dark}" transform="rotate(${mood==='happy'||mood==='levelup'?-35:20} 38 128)"/>
+      <ellipse cx="162" cy="128" rx="14" ry="24" fill="${p.dark}" transform="rotate(${mood==='happy'||mood==='levelup'?35:-20} 162 128)"/>
+      ${f.extra}${f.eyes}
+      <ellipse cx="100" cy="${mood==='happy'||mood==='levelup'?112:110}" rx="20" ry="${mood==='happy'||mood==='levelup'?11:8}" fill="#FF8A3D"/>
+      <path d="M82 110 Q100 ${mood==='sad'?104:116} 118 110" stroke="#D9622B" stroke-width="2.5" fill="none"/>`;
+  } else if(kind==='TURTLE'){
+    const f = face(100,78,mood);
+    g = `<ellipse cx="60" cy="176" rx="17" ry="11" fill="${p.body}"/><ellipse cx="140" cy="176" rx="17" ry="11" fill="${p.body}"/>
+      <path d="M30 160 Q30 92 100 92 Q170 92 170 160 Z" fill="${p.shell}"/>
+      <path d="M30 160 Q100 172 170 160" stroke="${p.dark}" stroke-width="6" fill="none"/>
+      <polygon points="100,108 118,120 118,140 100,150 82,140 82,120" fill="#7CCB8A"/>
+      <polygon points="60,128 74,136 74,152 60,156 46,150 48,134" fill="#7CCB8A"/>
+      <polygon points="140,128 154,134 152,150 140,156 126,152 126,136" fill="#7CCB8A"/>
+      <circle cx="100" cy="78" r="48" fill="${p.body}"/>
+      <ellipse cx="100" cy="98" rx="28" ry="16" fill="${p.belly}"/>
+      ${f.extra}${f.eyes}${f.mouth}`;
+  } else {
+    const f = face(100,86,mood);
+    g = `<path d="M150 160 Q190 160 186 128 Q184 112 172 116" stroke="${p.body}" stroke-width="16" fill="none" stroke-linecap="round"/>
+      <ellipse cx="74" cy="180" rx="15" ry="8" fill="${p.dark}"/><ellipse cx="126" cy="180" rx="15" ry="8" fill="${p.dark}"/>
+      <ellipse cx="100" cy="148" rx="48" ry="36" fill="${p.body}"/>
+      <ellipse cx="100" cy="154" rx="28" ry="24" fill="${p.belly}"/>
+      <ellipse cx="100" cy="86" rx="56" ry="48" fill="${p.body}"/>
+      <circle cx="70" cy="56" r="6" fill="${p.dark}" opacity=".5"/><circle cx="132" cy="60" r="5" fill="${p.dark}" opacity=".5"/><circle cx="118" cy="46" r="4" fill="${p.dark}" opacity=".5"/>
+      <ellipse cx="54" cy="${mood==='happy'||mood==='levelup'?128:146}" rx="11" ry="16" fill="${p.dark}" transform="rotate(${mood==='happy'||mood==='levelup'?-30:15} 54 140)"/>
+      <ellipse cx="146" cy="${mood==='happy'||mood==='levelup'?128:146}" rx="11" ry="16" fill="${p.dark}" transform="rotate(${mood==='happy'||mood==='levelup'?30:-15} 146 140)"/>
+      ${f.extra}${f.eyes}${f.mouth}`;
+  }
+  let spark = '', aura = '';
+  if(mood==='levelup'){
+    aura = `<circle cx="100" cy="112" r="88" fill="#FFE27A" opacity=".35"/><circle cx="100" cy="112" r="88" fill="none" stroke="#FFC233" stroke-width="3" stroke-dasharray="6 9" opacity=".8"/>`;
+    spark = `<path d="M22 46 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5z" fill="#FFC233" stroke="#E09A00" stroke-width="1.5"/><path d="M172 24 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4z" fill="#FFC233" stroke="#E09A00" stroke-width="1.5"/><path d="M180 150 l3 6 6 3 -6 3 -3 6 -3 -6 -6 -3 6 -3z" fill="#FFC233"/>
+      <g fill="#12B76A" stroke="#0B8A4F" stroke-width="1.5"><path d="M18 150 l10 -12 10 12 h-6 v12 h-8 v-12z"/></g>`;
+  } else if(mood==='happy'){
+    spark = `<path d="M24 40 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z" fill="#FFC233"/><path d="M172 28 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#FFC233"/>`;
+  }
+  if(mood==='focus') spark = `<path d="M156 44 C150 56 150 64 157 66 C164 64 164 56 156 44Z" fill="#8EC5FF" stroke="#4E9BEA" stroke-width="1.5"/><path d="M170 74 l12 -3 M168 86 l13 1" stroke="#A49DB5" stroke-width="3" stroke-linecap="round"/>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">${aura}${g}${spark}</svg>`;
+}
+
+/* ================= 아이콘 ================= */
+const ICON = {
+  sword:c=>`<svg width="18" height="18" viewBox="0 0 24 24"><path d="M14.5 3H21v6.5L10 20.5 3.5 14z" fill="${c}"/><path d="M5 15l4 4-2 2-1.5-1.5L3 22l-1-1 2.5-2.5L3 17z" fill="${c}"/></svg>`,
+  paw:`<svg width="22" height="22" viewBox="0 0 24 24"><g fill="#fff"><ellipse cx="12" cy="16" rx="5.5" ry="4.5"/><circle cx="5.5" cy="10" r="2.4"/><circle cx="18.5" cy="10" r="2.4"/><circle cx="9" cy="5.5" r="2.4"/><circle cx="15" cy="5.5" r="2.4"/></g></svg>`,
+  home:c=>`<svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z" fill="${c}"/></svg>`,
+  book:c=>`<svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 4h7a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-5a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h5z" fill="${c}"/></svg>`,
+  chart:c=>`<svg width="18" height="18" viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="9" rx="1.5" fill="${c}"/><rect x="10" y="6" width="4" height="15" rx="1.5" fill="${c}"/><rect x="17" y="3" width="4" height="18" rx="1.5" fill="${c}"/></svg>`,
+  note:c=>`<svg width="18" height="18" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3" fill="${c}"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
+  science:c=>`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M15 5h10M17 5v10L8 31a3 3 0 0 0 3 4h18a3 3 0 0 0 3-4l-9-16V5" stroke="${c}" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path d="M11.5 25h17l3 6a2 2 0 0 1-2 3H10.5a2 2 0 0 1-2-3z" fill="${c}"/><circle cx="20" cy="20" r="2" fill="${c}"/></svg>`,
+  common:c=>`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M20 5a11 11 0 0 0-6 20v4h12v-4a11 11 0 0 0-6-20z" fill="${c}"/><rect x="14" y="31" width="12" height="4" rx="2" fill="${c}"/><path d="M17 17l3 3 3-3" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>`,
+  sports:c=>`<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="${c}"/><path d="M8 14q12 6 24 0M8 26q12-6 24 0M20 6v28" stroke="#fff" stroke-width="2.5" fill="none"/></svg>`,
+  language:c=>`<svg width="40" height="40" viewBox="0 0 40 40"><rect x="4" y="7" width="32" height="22" rx="7" fill="${c}"/><path d="M12 35l4-6h-6z" fill="${c}"/><text x="20" y="24" text-anchor="middle" font-family="Jua" font-size="15" fill="#fff">Aa</text></svg>`,
+  history:c=>`<svg width="40" height="40" viewBox="0 0 40 40"><path d="M20 4 4 12h32z" fill="${c}"/><rect x="7" y="14" width="4" height="15" fill="${c}"/><rect x="15" y="14" width="4" height="15" fill="${c}"/><rect x="21" y="14" width="4" height="15" fill="${c}"/><rect x="29" y="14" width="4" height="15" fill="${c}"/><rect x="4" y="31" width="32" height="5" rx="2" fill="${c}"/></svg>`
+};
+const CAT = [
+  {id:'SCIENCE', nm:'과학', stat:'INT', c:'#3D8BFD', cs:'#E4EFFF', icon:'science', ds:'자연 현상과 과학 원리를 배웁니다', acc:80, solved:15},
+  {id:'COMMON', nm:'상식', stat:'INT', c:'#06B6D4', cs:'#DDF6FA', icon:'common', ds:'생활상식들을 배웁니다', acc:62, solved:8},
+  {id:'SPORTS', nm:'스포츠', stat:'STR', c:'#E8467C', cs:'#FDE4EC', icon:'sports', ds:'운동, 건강과 관련된 지식들을 배웁니다', acc:70, solved:10},
+  {id:'LANGUAGE', nm:'언어', stat:'FOC', c:'#8B5CF6', cs:'#EEE7FF', icon:'language', ds:'영어 문법과 어휘(단어)를 배웁니다', acc:50, solved:6},
+  {id:'HISTORY', nm:'역사', stat:'WIS', c:'#10A37F', cs:'#DFF5EE', icon:'history', ds:'한국사의 주요 사건과 기록들을 배웁니다', acc:0, solved:0}
+];
+const STAT = [['INT','지성','--int'],['STR','체력','--str'],['FOC','집중','--foc'],['WIS','지혜','--wis']];
+
+/* ================= 공통 셸 ================= */
+function topbar(active){
+  const t = [['home','홈'],['book','학습하기'],['chart','학습 기록'],['note','오답노트'],['sword','보스 결투']];
+  return `<div class="topbar">
+    <div class="logo"><div class="paw">${ICON.paw}</div>QuizPet</div>
+    <div class="tabs">${t.map(([ic,nm],i)=>{
+      const on = i===active; const col = on?'#D96F00':'#A49DB5';
+      return `<div class="tab ${on?'on':''}">${ICON[ic](col)}${nm}</div>`;}).join('')}</div>
+    <div class="userchip"><div class="av">${pet('DUCK','idle',30)}</div>석민 <span class="sw-user">사용자 변경</span></div>
+  </div>`;
+}
+const defaultPet = {name:'말랑이', kind:'DUCK', lv:4, xp:30, max:50, stats:{INT:18,STR:12,FOC:14,WIS:13}};
+const moodLabel = {idle:'😊 평온', focus:'🔥 집중', happy:'🎉 신남', sad:'💧 아쉬움', levelup:'⭐ 레벨 업'};
+function sidebar(o={}){
+  const p = Object.assign({}, defaultPet, o.pet||{});
+  const mood = o.mood||'idle';
+  const gain = o.gain||0; const plus = o.plus||{};
+  const xpPct = p.xp/p.max*100, gainPct = gain/p.max*100;
+  return `<aside class="sidebar">
+    <div class="stage">
+      <div class="floor"></div><div class="shadow"></div>
+      <div class="petimg">${pet(p.kind,mood,196)}</div>
+      <div class="moodtag">${moodLabel[mood].replace(/^\S+ /,'')}</div>
+      <div class="bubble">${o.say||'오늘도 같이 공부하자!'}</div>
+    </div>
+    <div class="pet-name"><div><span class="n">${p.name}</span><span class="kind">${PET[p.kind].label}</span></div><span class="lv ${o.lvBig?'big':''}">Lv.${p.lv}</span></div>
+    <div>
+      <div class="bar exp"><i style="width:${xpPct}%"></i>${gain?`<span class="gain" style="left:${xpPct-gainPct}%;width:${gainPct}%"></span>`:''}</div>
+      <div class="bar-meta"><span>EXP ${p.xp} / ${p.max}</span><span>${gain?`<span style="color:var(--okDark)">+${gain} EXP</span>`:`다음 레벨까지 ${p.max-p.xp}`}</span></div>
+    </div>
+    <div class="side-title">능력치</div>
+    <div class="stats">${STAT.map(([k,nm,v])=>`<div class="stat"><span class="chip" style="background:var(${v})">${k}</span><span style="font-size:12px;font-weight:700;color:var(--ink2)">${nm}</span>
+      <div class="bar"><i style="width:${p.stats[k]/30*100}%;background:var(${v})"></i></div>
+      <span class="v">${p.stats[k]}${plus[k]?`<span class="plus">+${plus[k]}</span>`:''}</span></div>`).join('')}</div>
+    ${o.mini||`<div class="mini"><div><div class="k">누적 정답률</div><div class="val">68.4%</div></div><div style="text-align:right"><div class="k">푼 문제</div><div class="val">39</div></div></div>`}
+  </aside>`;
+}
+function sessionMini(states){
+  const solved = states.filter(s=>s==='o'||s==='x').length, ok = states.filter(s=>s==='o').length;
+  return `<div class="mini"><div><div class="k">이번 퀴즈</div><div class="val">${ok} / ${solved} 정답</div></div><div class="dots">${states.map(s=>`<i class="${s}"></i>`).join('')}</div></div>`;
+}
+function game(tab, side, content){
+  return `<div class="frame">${topbar(tab)}<div class="app-body">${sidebar(side)}<main class="content">${content}</main></div></div>`;
+}
+function catChip(c){return `<span class="chipx" style="background:${c.cs};color:${c.c}">${ICON[c.icon](c.c).replace(/width="40" height="40"/,'width="18" height="18"')} ${c.nm} · ${c.stat}</span>`}
+
+/* ================= 화면들 ================= */
+const S = [];
+
+/* UI-01 시작 */
+S.push({id:'UI-01', name:'시작 · 사용자 선택', desc:'로그인 전 화면은 왼쪽 브랜드 히어로(560px) + 오른쪽 폼의 2분할 셸을 사용합니다. 기존 사용자를 카드 목록에서 고르거나 아래에서 새 사용자를 만듭니다.',
+notes:[['레이아웃','루트 <code>JPanel(BorderLayout)</code>: WEST=히어로(고정 560), CENTER=폼(BoxLayout.Y, 여백 56/72)'],['사용자 목록','<code>JList</code> + 커스텀 <code>ListCellRenderer</code>(UserRow). 선택 시 주황 테두리, 더블클릭으로 바로 입장'],['상태','ID·닉네임이 비어 있으면 [새 사용자 만들기] 비활성 색(#EFE6D6) 표시']],
+html:`<div class="frame"><div class="auth">
+  <div class="hero">
+    <div class="blob" style="width:340px;height:340px;right:-120px;top:-100px"></div>
+    <div class="blob" style="width:180px;height:180px;left:-60px;top:300px"></div>
+    <div style="position:relative">
+      <div class="ttl">QuizPet</div>
+      <div class="tag">퀴즈로 성장하는 나만의 캐릭터</div>
+      <div style="display:flex;gap:8px;margin-top:22px">${['과학','상식','스포츠','언어','역사'].map(n=>`<span style="background:rgba(255,255,255,.2);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700">${n}</span>`).join('')}</div>
+    </div>
+    <div class="ground"></div>
+    <div style="position:absolute;bottom:96px;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;gap:4px">
+      <div>${pet('TURTLE','idle',150)}</div><div style="margin-bottom:24px">${pet('DUCK','happy',190)}</div><div>${pet('LIZARD','idle',150)}</div>
+    </div>
+  </div>
+  <div class="auth-main">
+    <div><div class="h1">다시 만나서 반가워요!</div><div class="sub" style="margin-top:6px">이어서 키울 사용자를 선택하세요.</div></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="user-row sel"><div class="av">${pet('DUCK','happy',52)}</div><div><div class="nm">석민</div><div class="ds2">말랑이 · 고라파카</div></div><div class="spacer"></div><span class="lv">Lv.4</span><span class="btn primary sm" style="margin-left:6px">입장</span></div>
+      <div class="user-row"><div class="av">${pet('TURTLE','idle',52)}</div><div><div class="nm">지윤</div><div class="ds2">느긋이 · 고북이</div></div><div class="spacer"></div><span class="lv">Lv.3</span></div>
+      <div class="user-row"><div class="av">${pet('LIZARD','idle',52)}</div><div><div class="nm">현우</div><div class="ds2">뽀짝이 · 파이리</div></div><div class="spacer"></div><span class="lv">Lv.2</span></div>
+    </div>
+    <div class="divider">처음이신가요?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div><div class="label">사용자 ID</div><div class="input focus">seokmin02<span class="caret"></span></div></div>
+      <div><div class="label">닉네임</div><div class="input">2~10자</div></div>
+    </div>
+    <div class="btn dark lg" style="width:100%">새 사용자 만들기</div>
+  </div>
+</div></div>`});
+
+/* UI-02 생성 */
+S.push({id:'UI-02', name:'캐릭터 생성', desc:'같은 2분할 셸. 왼쪽 히어로는 선택한 외형의 미리보기 무대로 바뀌어, 이름을 입력하면 이름표도 즉시 갱신됩니다.',
+notes:[['외형 선택','<code>JToggleButton</code> 3개 + <code>ButtonGroup</code>. 선택 시 히어로 배경색이 펫 테마색으로 전환'],['미리보기','<code>PetStage</code> 컴포넌트를 히어로에서도 재사용(크기만 260px)'],['초기 상태','Lv.1 · EXP 0 · 능력치 각 10 — 읽기 전용 칩으로 표시']],
+html:`<div class="frame"><div class="auth">
+  <div class="hero" style="background:#FFC93C">
+    <div class="blob" style="width:360px;height:360px;right:-120px;top:-110px"></div>
+    <div style="position:relative;color:var(--ink)">
+      <div class="chipx" style="background:rgba(255,255,255,.6);color:var(--ink)">STEP 2 / 2</div>
+      <div class="h1" style="font-size:44px;margin-top:14px">새 친구를<br>만나볼까요?</div>
+    </div>
+    <div class="ground" style="background:#F2B21E;border-color:#FFD866"></div>
+    <div style="position:absolute;left:0;right:0;bottom:70px;display:flex;flex-direction:column;align-items:center">
+      <div style="background:#fff;border:3px solid var(--ink);border-radius:16px;padding:8px 18px;font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;color:var(--ink);margin-bottom:-56px;position:relative;z-index:1">말랑이</div>
+      ${pet('DUCK','happy',270)}
+    </div>
+  </div>
+  <div class="auth-main" style="gap:24px">
+    <div><div class="h1">캐릭터 생성</div><div class="sub" style="margin-top:6px">이름과 외형을 정하면 Lv.1부터 함께 성장해요.</div></div>
+    <div><div class="label">캐릭터 이름</div><div class="input focus" style="color:var(--ink)">말랑이<span class="caret"></span><span class="spacer"></span><span style="font-size:13px;color:var(--ink3)">3 / 10</span></div></div>
+    <div><div class="label">외형 선택</div>
+      <div style="display:flex;gap:14px">
+        <div class="pick sel"><span class="check">✓</span>${pet('DUCK','happy',110)}<b>고라파카</b><small>오리 · 노랑</small></div>
+        <div class="pick">${pet('TURTLE','idle',110)}<b>고북이</b><small>거북이 · 초록</small></div>
+        <div class="pick">${pet('LIZARD','idle',110)}<b>파이리</b><small>도마뱀 · 코랄</small></div>
+      </div>
+    </div>
+    <div><div class="label">초기 상태</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="lv">Lv.1</span><span class="chipx">EXP 0</span>${STAT.map(([k,,v])=>`<span class="chipx" style="color:var(${v})">${k} 10</span>`).join('')}</div>
+    </div>
+    <div class="row" style="margin-top:auto"><div class="btn ghost lg">이전</div><div class="btn primary lg" style="flex:1">이 친구로 시작하기</div></div>
+  </div>
+</div></div>`});
+
+/* UI-03 홈 */
+S.push({id:'UI-03', name:'메인(홈)', desc:'게임 셸: 상단바(64px) + 펫 사이드바(320px) + 콘텐츠. 홈 콘텐츠는 오늘의 학습 배너, 분야별 진행도, 최근 기록으로 구성해 “다음에 할 일”이 바로 보이게 합니다.',
+notes:[['셸 구조','<code>GameShell(BorderLayout)</code>: NORTH=TopBar, WEST=PetSidebar, CENTER=<code>CardLayout</code> 콘텐츠. 화면 전환 시 사이드바는 유지되고 갱신만 됨'],['반응형','콘텐츠는 <code>GridBagLayout</code> weightx=1. 창이 커지면 카드 폭이 늘어남(사이드바 고정)'],['사용자 변경','상단바 오른쪽 사용자 칩 클릭 → UI-01로 이동']],
+html:game(0,{mood:'idle',say:'오늘은 어떤 걸 배워볼까?'},`
+  <div class="card" style="padding:28px 32px;display:flex;align-items:center;gap:28px;background:var(--dark);border-color:var(--dark);box-shadow:0 5px 0 #120E20;color:#fff;position:relative;overflow:hidden">
+    <div style="position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.06)"></div>
+    <div style="flex:1;position:relative">
+      <div style="font-size:14px;font-weight:700;color:#FFC233">석민 님, 안녕하세요!</div>
+      <div class="h1" style="margin-top:6px">말랑이가 Lv.5까지 <span style="color:#FFC233">20 EXP</span> 남았어요</div>
+      <div style="font-size:15px;color:#CFC8E0;margin-top:8px">처음 맞힌 문제마다 EXP +10, 해당 분야 능력치 +1</div>
+    </div>
+    <div class="btn primary lg" style="position:relative">학습 시작하기 →</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center"><div class="h2">분야별 진행도</div><span class="sub" style="font-size:13px">정답률 기준</span></div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px">
+    ${CAT.map(c=>`<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="width:48px;height:48px;border-radius:14px;background:${c.cs};display:grid;place-items:center">${ICON[c.icon](c.c).replace(/width="40" height="40"/,'width="28" height="28"')}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between"><b style="font-size:16px">${c.nm}</b><span style="font-size:11px;font-weight:900;color:${c.c}">${c.stat}</span></div>
+      <div class="bar" style="height:8px;border:0;background:#F3EADB"><i style="width:${c.acc}%;background:${c.c}"></i></div>
+      <div style="font-size:12px;color:var(--ink2);font-weight:700">${c.solved?`${c.acc}% · ${c.solved}문제`:'아직 시작 전'}</div>
+    </div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;flex:1;min-height:0">
+    <div class="card" style="padding:20px 22px">
+      <div class="row" style="margin-bottom:12px"><div class="h2" style="font-size:19px">최근 학습</div><span class="spacer"></span><span style="font-size:13px;font-weight:700;color:var(--brandDark)">전체 기록 →</span></div>
+      <div class="qlist">
+        ${[['o','과학','1기압에서 물은 50℃에 끓는다.','+10 EXP'],['o','스포츠','축구 경기의 정규 시간은?','+10 EXP'],['x','언어','“run”의 과거형은?','—']].map(([r,c,q,x])=>`<div class="qitem"><span class="r" style="background:var(--${r==='o'?'ok':'err'})">${r==='o'?'O':'X'}</span><b style="font-size:12px;color:var(--ink2);width:42px">${c}</b>${q}<span class="xp">${x}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <div class="h2" style="font-size:19px">복습이 필요해요</div>
+      <div class="sub" style="font-size:14px">틀린 문제 <b style="color:var(--err)">7개</b>가 오답노트에 있어요.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${['언어 3','상식 2','스포츠 2'].map(t=>`<span class="chipx">${t}</span>`).join('')}</div>
+      <div class="btn ghost sm" style="margin-top:auto;align-self:flex-start">오답노트 열기</div>
+    </div>
+  </div>`)});
+
+/* UI-04 분야 */
+S.push({id:'UI-04', name:'학습 분야 선택', desc:'5개 분야를 3열 카드 그리드로 꽉 채웁니다. 분야마다 고유 색과 연결 능력치 칩을 써서, 이후 학습·퀴즈 화면에서도 같은 색으로 분야를 구분합니다.',
+notes:[['그리드','<code>GridLayout(2,3,20,20)</code>. 6번째 칸은 “랜덤 도전”(전 분야 섞기, 선택 구현) 또는 빈 패널'],['호버','마우스 오버 시 테두리·그림자가 분야색으로, y-3px 이동 → <code>MouseListener</code>로 repaint'],['빈 분야','콘텐츠가 없으면 카드 전체를 회색 처리하고 “준비 중” 표시']],
+html:game(1,{mood:'idle',say:'과학이 제일 자신 있어!'},`
+  <div><div class="h1">무엇을 배워볼까요?</div><div class="sub" style="margin-top:6px">분야를 고르면 학습 카드를 읽고, 5문제 퀴즈에 도전해요.</div></div>
+  <div class="cat-grid">
+    ${CAT.map((c,i)=>`<div class="cat ${i===0?'hover':''}" style="--c:${c.c};--cs:${c.cs}"><div class="deco"></div>
+      <div class="ic">${ICON[c.icon](c.c)}</div>
+      <div class="nm">${c.nm}<span class="stc">${c.stat}</span></div>
+      <div class="ds3">${c.ds}</div>
+      <div class="foot"><div class="bar"><i style="width:${c.acc}%"></i></div><span>${c.solved?`정답률 ${c.acc}%`:'NEW'}</span></div>
+    </div>`).join('')}
+    <div class="cat" style="--c:#2B2440;--cs:#F3EADB;border-style:dashed;box-shadow:none;background:transparent;align-items:center;justify-content:center;text-align:center">
+      <div class="ic" style="background:#fff;border:2px solid var(--line)"><span class="jua" style="font-size:34px;color:var(--ink2)">?</span></div>
+      <div class="nm" style="font-size:22px;color:var(--ink2)">랜덤 도전</div><div class="ds3">전 분야에서 섞어서 출제 (선택 구현)</div>
+    </div>
+  </div>`)});
+
+/* UI-05 학습 카드 */
+S.push({id:'UI-05', name:'학습 카드', desc:'큰 카드 한 장을 중앙에 두고 아래에 이전/다음/퀴즈 시작을 고정합니다. 상단 세그먼트 진행바로 몇 번째 카드인지 보여 주고, 사이드바의 펫은 “집중” 상태로 바뀝니다.',
+notes:[['카드','<code>LearningCardPanel</code>: 왼쪽 10px 분야색 띠 + 제목(Jua 36) + 본문(<code>JTextArea</code> lineWrap, 20px, 행간 1.7)'],['진행','세그먼트 바: 분야 카드 수만큼 칸을 나눠 <code>fillRoundRect</code>'],['단축키','← / → 로 카드 이동, Enter로 퀴즈 시작 (<code>InputMap</code>)']],
+html:game(1,{mood:'focus',say:'음… 물은 100℃에서 끓는구나!'},`
+  <div class="row">${catChip(CAT[0])}<b style="font-size:15px">학습 카드</b><span class="spacer"></span><span class="jua" style="font-size:22px">1 <span style="color:var(--ink3)">/ 10</span></span></div>
+  <div class="progress-seg">${Array.from({length:10},(_,i)=>`<i class="${i===0?'cur':''}"></i>`).join('')}</div>
+  <div class="lcard"><div class="side"></div><div class="in">
+    <div style="display:flex;gap:8px">${['#물','#상태변화'].map(t=>`<span class="chipx" style="background:#E4EFFF;color:#2A6BD1">${t}</span>`).join('')}<span class="chipx">난이도 ★☆☆</span></div>
+    <div class="jua" style="font-size:44px;margin-top:22px">물의 상태 변화</div>
+    <div style="font-size:21px;line-height:1.75;margin-top:18px;max-width:760px">1기압에서 순수한 물은 <b style="background:#FFF0B3;padding:0 4px">0℃에서 얼고</b> <b style="background:#FFF0B3;padding:0 4px">100℃에서 끓는다.</b></div>
+    <div style="margin-top:auto;background:var(--sunken);border-radius:16px;padding:16px 20px;display:flex;gap:14px;align-items:center">
+      <span style="font-size:26px">💡</span><div style="font-size:15px;color:var(--ink2)"><b style="color:var(--ink)">퀴즈 미리보기</b> · 이 카드와 연결된 OX 1문제, 4지선다 1문제가 출제될 수 있어요.</div>
+    </div>
+  </div></div>
+  <div class="actionbar"><div class="btn disabled">← 이전</div><div class="btn ghost">다음 →</div><span class="spacer"></span><div class="btn ghost">분야 선택으로</div><div class="btn primary lg">퀴즈 시작</div></div>`)});
+
+/* UI-06 OX */
+S.push({id:'UI-06A', name:'퀴즈 · OX', desc:'문제 박스 + 화면을 반씩 채우는 거대한 O/X 버튼. 사이드바 하단은 “이번 퀴즈” 진행 점(●○)으로 바뀌어 지금까지의 정오가 한눈에 보입니다.',
+notes:[['O/X 버튼','<code>JToggleButton</code> 2개(ButtonGroup). 선택 시 테두리 3px 색 전환 + 연한 배경'],['제출','선택 전에는 [답안 제출] 비활성. 제출 후 같은 영역이 피드백 패널(UI-06C)로 교체'],['펫 반응','문제 진입 시 <code>Mood.FOCUS</code>, 말풍선 “두근두근…”']],
+html:game(1,{mood:'focus',say:'두근두근… 할 수 있어!',mini:sessionMini(['o','cur','','',''])},`
+  <div class="qhead">${catChip(CAT[0])}<span class="chipx">OX</span><span class="spacer"></span>
+    <div class="progress-seg" style="width:220px">${['done','cur','','',''].map(c=>`<i class="${c}" style="${c==='done'?'background:var(--ok)':''}"></i>`).join('')}</div>
+    <span class="jua" style="font-size:22px">2 <span style="color:var(--ink3)">/ 5</span></span><div class="btn ghost sm">종료</div></div>
+  <div class="qbox"><div class="qnum">Q2.</div><div class="qtext">1기압에서 물은 50℃에 끓는다.</div></div>
+  <div class="ox">
+    <div class="oxbtn o"><div class="sym">O</div><div class="cap">맞다 · 키보드 O</div></div>
+    <div class="oxbtn x"><div class="sym">X</div><div class="cap">아니다 · 키보드 X</div></div>
+  </div>
+  <div class="actionbar"><span class="sub" style="font-size:14px">답을 고르면 제출할 수 있어요</span><span class="spacer"></span><div class="btn disabled lg">답안 제출</div></div>`)});
+
+/* UI-06B MC */
+S.push({id:'UI-06B', name:'퀴즈 · 4지선다 (선택됨)', desc:'보기 4개를 2×2 대형 버튼으로 배치해 화면을 채웁니다. 선택된 보기는 브랜드 주황으로 강조되고 [답안 제출]이 활성화됩니다.',
+notes:[['보기','<code>OptionButton extends JToggleButton</code>: 번호 배지(46px) + 텍스트(22px). 긴 보기는 HTML 라벨로 2줄 허용'],['키보드','1~4 숫자키로 선택, Enter로 제출'],['상태 4종','기본 / 선택(주황) / 정답(초록) / 오답(빨강) — 피드백 화면에서 재사용']],
+html:game(1,{mood:'focus',say:'끓는점이니까… 이거다!',mini:sessionMini(['o','o','cur','',''])},`
+  <div class="qhead">${catChip(CAT[0])}<span class="chipx">4지선다</span><span class="spacer"></span>
+    <div class="progress-seg" style="width:220px">${['done','done','cur','',''].map(c=>`<i class="${c}" style="${c==='done'?'background:var(--ok)':''}"></i>`).join('')}</div>
+    <span class="jua" style="font-size:22px">3 <span style="color:var(--ink3)">/ 5</span></span><div class="btn ghost sm">종료</div></div>
+  <div class="qbox"><div class="qnum">Q3.</div><div class="qtext">1기압에서 물의 끓는점은?</div></div>
+  <div class="opts">
+    <div class="opt sel"><span class="no">1</span>100℃</div>
+    <div class="opt"><span class="no">2</span>0℃</div>
+    <div class="opt"><span class="no">3</span>50℃</div>
+    <div class="opt"><span class="no">4</span>150℃</div>
+  </div>
+  <div class="actionbar"><span class="sub" style="font-size:14px">선택한 답: <b style="color:var(--brandDark)">1번 · 100℃</b></span><span class="spacer"></span><div class="btn primary lg">답안 제출</div></div>`)});
+
+/* UI-06C 정답 피드백 */
+S.push({id:'UI-06C', name:'정답 피드백', desc:'제출 즉시 보기에 정답 표시, 아래 피드백 패널에 해설·보상을 보여 줍니다. 동시에 사이드바 펫이 기뻐하고 EXP 바에 획득분(줄무늬)이 차오르며 INT 옆에 +1이 뜹니다.',
+notes:[['애니메이션','<code>javax.swing.Timer</code>(16ms)로 EXP 바를 0.6초간 채움, +1 라벨은 1.5초 후 페이드'],['보상 규칙','최초 정답만 EXP +10·능력치 +1. 재정답은 “이미 보상 받은 문제” 회색 칩'],['이동','[학습 카드 보기] 연결 카드가 없으면 비활성 / [다음 문제]']],
+html:game(1,{mood:'happy',say:'정답이야! 머리가 똑똑해진 느낌!',pet:{xp:40},gain:10,plus:{INT:1},mini:sessionMini(['o','o','o','',''])},`
+  <div class="qhead">${catChip(CAT[0])}<span class="chipx">4지선다</span><span class="spacer"></span>
+    <div class="progress-seg" style="width:220px">${['done','done','done','',''].map(c=>`<i class="${c}" style="${c==='done'?'background:var(--ok)':''}"></i>`).join('')}</div>
+    <span class="jua" style="font-size:22px">3 <span style="color:var(--ink3)">/ 5</span></span><div class="btn ghost sm">종료</div></div>
+  <div class="qbox" style="padding:24px 44px"><div class="qnum">Q3.</div><div class="qtext" style="font-size:28px">1기압에서 물의 끓는점은?</div></div>
+  <div class="opts" style="flex:none;grid-auto-rows:76px">
+    <div class="opt right"><span class="no">1</span>100℃<span class="tag" style="background:var(--ok);color:#fff">정답</span></div>
+    <div class="opt" style="opacity:.55"><span class="no">2</span>0℃</div>
+    <div class="opt" style="opacity:.55"><span class="no">3</span>50℃</div>
+    <div class="opt" style="opacity:.55"><span class="no">4</span>150℃</div>
+  </div>
+  <div class="fb ok" style="flex:1"><div class="badge">O</div><div style="flex:1">
+    <div class="t">정답입니다!</div>
+    <p><b>해설</b> · 1기압에서 순수한 물은 100℃에서 끓기 때문에 1번입니다.</p>
+    <div class="reward"><span style="color:var(--expDark)">⭐ EXP +10</span><span style="color:var(--int)">INT +1</span></div>
+  </div></div>
+  <div class="actionbar"><div class="btn ghost">학습 카드 보기</div><span class="spacer"></span><div class="btn ok lg">다음 문제 →</div></div>`)});
+
+/* UI-06D 오답 피드백 */
+S.push({id:'UI-06D', name:'오답 피드백', desc:'오답 시 선택한 보기는 빨강, 정답 보기는 초록으로 동시에 표시합니다. 펫은 아쉬워하지만 “카드 다시 보기”를 권해 학습으로 되돌아가도록 유도합니다.',
+notes:[['색 규칙','빨강은 “내가 고른 오답”에만, 초록은 항상 정답에만 사용'],['보상 없음','reward 칩 대신 “오답노트에 저장됐어요” 안내'],['펫 반응','<code>Mood.SAD</code> 1.5초 → 다음 문제 진입 시 FOCUS로 복귀']],
+html:game(1,{mood:'sad',say:'으앙… 카드를 한 번 더 볼까?',mini:sessionMini(['o','o','o','x',''])},`
+  <div class="qhead">${catChip(CAT[0])}<span class="chipx">OX</span><span class="spacer"></span>
+    <div class="progress-seg" style="width:220px">${['ok','ok','ok','err','cur'].map((c,i)=>`<i style="${i<3?'background:var(--ok)':i===3?'background:var(--err)':''}"></i>`).join('')}</div>
+    <span class="jua" style="font-size:22px">4 <span style="color:var(--ink3)">/ 5</span></span><div class="btn ghost sm">종료</div></div>
+  <div class="qbox" style="padding:24px 44px"><div class="qnum">Q4.</div><div class="qtext" style="font-size:28px">지구는 태양 주위를 약 한 달에 한 번 공전한다.</div></div>
+  <div class="ox" style="flex:none;height:170px">
+    <div class="oxbtn o" style="border-color:var(--err);background:var(--errSoft);box-shadow:0 6px 0 var(--errDark)"><div class="sym" style="font-size:100px">O</div><div class="cap" style="color:var(--errDark)">내가 고른 답</div></div>
+    <div class="oxbtn x" style="border-color:var(--ok);background:var(--okSoft);box-shadow:0 6px 0 var(--okDark)"><div class="sym" style="font-size:100px">X</div><div class="cap" style="color:var(--okDark)">정답</div></div>
+  </div>
+  <div class="fb no" style="flex:1"><div class="badge">X</div><div style="flex:1">
+    <div class="t">아쉬워요, 정답은 X</div>
+    <p><b>해설</b> · 지구는 태양 주위를 약 1년에 한 번 공전합니다. 한 달 주기로 지구를 도는 것은 달입니다.</p>
+    <div class="reward"><span style="color:var(--ink2)">📒 오답노트에 저장됐어요</span></div>
+  </div></div>
+  <div class="actionbar"><div class="btn ghost">학습 카드 다시 보기</div><span class="spacer"></span><div class="btn dark lg">다음 문제 →</div></div>`)});
+
+/* UI-07 결과 */
+S.push({id:'UI-07', name:'퀴즈 결과 (레벨 업)', desc:'정답률 링, 핵심 지표 3개, 문제별 결과 목록, 레벨 업 배너로 구성합니다. 사이드바 펫은 레벨 업 표정·반짝이와 함께 큰 레벨 배지를 보여 줍니다.',
+notes:[['정답률 링','<code>Graphics2D.fillArc</code> 2회(배경/진행) + 가운데 흰 원. 60% 이상 초록, 미만 주황'],['레벨 업','이전 Lv → 새 Lv. 레벨이 안 올랐으면 배너 대신 “다음 레벨까지 N EXP” 카드'],['문제 목록','<code>JList</code> 스크롤. 항목 클릭 시 해당 문제 해설 다이얼로그']],
+html:game(1,{mood:'levelup',say:'레벨 업!! 고마워 석민!',pet:{lv:5,xp:10},lvBig:true,plus:{INT:4},mini:sessionMini(['o','o','o','x','o'])},`
+  <div class="row"><div><div class="h1">퀴즈 완료!</div><div class="sub" style="margin-top:4px">과학 · 5문제</div></div><span class="spacer"></span>${catChip(CAT[0])}</div>
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:20px">
+    <div class="card" style="padding:22px;display:flex;align-items:center;justify-content:center">
+      <div class="ring" style="background:conic-gradient(var(--ok) 0 80%,#F3EADB 80% 100%)"><div class="inner"><div class="jua" style="font-size:40px;line-height:1">80%</div><div style="font-size:13px;color:var(--ink2);font-weight:700;margin-top:4px">4 / 5 정답</div></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="lvup"><div style="width:58px;height:58px;border-radius:16px;background:var(--exp);display:grid;place-items:center;font-size:30px;box-shadow:0 4px 0 var(--expDark)">⭐</div>
+        <div><div style="font-size:13px;color:#FFC233;font-weight:900">LEVEL UP</div><div class="jua" style="font-size:30px">Lv.4 → Lv.5</div></div><span class="spacer"></span><div style="font-size:14px;color:#CFC8E0">말랑이가 한 단계 성장했어요!</div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div class="kpi"><div class="k">획득 EXP</div><div class="v" style="color:var(--expDark)">+40</div></div>
+        <div class="kpi"><div class="k">능력치 변화</div><div class="v" style="color:var(--int)">INT +4</div></div>
+        <div class="kpi"><div class="k">신규 정답</div><div class="v">4<small> / 4</small></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:14px 20px;flex:1;min-height:0;overflow:hidden">
+    <div class="h2" style="font-size:18px;margin-bottom:8px">문제별 결과</div>
+    <div class="qlist" style="gap:6px">${[['o','1기압에서 물은 50℃에 끓는다.','+10'],['o','건조한 공기에서 가장 많은 기체는?','+10'],['o','1기압에서 물의 끓는점은?','+10'],['x','지구는 태양 주위를 약 한 달에 한 번 공전한다.','0'],['o','태양은 스스로 빛을 내는 별이다.','+10']].map(([r,q,x],i)=>`<div class="qitem" style="padding:5px 14px"><span class="r" style="background:var(--${r==='o'?'ok':'err'})">${r==='o'?'O':'X'}</span><b style="color:var(--ink3);width:26px">Q${i+1}</b>${q}<span class="xp" style="${x==='0'?'color:var(--ink3)':''}">${x==='0'?'보상 없음':x+' EXP'}</span></div>`).join('')}</div>
+  </div>
+  <div class="actionbar"><div class="btn ghost">학습 기록 보기</div><span class="spacer"></span><div class="btn ghost">같은 분야 다시</div><div class="btn primary lg">메인으로</div></div>`)});
+
+/* UI-08 기록 */
+S.push({id:'UI-08A', name:'학습 기록', desc:'상단 KPI 4개 → 분야별 정답률 막대 → 풀이 이력 테이블. 분야 필터(세그먼트)는 모든 위젯에 동시에 적용됩니다.',
+notes:[['필터','세그먼트 = <code>JToggleButton</code> 그룹. 변경 시 <code>StatisticsService</code> 재조회'],['막대','분야색 막대 + 오른쪽 % 라벨. 기록이 없으면 “—”'],['테이블','<code>JTable</code> + 커스텀 렌더러(결과 pill, 분야색 칩), 헤더 배경 제거, 행 높이 44']],
+html:game(2,{mood:'idle',say:'언어를 조금만 더 공부하면 좋겠어!'},`
+  <div class="row"><div class="h1">학습 기록</div><span class="spacer"></span>
+    <div class="seg"><span class="on">전체</span>${CAT.map(c=>`<span>${c.nm}</span>`).join('')}</div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+    <div class="kpi"><div class="k">총 풀이 수</div><div class="v">39<small> 문제</small></div></div>
+    <div class="kpi"><div class="k">전체 정답률</div><div class="v" style="color:var(--okDark)">68.4<small>%</small></div></div>
+    <div class="kpi"><div class="k">누적 EXP</div><div class="v" style="color:var(--expDark)">180</div></div>
+    <div class="kpi"><div class="k">오답노트</div><div class="v" style="color:var(--err)">7<small> 문제</small></div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;flex:1;min-height:0">
+    <div class="card" style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+      <div class="h2" style="font-size:18px">분야별 정답률</div>
+      ${CAT.map(c=>`<div class="catbar"><b style="font-size:14px">${c.nm}</b><div class="bar"><i style="width:${c.acc}%;background:${c.c}"></i></div><span class="jua" style="font-size:18px;text-align:right">${c.solved?c.acc+'%':'—'}</span></div>`).join('')}
+    </div>
+    <div class="card" style="padding:14px 8px 8px;overflow:hidden">
+      <div class="row" style="padding:4px 14px 6px"><div class="h2" style="font-size:18px">풀이 이력</div><span class="spacer"></span><span class="sub" style="font-size:13px">최신순</span></div>
+      <table class="tbl"><thead><tr><th>일시</th><th>분야</th><th>문제</th><th>결과</th><th style="text-align:right">EXP</th></tr></thead><tbody>
+      ${[['11.17 14:02',0,'1기압에서 물의 끓는점은?','o',10],['11.17 14:01',0,'지구는 한 달에 한 번 공전?','x',0],['11.17 13:58',2,'축구 정규 경기 시간은?','o',10],['11.16 21:40',3,'“run”의 과거형은?','x',0],['11.16 21:38',3,'apple의 뜻은?','o',10],['11.16 21:35',1,'우리나라 112는 무슨 번호?','o',0],].map(([d,ci,q,r,x])=>`<tr><td style="color:var(--ink2);white-space:nowrap">${d}</td><td><span class="pill" style="background:${CAT[ci].c}">${CAT[ci].nm}</span></td><td>${q}</td><td><b style="color:var(--${r==='o'?'okDark':'err'})">${r==='o'?'정답':'오답'}</b></td><td style="text-align:right;font-weight:900;color:${x?'var(--expDark)':'var(--ink3)'}">${x?'+'+x:r==='o'?'재정답':'—'}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+  </div>`)});
+
+/* UI-08B 오답노트 */
+S.push({id:'UI-08B', name:'오답노트 (P1)', desc:'왼쪽 목록에서 문제를 체크하고, 오른쪽 상세에서 정답·해설을 확인합니다. 체크한 문제만 모아 [복습 퀴즈]로 다시 풀 수 있습니다.',
+notes:[['구성','<code>JSplitPane</code> 대신 고정 비율 <code>GridLayout(1,2)</code> — 리사이즈 시 반반 유지'],['체크박스','커스텀 아이콘 <code>JCheckBox</code>(22px 라운드)'],['복습 퀴즈','선택 문제로 <code>QuizSession</code> 생성. 재정답은 기록되지만 보상 없음']],
+html:game(3,{mood:'focus',say:'틀린 건 다시 보면 돼!'},`
+  <div class="row"><div><div class="h1">오답노트</div><div class="sub" style="margin-top:4px">틀린 문제 7개 · 선택한 문제로 복습 퀴즈를 만들 수 있어요</div></div><span class="spacer"></span>
+    <div class="seg"><span>전체</span><span class="on">언어</span><span>상식</span><span>스포츠</span></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;min-height:0">
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      ${[['“run”의 과거형은?',1,true,true],['apple의 복수형으로 옳은 것은?',1,true,false],['“I ___ a student.” 빈칸에 알맞은 것은?',2,false,false]].map(([q,n,on,sel])=>`<div class="wnote ${sel?'sel':''}"><span class="cb ${on?'on':''}">${on?'✓':''}</span><div style="flex:1"><div style="font-weight:700;font-size:15px">${q}</div><div style="font-size:12px;color:var(--ink3);margin-top:2px">언어 · 오답 ${n}회</div></div><span class="pill" style="background:${CAT[3].c}">FOC</span></div>`).join('')}
+      <div class="row" style="margin-top:auto"><span class="sub" style="font-size:13px">2개 선택됨</span><span class="spacer"></span><div class="btn primary">복습 퀴즈 시작</div></div>
+    </div>
+    <div class="card" style="padding:26px 28px;display:flex;flex-direction:column;gap:14px">
+      <div class="row">${catChip(CAT[3])}<span class="chipx">4지선다</span></div>
+      <div class="qtext" style="font-size:28px;margin:0">“run”의 과거형은?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="opt wrong" style="height:58px;font-size:17px"><span class="no" style="width:34px;height:34px;font-size:18px">1</span>runned</div>
+        <div class="opt right" style="height:58px;font-size:17px"><span class="no" style="width:34px;height:34px;font-size:18px">2</span>ran</div>
+        <div class="opt" style="height:58px;font-size:17px;opacity:.55"><span class="no" style="width:34px;height:34px;font-size:18px">3</span>run</div>
+        <div class="opt" style="height:58px;font-size:17px;opacity:.55"><span class="no" style="width:34px;height:34px;font-size:18px">4</span>running</div>
+      </div>
+      <div style="background:var(--sunken);border-radius:16px;padding:16px 18px;font-size:15px;line-height:1.65"><b>해설</b> · run은 불규칙 동사로 과거형은 ran, 과거분사는 run입니다.</div>
+      <div class="row" style="margin-top:auto"><div class="btn ghost sm">관련 학습 카드</div><span class="spacer"></span><div class="btn dark sm">이 문제만 다시 풀기</div></div>
+    </div>
+  </div>`)});
+
+/* ================= 보스 일러스트 (원본 디자인) ================= */
+let __bid = 0;
+const BOSS = {
+  SLIME:  {nm:'졸음 슬라임', lv:1, hp:120, weak:'FOC', desc:'공부만 하면 졸음이 쏟아지게 만든다', reward:30,
+           body:'#7FD8C3', dark:'#3FAE95', light:'#C9F3E8', card:['#E3F8F1','#B8EBDC']},
+  GHOST:  {nm:'까먹귀신', lv:3, hp:200, weak:'WIS', desc:'외운 내용을 슬쩍 지워 버린다', reward:50,
+           body:'#C9B8F5', dark:'#9B85E0', light:'#EEE7FF', card:['#EFE9FF','#D3C6F7']},
+  GOLEM:  {nm:'헷갈골렘', lv:5, hp:300, weak:'INT', desc:'비슷한 보기로 머리를 헷갈리게 한다', reward:80,
+           body:'#A7ADB8', dark:'#7C8391', light:'#D3D7DE', card:['#EEF0F3','#CDD2DA']},
+  DRAGON: {nm:'망각의 용', lv:8, hp:450, weak:'STR', desc:'모든 기억을 불태우는 최종 보스', reward:120,
+           body:'#9D7BEA', dark:'#6E4FC9', light:'#F3E2B5', card:['#F1E8FF','#D7C4F8']}
+};
+const STATC = {INT:'#3D8BFD', STR:'#E8467C', FOC:'#8B5CF6', WIS:'#10A37F'};
+const STATN = {INT:'지성', STR:'체력', FOC:'집중', WIS:'지혜'};
+
+function bossFace(cx, cy, st, o={}){
+  const e = o.gap||22, L = cx-e, R = cx+e, ink = '#2B2440'; let s = '';
+  if(st==='defeated'){
+    const X = x=>`<path d="M${x-8} ${cy-8} L${x+8} ${cy+8} M${x+8} ${cy-8} L${x-8} ${cy+8}" stroke="${ink}" stroke-width="5" stroke-linecap="round"/>`;
+    s += X(L)+X(R);
+    s += `<path d="M${cx-13} ${cy+22} Q${cx} ${cy+15} ${cx+13} ${cy+22}" stroke="${ink}" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M${cx+1} ${cy+20} q6 13 13 0" fill="#FF8FA8" stroke="${ink}" stroke-width="2.5"/>`;
+  } else if(st==='hurt'){
+    s += `<path d="M${L-9} ${cy-9} L${L+7} ${cy} L${L-9} ${cy+9}" stroke="${ink}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M${R+9} ${cy-9} L${R-7} ${cy} L${R+9} ${cy+9}" stroke="${ink}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M${cx-15} ${cy+24} l7.5 -6 l7.5 6 l7.5 -6 l7.5 6" stroke="${ink}" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M${R+24} ${cy-26} C${R+17} ${cy-14} ${R+18} ${cy-6} ${R+24} ${cy-5} C${R+30} ${cy-6} ${R+31} ${cy-14} ${R+24} ${cy-26}Z" fill="#8EC5FF" stroke="#4E9BEA" stroke-width="1.5"/>`;
+  } else if(st==='attack'){
+    s += `<path d="M${L-15} ${cy-20} L${L+10} ${cy-9}" stroke="${ink}" stroke-width="6" stroke-linecap="round"/>
+          <path d="M${R+15} ${cy-20} L${R-10} ${cy-9}" stroke="${ink}" stroke-width="6" stroke-linecap="round"/>`;
+    if(o.glow) s += `<rect x="${L-11}" y="${cy-5}" width="22" height="10" rx="5" fill="#FF6B3D"/><rect x="${R-11}" y="${cy-5}" width="22" height="10" rx="5" fill="#FF6B3D"/>`;
+    else s += `<ellipse cx="${L}" cy="${cy}" rx="11" ry="8" fill="#fff" stroke="${ink}" stroke-width="3"/><ellipse cx="${R}" cy="${cy}" rx="11" ry="8" fill="#fff" stroke="${ink}" stroke-width="3"/>
+               <circle cx="${L+4}" cy="${cy+1}" r="4.5" fill="${ink}"/><circle cx="${R-4}" cy="${cy+1}" r="4.5" fill="${ink}"/>`;
+    s += `<path d="M${cx-21} ${cy+15} Q${cx} ${cy+46} ${cx+21} ${cy+15} Z" fill="#7A1F3D" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M${cx-15} ${cy+16} l5 8 l5 -8 Z M${cx+5} ${cy+16} l5 8 l5 -8 Z" fill="#fff"/>`;
+  } else {
+    if(o.sleepy){
+      s += `<path d="M${L-12} ${cy} Q${L} ${cy+8} ${L+12} ${cy}" stroke="${ink}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+            <path d="M${R-12} ${cy} Q${R} ${cy+8} ${R+12} ${cy}" stroke="${ink}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+            <ellipse cx="${cx}" cy="${cy+22}" rx="6" ry="7" fill="#7A1F3D"/>`;
+    } else if(o.glow){
+      s += `<rect x="${L-11}" y="${cy-6}" width="22" height="12" rx="6" fill="#FFD34D"/><rect x="${R-11}" y="${cy-6}" width="22" height="12" rx="6" fill="#FFD34D"/>
+            <path d="M${cx-12} ${cy+22} L${cx+12} ${cy+22}" stroke="${ink}" stroke-width="4" stroke-linecap="round"/>`;
+    } else {
+      s += `<ellipse cx="${L}" cy="${cy}" rx="11" ry="13" fill="#fff" stroke="${ink}" stroke-width="3"/><ellipse cx="${R}" cy="${cy}" rx="11" ry="13" fill="#fff" stroke="${ink}" stroke-width="3"/>
+            <circle cx="${L+2}" cy="${cy+2}" r="5.5" fill="${ink}"/><circle cx="${R+2}" cy="${cy+2}" r="5.5" fill="${ink}"/>
+            <path d="M${cx-13} ${cy+20} Q${cx-6} ${cy+27} ${cx} ${cy+21} Q${cx+6} ${cy+27} ${cx+13} ${cy+20}" stroke="${ink}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+    }
+  }
+  return s;
+}
+
+function boss(kind='GHOST', st='idle', size=240){
+  const b = BOSS[kind], id = 'bd'+(++__bid); let body = '', face = '', fx = '';
+  if(kind==='SLIME'){
+    face = bossFace(120,152,st,{gap:28, sleepy:st==='idle'});
+    body = `<path d="M26 206 C22 150 60 98 120 94 C180 98 218 150 214 206 C180 218 60 218 26 206Z" fill="${b.body}"/>
+      <path d="M26 206 C60 218 180 218 214 206 C212 196 210 190 208 184 C170 198 70 198 32 184 C30 190 28 196 26 206Z" fill="${b.dark}" opacity=".45"/>
+      <ellipse cx="76" cy="136" rx="13" ry="22" fill="#fff" opacity=".55" transform="rotate(-25 76 136)"/>
+      <circle cx="94" cy="112" r="5" fill="#fff" opacity=".55"/>
+      <path d="M72 108 Q104 34 182 50 Q160 78 170 108 Z" fill="#6C7BD9"/>
+      <path d="M96 76 Q128 60 166 66 M88 92 Q124 80 168 86" stroke="#AEB8F2" stroke-width="5" fill="none"/>
+      <circle cx="186" cy="52" r="13" fill="#fff"/>
+      <rect x="64" y="100" width="114" height="16" rx="8" fill="#fff"/>
+      <ellipse cx="88" cy="${152+14}" rx="9" ry="5" fill="#FF8FA3" opacity=".5"/><ellipse cx="152" cy="${152+14}" rx="9" ry="5" fill="#FF8FA3" opacity=".5"/>`;
+    if(st==='idle') fx = `<text x="196" y="112" font-family="Jua" font-size="26" fill="#6C7BD9">Z</text><text x="214" y="88" font-family="Jua" font-size="18" fill="#6C7BD9">z</text>`;
+  } else if(kind==='GHOST'){
+    face = bossFace(120,112,st,{gap:22});
+    const w = 116/6; let wave = ''; for(let i=0;i<6;i++) wave += `q${-w/2} ${i%2?-12:12} ${-w} 0 `;
+    body = `<ellipse cx="54" cy="140" rx="13" ry="22" fill="${b.body}" transform="rotate(${st==='attack'?-40:30} 54 140)"/>
+      <ellipse cx="186" cy="140" rx="13" ry="22" fill="${b.body}" transform="rotate(${st==='attack'?40:-30} 186 140)"/>
+      <path d="M62 198 V112 C62 72 90 46 120 46 C150 46 178 72 178 112 V198 ${wave}Z" fill="${b.body}"/>
+      <path d="M150 58 C168 70 176 92 176 120" stroke="#fff" stroke-width="8" fill="none" opacity=".45" stroke-linecap="round"/>
+      <ellipse cx="90" cy="130" rx="9" ry="5" fill="#FF8FA3" opacity=".5"/><ellipse cx="150" cy="130" rx="9" ry="5" fill="#FF8FA3" opacity=".5"/>`;
+    if(st==='idle') fx = `<text x="22" y="72" font-family="Jua" font-size="34" fill="${b.dark}">?</text><text x="196" y="56" font-family="Jua" font-size="26" fill="${b.dark}">?</text><text x="204" y="190" font-family="Jua" font-size="20" fill="${b.dark}" opacity=".7">?</text>`;
+  } else if(kind==='GOLEM'){
+    face = bossFace(120,82,st,{gap:22, glow:true});
+    const armY = st==='attack'?84:104;
+    body = `<rect x="76" y="184" width="32" height="30" rx="10" fill="${b.dark}"/><rect x="132" y="184" width="32" height="30" rx="10" fill="${b.dark}"/>
+      <rect x="54" y="98" width="132" height="100" rx="28" fill="${b.body}"/>
+      <rect x="16" y="${armY}" width="44" height="74" rx="20" fill="${b.body}" stroke="${b.dark}" stroke-width="3"/>
+      <rect x="180" y="${armY}" width="44" height="74" rx="20" fill="${b.body}" stroke="${b.dark}" stroke-width="3"/>
+      <circle cx="38" cy="${armY+78}" r="18" fill="${b.dark}"/><circle cx="202" cy="${armY+78}" r="18" fill="${b.dark}"/>
+      <rect x="72" y="42" width="96" height="72" rx="24" fill="${b.light}"/>
+      <path d="M86 132 l14 14 -6 14 M160 120 l-12 10 4 16" stroke="${b.dark}" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M82 50 q10 -14 26 -6 q12 -12 26 -2 q14 -8 24 6 q-4 8 -16 6 q-10 8 -22 2 q-12 6 -24 0 q-10 4 -14 -6z" fill="#7BC47F"/>
+      <path d="M60 112 q8 -12 22 -6 q-2 10 -14 12z" fill="#7BC47F"/>
+      <circle cx="120" cy="150" r="15" fill="${st==='defeated'?'#7C8391':'#FFD34D'}" stroke="${b.dark}" stroke-width="3"/>
+      <path d="M113 150 l7 -8 7 8 -7 8z" fill="${st==='defeated'?'#A7ADB8':'#FFF3B0'}"/>`;
+  } else {
+    face = bossFace(120,86,st,{gap:22});
+    body = `<path d="M160 186 C200 196 226 176 218 142" stroke="${b.body}" stroke-width="18" fill="none" stroke-linecap="round"/>
+      <path d="M210 136 l18 -10 -4 20z" fill="${b.light}"/>
+      <path d="M78 104 C40 70 18 84 14 112 C30 106 40 118 36 132 C52 122 62 132 66 144Z" fill="#C3A8F5" stroke="${b.dark}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M162 104 C200 70 222 84 226 112 C210 106 200 118 204 132 C188 122 178 132 174 144Z" fill="#C3A8F5" stroke="${b.dark}" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="88" cy="204" rx="18" ry="9" fill="${b.dark}"/><ellipse cx="152" cy="204" rx="18" ry="9" fill="${b.dark}"/>
+      <ellipse cx="120" cy="160" rx="58" ry="48" fill="${b.body}"/>
+      <ellipse cx="120" cy="170" rx="34" ry="32" fill="${b.light}"/>
+      <path d="M94 160 h52 M92 174 h56 M98 188 h44" stroke="#E2CC93" stroke-width="3"/>
+      <path d="M80 62 l-8 -30 24 20z M160 62 l8 -30 -24 20z" fill="#FFE8B0" stroke="#D9B86A" stroke-width="2.5" stroke-linejoin="round"/>
+      <ellipse cx="120" cy="90" rx="54" ry="46" fill="${b.body}"/>
+      <path d="M100 48 l6 -10 6 10 M114 46 l6 -12 6 12 M128 48 l6 -10 6 10" fill="#FFE8B0" stroke="#D9B86A" stroke-width="2"/>
+      <ellipse cx="86" cy="104" rx="8" ry="5" fill="#FF8FA3" opacity=".45"/><ellipse cx="154" cy="104" rx="8" ry="5" fill="#FF8FA3" opacity=".45"/>`;
+    if(st==='attack') fx = `<path d="M96 116 C70 110 40 124 8 112 C26 130 18 140 4 150 C34 150 56 156 98 132 Z" fill="#FF8A3D" stroke="#E0592B" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M94 122 C72 120 52 128 30 124 C44 134 40 140 32 146 C52 144 70 146 94 132 Z" fill="#FFD34D"/>`;
+  }
+  // 상태 효과
+  let pre = '', post = fx, wrapT = '';
+  if(st==='attack'){
+    pre = `<ellipse cx="120" cy="128" rx="112" ry="104" fill="#F04438" opacity=".12"/>`;
+    if(kind!=='DRAGON') post += `<g stroke="#F04438" stroke-width="5" stroke-linecap="round" opacity=".8"><path d="M6 96 h30"/><path d="M2 124 h40"/><path d="M8 152 h28"/></g>`;
+    wrapT = 'translate(-6 0)';
+  }
+  if(st==='hurt'){
+    wrapT = 'translate(8 4) rotate(4 120 200)';
+    post += `<g transform="translate(46 60)"><polygon points="0,-34 9,-12 32,-18 16,0 34,16 10,14 4,36 -6,15 -30,22 -16,2 -34,-14 -10,-12" fill="#fff" stroke="#FFC233" stroke-width="4" stroke-linejoin="round"/></g>
+      <g stroke="#FFC233" stroke-width="5" stroke-linecap="round"><path d="M200 50 l14 -12"/><path d="M210 80 l18 -2"/><path d="M196 24 l4 -16"/></g>`;
+  }
+  let filt = '';
+  if(st==='defeated'){
+    wrapT = 'translate(0 18) rotate(-10 120 210) scale(1 .94)';
+    filt = `<filter id="${id}"><feColorMatrix type="saturate" values=".25"/></filter>`;
+    post += `<g transform="translate(120 34)"><ellipse rx="56" ry="13" fill="none" stroke="#FFC233" stroke-width="3" stroke-dasharray="4 7" opacity=".9"/>
+      ${[[-50,0],[0,12],[46,-4]].map(([x,y])=>`<path transform="translate(${x} ${y})" d="M0 -10 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#FFC233"/>`).join('')}</g>`;
+  }
+  const inner = `<g transform="${wrapT}" ${filt?`filter="url(#${id})"`:''}>${body}${face}</g>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><defs>${filt}</defs>${pre}${inner}${post}</svg>`;
+}
+
+/* ================= 결투 셸 ================= */
+const BCSS = `
+.battle{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
+.arena{height:470px;flex:none;position:relative;overflow:hidden;background:linear-gradient(180deg,#3B2F6B 0%,#6A57B0 100%)}
+.arena .moon{position:absolute;right:420px;top:34px;width:64px;height:64px;border-radius:50%;background:#FFF1C1;box-shadow:0 0 0 12px rgba(255,241,193,.12)}
+.arena .stars i{position:absolute;width:4px;height:4px;border-radius:50%;background:#fff;opacity:.7}
+.arena .ground{position:absolute;left:0;right:0;bottom:0;height:120px;background:#4A3C86;border-top:3px solid #5E4FA0}
+.plat{position:absolute;border-radius:50%;background:#7D6BC4;border-bottom:8px solid #54458F}
+.sprite{position:absolute}
+.plate{position:absolute;width:380px;background:#fff;border-radius:20px;border:2px solid var(--line);box-shadow:0 5px 0 rgba(0,0,0,.25);padding:14px 18px}
+.plate .nm{font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px}
+.hp{height:16px;border-radius:999px;background:#F3EADB;overflow:hidden;position:relative;margin-top:8px}
+.hp i{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.hp .lost{background:#FFC2BC}
+.hp-meta{display:flex;justify-content:space-between;font-size:12px;font-weight:900;color:var(--ink2);margin-top:5px}
+.turn{position:absolute;left:50%;top:22px;transform:translateX(-50%);background:rgba(255,255,255,.14);color:#fff;border:2px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 18px;font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px}
+.dmg{position:absolute;font-family:'Jua','Noto Sans KR',sans-serif;font-size:72px;line-height:1;color:#fff;-webkit-text-stroke:4px #F04438;paint-order:stroke fill;text-shadow:0 5px 0 #C42B20}
+.dmg.heal{-webkit-text-stroke-color:#0B8A4F;text-shadow:0 5px 0 #0B8A4F}
+.weakbadge{position:absolute;background:#FFC233;color:var(--ink);font-weight:900;font-size:15px;border-radius:10px;padding:5px 12px;box-shadow:0 3px 0 #E09A00;transform:rotate(-6deg)}
+.bpanel{flex:1;background:#fff;border-top:2px solid var(--line);padding:20px 32px;display:flex;gap:20px;min-height:0}
+.skill{border-radius:18px;border:3px solid var(--line);background:#fff;box-shadow:0 5px 0 var(--shadow);display:flex;align-items:center;gap:14px;padding:0 16px;position:relative;overflow:hidden}
+.skill .bar{position:absolute;left:0;top:0;bottom:0;width:8px;border:0;border-radius:0}
+.skill .ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;flex:none;font-weight:900;font-size:12px;color:#fff}
+.skill .sn{font-family:'Jua','Noto Sans KR',sans-serif;font-size:21px}
+.skill .sd{font-size:12px;color:var(--ink2);font-weight:700;margin-top:1px}
+.skill .dv{margin-left:auto;text-align:right}
+.skill .dv b{font-family:'Jua','Noto Sans KR',sans-serif;font-size:28px;display:block;line-height:1}
+.skill .dv small{font-size:11px;font-weight:900;color:var(--ink3)}
+.skill.hot{border-color:var(--c);box-shadow:0 5px 0 var(--c);background:#FBFFFD}
+.weak{font-size:11px;font-weight:900;background:#FFC233;color:var(--ink);border-radius:6px;padding:2px 6px;margin-left:6px}
+.log{width:330px;flex:none;background:var(--sunken);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:7px;font-size:13px;overflow:hidden}
+.log .lt{font-size:12px;font-weight:900;color:var(--ink3);letter-spacing:1px}
+.log p{line-height:1.45;color:var(--ink2)}
+.log p b{color:var(--ink)}
+.overlay{position:absolute;inset:0;background:rgba(32,26,52,.62);display:grid;place-items:center}
+.result-card{width:600px;background:#fff;border-radius:28px;border:3px solid var(--line);box-shadow:0 8px 0 rgba(0,0,0,.25);padding:30px 36px 28px;text-align:center;position:relative}
+.ribbon{position:absolute;left:50%;top:-26px;transform:translateX(-50%);font-family:'Jua','Noto Sans KR',sans-serif;font-size:30px;color:#fff;padding:8px 36px;border-radius:16px}
+.bosscard{border-radius:22px;background:#fff;border:2px solid var(--line);box-shadow:0 5px 0 var(--shadow);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.bosscard .art{height:236px;display:grid;place-items:center;position:relative}
+.bosscard .info{padding:16px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.bosscard .lock{position:absolute;inset:0;background:rgba(43,36,64,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;font-weight:900}
+.stamp{position:absolute;top:16px;right:14px;transform:rotate(10deg);border:3px solid var(--ok);color:var(--okDark);background:rgba(255,255,255,.85);font-family:'Jua','Noto Sans KR',sans-serif;font-size:20px;padding:2px 12px;border-radius:10px}
+.step{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700}
+.step b{width:28px;height:28px;border-radius:50%;background:var(--dark);color:#fff;display:grid;place-items:center;font-size:13px;flex:none}
+`;
+document.head.insertAdjacentHTML('beforeend', `<style>${BCSS}</style>`);
+
+
+const PET_MAX_HP = 140; // 예시: 100 + Lv×10
+function arena(o){
+  const b = BOSS[o.boss];
+  const stars = [[60,40],[180,90],[300,30],[420,120],[520,60],[700,40],[760,150],[1000,30],[1180,80],[1230,180],[90,180],[620,110]]
+    .map(([x,y])=>`<i style="left:${x}px;top:${y}px"></i>`).join('');
+  const bossPct = o.bossHp/b.hp*100, lostPct = (o.bossLost||0)/b.hp*100;
+  const petPct = o.petHp/PET_MAX_HP*100, petLost = (o.petLost||0)/PET_MAX_HP*100;
+  return `<div class="arena">
+    <div class="stars">${stars}</div><div class="moon"></div><div class="ground"></div>
+    <div class="plat" style="left:820px;top:262px;width:340px;height:70px"></div>
+    <div class="plat" style="left:120px;top:392px;width:330px;height:66px"></div>
+    <div class="sprite" style="left:840px;top:${o.bossState==='defeated'?40:20}px">${boss(o.boss,o.bossState,300)}</div>
+    <div class="sprite" style="left:168px;top:186px">${pet('DUCK',o.petMood,236)}</div>
+    <div class="turn">TURN ${o.turn}</div>
+    <div class="plate" style="left:32px;top:28px">
+      <div class="row" style="gap:10px"><span class="nm">${b.nm}</span><span class="lv" style="font-size:14px">BOSS</span><span class="spacer"></span>
+        <span class="pill" style="background:${STATC[b.weak]}">약점 ${b.weak}</span></div>
+      <div class="hp"><i class="lost" style="width:${bossPct+lostPct}%"></i><i style="width:${bossPct}%;background:#F04438"></i></div>
+      <div class="hp-meta"><span>HP ${o.bossHp} / ${b.hp}</span><span>${o.bossLost?`<span style="color:#F04438">-${o.bossLost}</span>`:b.desc}</span></div>
+    </div>
+    <div class="plate" style="right:32px;bottom:26px">
+      <div class="row" style="gap:10px"><span class="nm">말랑이</span><span class="lv" style="font-size:14px">Lv.4</span><span class="spacer"></span>
+        ${['INT','STR','FOC','WIS'].map(k=>`<span style="font-size:11px;font-weight:900;color:${STATC[k]}">${k} ${defaultPet.stats[k]}</span>`).join('')}</div>
+      <div class="hp"><i class="lost" style="width:${petPct+petLost}%"></i><i style="width:${petPct}%;background:#12B76A"></i></div>
+      <div class="hp-meta"><span>HP ${o.petHp} / ${PET_MAX_HP}</span><span>${o.petLost?`<span style="color:#F04438">-${o.petLost}</span>`:'내 펫'}</span></div>
+    </div>
+    ${o.fx||''}
+  </div>`;
+}
+function battleFrame(o, panel, overlay=''){
+  return `<div class="frame">${topbar(4)}<div class="battle">${arena(o)}<div class="bpanel">${panel}</div>${overlay}</div></div>`;
+}
+const SKILLS = [
+  {k:'INT', nm:'지식 폭발', cat:'과학·상식', dmg:28},
+  {k:'STR', nm:'몸통 박치기', cat:'스포츠', dmg:22},
+  {k:'FOC', nm:'집중 레이저', cat:'언어', dmg:24},
+  {k:'WIS', nm:'지혜의 일격', cat:'역사', dmg:23, weak:true}
+];
+function skillBtn(s, hot){
+  const c = STATC[s.k];
+  return `<div class="skill ${hot?'hot':''}" style="--c:${c}"><span class="bar" style="background:${c}"></span>
+    <span class="ic" style="background:${c}">${s.k}</span>
+    <div><div class="sn">${s.nm}${s.weak?'<span class="weak">약점</span>':''}</div><div class="sd">${s.cat} 문제를 맞히면 발동</div></div>
+    <div class="dv"><b style="color:${c}">${s.weak?Math.floor(s.dmg*1.5):s.dmg}</b><small>${s.weak?`${s.dmg} × 1.5`:'예상 피해'}</small></div></div>`;
+}
+function logBox(lines){
+  return `<div class="log"><div class="lt">전투 기록</div>${lines.map(l=>`<p>${l}</p>`).join('')}</div>`;
+}
+const LOG_BASE = ['<b>T1</b> 말랑이의 <b>지식 폭발</b>! 까먹귀신에게 28 피해','<b>T1</b> 까먹귀신의 <b>깜빡 공격</b>! 말랑이 -18','<b>T2</b> 말랑이의 <b>집중 레이저</b>… 오답으로 빗나감','<b>T2</b> 까먹귀신의 <b>깜빡 공격</b>! 말랑이 -18'];
+
+/* ================= 결투 화면 ================= */
+S.push({id:'UI-09A', name:'보스 결투 · 보스 선택', desc:'게임 셸(펫 사이드바 유지)에 새 탭 “보스 결투”를 추가했습니다. 보스 4마리를 레벨 순서로 나열하고, 권장 레벨·HP·약점 능력치·보상을 카드에 보여 줍니다. 잠긴 보스는 필요한 레벨을 표시합니다.',
+notes:[['카드','<code>BossCard</code> = 위 236px 아트 영역(보스 테마색) + 정보. 잠금은 반투명 남색 오버레이(<code>AlphaComposite</code> 0.72)'],['약점','보스마다 약점 능력치 1개. 해당 스킬은 피해 ×1.5 — 어떤 분야를 공부할지 동기를 줌'],['수치','HP·보상 EXP·권장 레벨은 디자인용 예시값입니다. 밸런스는 BE와 따로 확정하세요']],
+html:game(4,{mood:'focus',say:'까먹귀신… 이번엔 꼭 이길 거야!'},`
+  <div class="row"><div><div class="h1">보스 결투</div><div class="sub" style="margin-top:6px">공부한 만큼 강해진 펫으로 보스를 물리쳐요.</div></div><span class="spacer"></span>
+    <div class="card" style="padding:12px 18px;display:flex;gap:22px;box-shadow:0 3px 0 var(--shadow)">
+      <div class="step"><b>1</b>스킬 선택</div><div class="step"><b>2</b>연결 분야 문제</div><div class="step"><b style="background:var(--ok)">O</b>공격 성공</div><div class="step"><b style="background:var(--err)">X</b>보스 반격</div>
+    </div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;flex:1;min-height:0">
+    ${['SLIME','GHOST','GOLEM','DRAGON'].map((k,i)=>{const b=BOSS[k];const cleared=i===0, locked=i>=2;
+      return `<div class="bosscard" style="${i===1?'border-color:var(--brand);box-shadow:0 5px 0 var(--brandDark)':''}">
+        <div class="art" style="background:linear-gradient(180deg,${b.card[0]},${b.card[1]})">${boss(k,cleared?'defeated':'idle',200)}${cleared?'<span class="stamp">CLEAR</span>':''}</div>
+        <div class="info">
+          <div class="row" style="gap:8px"><span class="jua" style="font-size:24px">${b.nm}</span><span class="spacer"></span><span class="lv" style="font-size:13px">Lv.${b.lv}+</span></div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.5;min-height:38px">${b.desc}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chipx">HP ${b.hp}</span><span class="chipx" style="background:${STATC[b.weak]};color:#fff">약점 ${b.weak}</span><span class="chipx" style="color:var(--expDark)">EXP +${b.reward}</span></div>
+          <div class="btn ${cleared?'ghost':i===1?'primary':'disabled'} sm" style="margin-top:auto;width:100%">${cleared?'다시 도전':i===1?'도전하기':'잠김'}</div>
+        </div>
+        ${locked?`<div class="lock"><svg width="34" height="34" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3" fill="#fff"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#fff" stroke-width="2.5" fill="none"/></svg><span style="font-size:16px">Lv.${b.lv} 이상</span><span style="font-size:12px;opacity:.75">${b.lv-4}레벨 더 성장하면 열려요</span></div>`:''}
+      </div>`;}).join('')}
+  </div>`)});
+
+S.push({id:'UI-09B', name:'결투 · 스킬 선택', desc:'결투는 몰입을 위해 사이드바를 빼고 상단바 아래 전체를 쓰는 전투 셸입니다. 위쪽 470px은 전투 무대(보스는 오른쪽 위, 내 펫은 왼쪽 아래), 아래는 행동 패널입니다. 4개 스킬이 각각 능력치·분야와 연결되고, 예상 피해가 바로 보입니다.',
+notes:[['셸','<code>BattleShell(BorderLayout)</code>: NORTH=TopBar, CENTER=<code>ArenaPanel</code>(470 고정), SOUTH=<code>ActionPanel</code>(CardLayout: 스킬/문제/결과)'],['무대','<code>ArenaPanel.paintComponent</code>: <code>GradientPaint</code> 배경 → 발판 <code>fillOval</code> → 보스·펫 PNG → 이름표'],['스킬','피해 예시 = 10 + 해당 능력치, 약점이면 ×1.5. 공부해서 올린 능력치가 곧 공격력']],
+html:battleFrame({boss:'GHOST',bossState:'idle',petMood:'focus',bossHp:154,petHp:104,turn:3},
+  `<div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
+     <div class="row"><b style="font-size:16px">어떤 스킬로 공격할까요?</b><span class="sub" style="font-size:13px">스킬을 고르면 연결된 분야의 문제가 나와요</span><span class="spacer"></span><div class="btn ghost sm">도망가기</div></div>
+     <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;flex:1">${SKILLS.map(s=>skillBtn(s,s.k==='WIS')).join('')}</div>
+   </div>${logBox(LOG_BASE)}`)});
+
+S.push({id:'UI-09C', name:'결투 · 문제 풀기', desc:'스킬을 고르면 행동 패널이 문제로 바뀝니다. 왼쪽에는 발동 대기 중인 스킬과 문제, 오른쪽에는 2×2 보기를 둬서 퀴즈 화면(UI-06B)과 같은 보기 컴포넌트를 재사용합니다.',
+notes:[['재사용','<code>OptionButton</code>(선택/정답/오답 상태)과 퀴즈 출제 로직 그대로. 문제는 스킬의 분야에서 무작위'],['긴장감','보스는 IDLE 대신 “노려보기” 연출 가능: 1초마다 2px 위아래로 흔들기(<code>Timer</code>)'],['취소','[스킬 다시 고르기]는 문제 제출 전까지만 허용']],
+html:battleFrame({boss:'GHOST',bossState:'idle',petMood:'focus',bossHp:154,petHp:104,turn:3},
+  `<div style="width:430px;flex:none;display:flex;flex-direction:column;gap:12px">
+     <div class="row" style="gap:10px;background:#E8F7F1;border:2px solid #10A37F;border-radius:14px;padding:8px 12px"><span class="pill" style="background:#10A37F">WIS</span><b>지혜의 일격</b><span class="weak">약점 ×1.5</span><span class="spacer"></span><b class="jua" style="font-size:20px;color:#10A37F">34</b></div>
+     <div><div style="font-size:13px;font-weight:900;color:var(--ink3)">역사 · 4지선다</div><div class="jua" style="font-size:30px;line-height:1.3;margin-top:4px">조선을 세운 인물은?</div></div>
+     <div class="row" style="margin-top:auto"><div class="btn ghost sm">스킬 다시 고르기</div><span class="spacer"></span></div>
+   </div>
+   <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1">
+       <div class="opt sel" style="font-size:19px"><span class="no">1</span>이성계</div><div class="opt" style="font-size:19px"><span class="no">2</span>왕건</div>
+       <div class="opt" style="font-size:19px"><span class="no">3</span>세종대왕</div><div class="opt" style="font-size:19px"><span class="no">4</span>정도전</div>
+     </div>
+     <div class="row"><span class="sub" style="font-size:13px">맞히면 34 피해, 틀리면 까먹귀신이 반격해요</span><span class="spacer"></span><div class="btn primary">공격!</div></div>
+   </div>`)});
+
+S.push({id:'UI-09D', name:'결투 · 공격 성공', desc:'정답이면 펫이 신나서 공격하고, 보스는 맞은 표정으로 흔들리며 큰 피해 숫자가 떠오릅니다. 약점이면 “약점!” 배지가 함께 뜨고, 보스 HP 바에는 깎인 만큼이 연한 색으로 잠깐 남습니다.',
+notes:[['피해 숫자','<code>TextLayout.getOutline</code>으로 빨간 외곽선 + 흰 글자. 0.8초 동안 위로 40px 이동하며 <code>AlphaComposite</code>로 사라짐'],['흔들림','보스 스프라이트 x를 ±6px로 6회 왕복(300ms), 그동안 HURT 이미지'],['HP 바','실제 바는 즉시, 연한 “잃은 HP” 바는 0.5초 뒤 줄어듦']],
+html:battleFrame({boss:'GHOST',bossState:'hurt',petMood:'happy',bossHp:120,bossLost:34,petHp:104,turn:3,
+  fx:`<div class="dmg" style="left:975px;top:26px">-34</div><div class="weakbadge" style="left:1135px;top:44px">약점!</div>`},
+  `<div class="fb ok" style="flex:1;padding:18px 22px;align-items:center"><div class="badge">O</div><div style="flex:1">
+     <div class="t">정답! 지혜의 일격 명중</div>
+     <p><b>해설</b> · 1392년 이성계가 조선을 건국했습니다. 정도전은 건국을 도운 신하입니다.</p>
+   </div></div>
+   ${logBox(['<b>T3</b> 말랑이의 <b>지혜의 일격</b>! 약점을 찔러 <b style="color:#F04438">34 피해</b>','<b>T3</b> 까먹귀신이 휘청거린다…'])}
+   <div style="display:flex;flex-direction:column;justify-content:center"><div class="btn ok lg">다음 턴 →</div></div>`)});
+
+S.push({id:'UI-09E', name:'결투 · 오답, 보스 반격', desc:'오답이면 스킬이 빗나가고 보스가 반격합니다. 보스는 공격 표정·붉은 기운, 펫은 아쉬운 표정이 되고 내 HP가 깎입니다. 해설은 그대로 보여 줘 결투 중에도 학습이 이어지게 합니다.',
+notes:[['반격 피해','예시: 보스 공격력 18 고정(보스별 데이터). WIS 등 능력치로 감소시키는 규칙은 선택'],['무대 연출','화면 전체를 120ms 동안 붉은 반투명으로 덮고(<code>AlphaComposite</code> 0.15), 펫을 좌우로 흔들기'],['오답노트','결투에서 틀린 문제도 일반 퀴즈와 같이 기록·오답노트에 저장']],
+html:battleFrame({boss:'GHOST',bossState:'attack',petMood:'sad',bossHp:120,petHp:68,petLost:18,turn:4,
+  fx:`<div style="position:absolute;inset:0;background:rgba(240,68,56,.10)"></div><div class="dmg" style="left:300px;top:150px">-18</div>`},
+  `<div class="fb no" style="flex:1;padding:18px 22px;align-items:center"><div class="badge">X</div><div style="flex:1">
+     <div class="t">빗나갔어요! 까먹귀신의 반격</div>
+     <p><b>해설</b> · “apple”의 복수형은 apples입니다. (내 답: 3번 applies)</p>
+   </div></div>
+   ${logBox(['<b>T4</b> 말랑이의 <b>집중 레이저</b>… 오답으로 빗나감','<b>T4</b> 까먹귀신의 <b>깜빡 공격</b>! 말랑이 <b style="color:#F04438">-18</b>'])}
+   <div style="display:flex;flex-direction:column;justify-content:center"><div class="btn dark lg">다음 턴 →</div></div>`)});
+
+S.push({id:'UI-09F', name:'결투 · 승리', desc:'보스 HP가 0이 되면 쓰러진 보스 위에 결과 카드를 띄웁니다. 처음 이긴 보스면 보상 EXP와 클리어 도장을 주고, 사용한 턴과 정답률을 함께 보여 줍니다.',
+notes:[['오버레이','<code>JLayeredPane</code>의 상단 레이어에 반투명 남색 + 가운데 <code>RoundedPanel</code>'],['보상','최초 승리만 EXP 지급(일반 퀴즈의 “최초 정답” 규칙과 같은 원리). 재도전 승리는 기록만'],['다음 행동','[다음 보스 보기] 다음 보스가 잠겨 있으면 필요한 레벨을 안내']],
+html:battleFrame({boss:'GHOST',bossState:'defeated',petMood:'levelup',bossHp:0,petHp:68,turn:7},'',
+  `<div class="overlay"><div class="result-card"><div class="ribbon" style="background:var(--ok);box-shadow:0 5px 0 var(--okDark)">승리!</div>
+     <div style="display:flex;justify-content:center;align-items:flex-end;gap:0;margin-top:10px">${pet('DUCK','levelup',170)}${boss('GHOST','defeated',150)}</div>
+     <div class="h1" style="font-size:30px">까먹귀신을 물리쳤어요!</div>
+     <div class="sub" style="margin-top:4px">7턴 · 정답률 71% (5 / 7)</div>
+     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 20px">
+       <div class="kpi"><div class="k">보상</div><div class="v" style="color:var(--expDark);font-size:28px">EXP +50</div></div>
+       <div class="kpi"><div class="k">준 피해</div><div class="v" style="font-size:28px">200</div></div>
+       <div class="kpi"><div class="k">남은 HP</div><div class="v" style="font-size:28px;color:var(--okDark)">68</div></div>
+     </div>
+     <div class="row"><div class="btn ghost" style="flex:1">보스 목록</div><div class="btn primary" style="flex:1.4">다음 보스 보기</div></div>
+   </div></div>`)});
+
+S.push({id:'UI-09G', name:'결투 · 패배', desc:'내 펫 HP가 0이 되면 패배 카드를 띄웁니다. 혼내는 대신 어떤 분야를 공부하면 이길 수 있는지(보스 약점 분야, 오답이 많았던 분야)를 알려 주고 학습 화면으로 바로 보냅니다.',
+notes:[['패널티 없음','패배해도 EXP·능력치는 줄지 않음(학습 동기 유지). 기록만 저장'],['추천','이번 결투의 오답 분야 + 보스 약점 분야를 칩으로 표시, 클릭 시 해당 분야 학습 카드로 이동'],['펫','SAD 이미지 + 말풍선 “공부하고 다시 오자!”']],
+html:battleFrame({boss:'GHOST',bossState:'attack',petMood:'sad',bossHp:46,petHp:0,turn:8},'',
+  `<div class="overlay"><div class="result-card"><div class="ribbon" style="background:var(--dark);box-shadow:0 5px 0 #120E20">패배</div>
+     <div style="display:flex;justify-content:center;margin-top:10px">${pet('DUCK','sad',170)}</div>
+     <div class="h1" style="font-size:30px">조금만 더 공부하면 이길 수 있어요</div>
+     <div class="sub" style="margin-top:6px">까먹귀신 HP <b style="color:var(--err)">46</b> 남음 · 8턴 · 정답률 50%</div>
+     <div style="background:var(--sunken);border-radius:16px;padding:14px 16px;margin:18px 0 20px;text-align:left">
+       <div style="font-size:13px;font-weight:900;color:var(--ink2);margin-bottom:8px">이렇게 준비해 보세요</div>
+       <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chipx" style="background:#DFF5EE;color:#0B7A5E">역사 (약점 WIS) 공부하기</span><span class="chipx" style="background:#EEE7FF;color:#6D3FE0">언어 오답 2개 복습</span></div>
+     </div>
+     <div class="row"><div class="btn ghost" style="flex:1">다시 도전</div><div class="btn primary" style="flex:1.4">학습하러 가기</div></div>
+   </div></div>`)});
+
+/* ================= 디자인 시스템 섹션 ================= */
+const swatch=(n,h,u)=>`<div class="sw"><i style="background:${h}"></i><span><b>${n}</b><br>${h}<br>${u}</span></div>`;
+const dsHTML = `<div class="ds">
+  <div class="ds-card"><h3>컬러 토큰</h3>
+    <div class="label">베이스</div>
+    <div class="swatches" style="margin-bottom:14px">${swatch('BG','#FFF6E9','앱 배경')}${swatch('SURFACE','#FFFFFF','카드·바')}${swatch('SUNKEN','#FBEFD9','보조 면')}${swatch('LINE','#EBDDC5','테두리 2px')}${swatch('SHADOW','#E6D5B8','오프셋 그림자')}${swatch('INK','#2B2440','본문·다크 버튼')}${swatch('INK_2','#6E6787','보조 텍스트')}${swatch('INK_3','#A49DB5','힌트·비활성')}</div>
+    <div class="label">브랜드 · 상태</div>
+    <div class="swatches" style="margin-bottom:14px">${swatch('BRAND','#FF8A00','주요 버튼·선택')}${swatch('BRAND_DARK','#D96F00','버튼 립')}${swatch('EXP','#FFC233','경험치')}${swatch('OK / ERR','#12B76A','정답 / #F04438 오답')}</div>
+    <div class="label">분야 · 능력치</div>
+    <div class="swatches">${swatch('과학 · INT','#3D8BFD','soft #E4EFFF')}${swatch('상식 · INT','#06B6D4','soft #DDF6FA')}${swatch('스포츠 · STR','#E8467C','soft #FDE4EC')}${swatch('언어 · FOC','#8B5CF6','soft #EEE7FF')}${swatch('역사 · WIS','#10A37F','soft #DFF5EE')}</div>
+  </div>
+  <div class="ds-card"><h3>타이포그래피</h3>
+    <div class="typo-row"><small>DISPLAY Jua 44</small><span class="jua" style="font-size:44px">QuizPet</span></div>
+    <div class="typo-row"><small>H1 Jua 32</small><span class="jua" style="font-size:32px">무엇을 배워볼까요?</span></div>
+    <div class="typo-row"><small>QUESTION Jua 34</small><span class="jua" style="font-size:26px">1기압에서 물은 50℃에 끓는다.</span></div>
+    <div class="typo-row"><small>H2 Jua 22</small><span class="jua" style="font-size:22px">분야별 진행도</span></div>
+    <div class="typo-row"><small>BUTTON Noto Bold 16</small><b style="font-size:16px">답안 제출</b></div>
+    <div class="typo-row"><small>BODY Noto 15–21</small><span style="font-size:15px">1기압에서 순수한 물은 0℃에서 얼고…</span></div>
+    <div class="typo-row"><small>CAPTION Noto Bold 12</small><b style="font-size:12px;color:var(--ink2)">EXP 30 / 50</b></div>
+    <p class="sub" style="font-size:13px;margin-top:12px;line-height:1.6">두 폰트 모두 OFL 무료 폰트입니다. <code>src/main/resources/fonts/</code>에 TTF를 넣고 <code>Font.createFont</code>로 등록하세요. 로딩 실패 시 <code>Font.DIALOG</code>로 대체됩니다.</p>
+  </div>
+  <div class="ds-card"><h3>컴포넌트</h3>
+    <div class="label">GameButton — 2px 아래 “립”(진한 색 4px)으로 눌리는 느낌</div>
+    <div class="comp-row"><span class="btn primary">Primary</span><span class="btn dark">Dark</span><span class="btn ok">Success</span><span class="btn ghost">Ghost</span><span class="btn disabled">Disabled</span><span class="btn primary sm">Small</span></div>
+    <div class="label">Bar · Chip · Badge</div>
+    <div class="comp-row" style="gap:16px"><div style="width:200px"><div class="bar exp"><i style="width:60%"></i></div></div><span class="lv">Lv.4</span>${catChip(CAT[0])}<span class="pill" style="background:var(--ok)">정답</span><span class="chipx">EXP +10</span></div>
+    <div class="label">Option (기본 / 선택 / 정답 / 오답)</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">${['','sel','right','wrong'].map((c,i)=>`<div class="opt ${c}" style="height:54px;font-size:15px;padding:0 12px;gap:10px"><span class="no" style="width:30px;height:30px;font-size:16px">${i+1}</span>보기</div>`).join('')}</div>
+  </div>
+  <div class="ds-card"><h3>펫 상태(Mood) — 사이드바·전 화면 공통</h3>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center">
+      ${[['idle','IDLE','홈·선택'],['focus','FOCUS','학습·풀이 중'],['happy','HAPPY','정답'],['sad','SAD','오답'],['levelup','LEVEL_UP','레벨 업']].map(([m,k,d])=>`<div style="background:var(--sunken);border-radius:14px;padding:8px 4px">${pet('DUCK',m,86)}<div style="font-weight:900;font-size:12px">${k}</div><div style="font-size:11px;color:var(--ink2)">${d}</div></div>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:center;gap:16px;margin-top:12px">${pet('TURTLE','happy',90)}${pet('LIZARD','focus',90)}${pet('TURTLE','sad',90)}${pet('LIZARD','happy',90)}</div>
+    <p class="sub" style="font-size:13px;margin-top:8px;line-height:1.6">외형 3종 × 표정 5종 = PNG 15장(<code>images/pets/duck_happy.png</code> 등). 표정 이미지가 부족하면 기본 이미지 + 말풍선 문구만 바꿔도 됩니다. 위 일러스트는 팀 고유 시안이며 원하는 그림으로 교체 가능합니다.</p>
+  </div>
+  <div class="ds-card"><h3>레이아웃 그리드</h3>
+    <div style="background:var(--bg);border:2px solid var(--line);border-radius:12px;height:220px;display:flex;flex-direction:column;overflow:hidden;font-size:12px;font-weight:700;color:var(--ink2)">
+      <div style="height:34px;background:#fff;border-bottom:2px solid var(--line);display:flex;align-items:center;padding:0 12px">TopBar · 64px · NORTH</div>
+      <div style="flex:1;display:flex"><div style="width:120px;background:#fff;border-right:2px solid var(--line);padding:10px">PetSidebar<br>320px 고정<br>WEST</div>
+      <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:6px">Content · CENTER (CardLayout) · padding 28/32 · gap 20<div style="flex:1;border:2px dashed var(--brand);border-radius:8px;display:grid;place-items:center;color:var(--brandDark)">창 크기에 따라 늘어나는 영역</div></div></div>
+    </div>
+    <div class="notes" style="grid-template-columns:1fr 1fr;margin-top:12px">
+      <div class="note"><b>간격 스케일</b>4 · 8 · 12 · 16 · 20 · 28 · 32 · 56</div>
+      <div class="note"><b>모서리 반경</b>칩 999 · 입력/버튼 14 · 카드 20 · 대형 카드 26</div>
+      <div class="note"><b>프레임</b>최소 1280×800, <code>setResizable(true)</code>, 시작 시 <code>MAXIMIZED_BOTH</code> 선택</div>
+      <div class="note"><b>그림자</b>블러 없음. 같은 모양을 y+4px에 SHADOW 색으로 먼저 칠함</div>
+    </div>
+  </div>
+  <div class="ds-card"><h3>Swing 클래스 구조</h3>
+<div class="tree">ui/
+├─ theme/AppTheme.java        <span style="color:var(--ink3)"># 색·폰트·간격 상수, 폰트 로딩</span>
+├─ shell/AuthShell.java       <span style="color:var(--ink3)"># UI-01·02 (Hero + Form)</span>
+├─ shell/GameShell.java       <span style="color:var(--ink3)"># TopBar + PetSidebar + CardLayout</span>
+├─ component/
+│  ├─ RoundedPanel.java       <span style="color:var(--ink3)"># 카드 (radius, border, offset shadow)</span>
+│  ├─ GameButton.java         <span style="color:var(--ink3)"># Variant: PRIMARY/DARK/OK/GHOST</span>
+│  ├─ OptionButton.java       <span style="color:var(--ink3)"># State: NORMAL/SELECTED/RIGHT/WRONG</span>
+│  ├─ ProgressBar.java        <span style="color:var(--ink3)"># EXP·능력치·정답률 공용 + gain 애니</span>
+│  ├─ SegmentProgress.java    <span style="color:var(--ink3)"># 카드/퀴즈 진행 칸</span>
+│  ├─ Chip.java · LevelBadge.java
+│  ├─ TopBar.java
+│  └─ PetSidebar.java         <span style="color:var(--ink3)"># PetStage + Stats + Mini</span>
+└─ model/PetMood.java         <span style="color:var(--ink3)"># IDLE, FOCUS, HAPPY, SAD, LEVEL_UP</span></div>
+  </div>
+  <div class="ds-card" style="grid-column:1/-1"><h3>보스 상태 — 보스 4종 × 상태 4종</h3>
+    <div style="display:grid;grid-template-columns:110px repeat(4,1fr);gap:8px;align-items:center;text-align:center">
+      <span></span>${[['idle','IDLE','대기·문제 중'],['attack','ATTACK','오답 반격'],['hurt','HURT','공격 당함'],['defeated','DEFEATED','쓰러짐']].map(([,k,d])=>`<div><b style="font-size:12px">${k}</b><div style="font-size:11px;color:var(--ink2)">${d}</div></div>`).join('')}
+      ${['SLIME','GHOST','GOLEM','DRAGON'].map(k=>`<div style="text-align:left"><b class="jua" style="font-size:17px">${BOSS[k].nm}</b><div style="font-size:11px;color:var(--ink2)">약점 ${BOSS[k].weak} · HP ${BOSS[k].hp}</div></div>`+['idle','attack','hurt','defeated'].map(st=>`<div style="background:linear-gradient(180deg,${BOSS[k].card[0]},${BOSS[k].card[1]});border-radius:14px;padding:4px">${boss(k,st,120)}</div>`).join('')).join('')}
+    </div>
+  </div>
+  <div class="ds-card" style="grid-column:1/-1"><h3>구현 예시 — 토큰 & 둥근 카드 & 게임 버튼</h3>
+<pre><span class="k">public final class</span> AppTheme {
+  <span class="k">public static final</span> Color BG = <span class="k">new</span> Color(0xFFF6E9), SURFACE = Color.WHITE, SUNKEN = <span class="k">new</span> Color(0xFBEFD9);
+  <span class="k">public static final</span> Color LINE = <span class="k">new</span> Color(0xEBDDC5), SHADOW = <span class="k">new</span> Color(0xE6D5B8);
+  <span class="k">public static final</span> Color INK = <span class="k">new</span> Color(0x2B2440), INK_2 = <span class="k">new</span> Color(0x6E6787), INK_3 = <span class="k">new</span> Color(0xA49DB5);
+  <span class="k">public static final</span> Color BRAND = <span class="k">new</span> Color(0xFF8A00), BRAND_DARK = <span class="k">new</span> Color(0xD96F00), EXP = <span class="k">new</span> Color(0xFFC233);
+  <span class="k">public static final</span> Color OK = <span class="k">new</span> Color(0x12B76A), ERR = <span class="k">new</span> Color(0xF04438);
+  <span class="k">public static final</span> Color INT = <span class="k">new</span> Color(0x3D8BFD), STR = <span class="k">new</span> Color(0xE8467C), FOC = <span class="k">new</span> Color(0x8B5CF6), WIS = <span class="k">new</span> Color(0x10A37F);
+  <span class="k">public static final int</span> TOPBAR_H = 64, SIDEBAR_W = 320, RADIUS_CARD = 20, RADIUS_BTN = 14, SHADOW_Y = 4;
+  <span class="k">public static</span> Font display(<span class="k">float</span> size) { <span class="k">return</span> load(<span class="s">"/fonts/Jua-Regular.ttf"</span>).deriveFont(size); }
+  <span class="k">public static</span> Font body(<span class="k">int</span> style, <span class="k">float</span> size) { <span class="k">return</span> load(<span class="s">"/fonts/NotoSansKR-Regular.ttf"</span>).deriveFont(style, size); }
+}
+
+<span class="c">// RoundedPanel.paintComponent — 블러 없는 오프셋 그림자 카드</span>
+Graphics2D g2 = (Graphics2D) g.create();
+g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+<span class="k">int</span> w = getWidth() - 1, h = getHeight() - 1 - SHADOW_Y;
+g2.setColor(shadow);  g2.fillRoundRect(0, SHADOW_Y, w, h, radius, radius);   <span class="c">// 1) 그림자</span>
+g2.setColor(fill);    g2.fillRoundRect(0, 0, w, h, radius, radius);          <span class="c">// 2) 면</span>
+g2.setColor(border);  g2.setStroke(<span class="k">new</span> BasicStroke(2f));
+g2.drawRoundRect(1, 1, w - 2, h - 2, radius, radius);                         <span class="c">// 3) 테두리</span>
+
+<span class="c">// GameButton — setContentAreaFilled(false); setBorderPainted(false); 누르면 립 높이 4→1, 글자 y+3</span>
+<span class="k">int</span> lip = getModel().isPressed() ? 1 : 4;
+g2.setColor(lipColor); g2.fillRoundRect(0, 4, w, h - 4, 14, 14);
+g2.setColor(getModel().isRollover() ? fill.brighter() : fill); g2.fillRoundRect(0, 4 - lip, w, h - 4, 14, 14);</pre>
+  </div>
+</div>`;
+
+/* ================= 렌더 ================= */
+const secs = document.getElementById('sections'), toc = document.getElementById('toc');
+toc.innerHTML = `<a href="#ds">디자인 시스템</a>` + S.map(s=>`<a href="#${s.id}">${s.id} ${s.name}</a>`).join('');
+secs.innerHTML = `<section class="sec" id="ds"><div class="sec-h"><span class="id">00</span><h2>디자인 시스템</h2></div><p class="sec-desc">모든 화면이 공유하는 토큰과 컴포넌트입니다. 색은 “역할”로만 쓰고(주황=행동, 초록=정답, 빨강=오답, 금색=EXP), 분야색은 분야 표시에만 사용합니다.</p>${dsHTML}</section>` +
+S.map(s=>`<section class="sec" id="${s.id}">
+  <div class="sec-h"><span class="id">${s.id}</span><h2>${s.name}</h2></div>
+  <p class="sec-desc">${s.desc}</p>
+  <div class="frame-wrap"><div class="frame-scale">${s.html}</div></div>
+  <div class="notes">${s.notes.map(([b,t])=>`<div class="note"><b>${b}</b>${t}</div>`).join('')}</div>
+</section>`).join('');
+function fit(){document.querySelectorAll('.frame-wrap').forEach(w=>{const k=Math.min(1,w.clientWidth/1280);const f=w.firstElementChild;f.style.transform=`scale(${k})`;w.style.height=(800*k)+'px';});}
+window.addEventListener('resize',fit); fit(); document.fonts && document.fonts.ready.then(fit);
+</script>
+</body>
+</html>
