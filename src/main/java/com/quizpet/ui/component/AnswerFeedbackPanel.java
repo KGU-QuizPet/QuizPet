@@ -1,6 +1,7 @@
 package main.java.com.quizpet.ui.component;
 
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
+import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.model.QuizSession;
@@ -86,11 +87,15 @@ public class AnswerFeedbackPanel extends JPanel {
     private final JScrollPane bodyScroll = new JScrollPane(
             JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
+    /** 정답이면 기뻐하고 오답이면 시무룩해지는 펫 반응입니다(UI-06C·06D). */
+    private final PetStage petStage = new PetStage();
+    private String petSpriteKey = "DUCK";
+
     private Runnable onViewCard = () -> { };
     private Runnable onNext = () -> { };
 
     public AnswerFeedbackPanel() {
-        setLayout(new BorderLayout(0, 16));
+        setLayout(new BorderLayout(20, 16));
         setBackground(BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
@@ -100,12 +105,46 @@ public class AnswerFeedbackPanel extends JPanel {
         header.add(progressBar, BorderLayout.NORTH);
         header.add(verdictLabel, BorderLayout.CENTER);
         add(header, BorderLayout.NORTH);
+        add(buildPetColumn(), BorderLayout.WEST);
         add(buildBody(), BorderLayout.CENTER);
         add(buildButtons(), BorderLayout.SOUTH);
 
         viewCardButton.setBackground(Color.WHITE);
         viewCardButton.addActionListener(e -> onViewCard.run());
         nextButton.addActionListener(e -> onNext.run());
+    }
+
+    private JComponent buildPetColumn() {
+        JPanel column = new JPanel(new BorderLayout());
+        column.setOpaque(false);
+        petStage.setPreferredSize(new Dimension(260, 280));
+        column.add(petStage, BorderLayout.NORTH);
+        return column;
+    }
+
+    /** 피드백에 반응할 캐릭터 외형입니다. AppController가 현재 캐릭터의 spriteKey를 넣습니다. */
+    public void setPet(String spriteKey) {
+        petSpriteKey = (spriteKey == null) ? "DUCK" : spriteKey;
+    }
+
+    public PetStage getPetStage() {
+        return petStage;
+    }
+
+    /** 채점 결과에 맞는 펫 표정입니다. 오답이면 SAD, 정답이면 HAPPY입니다. */
+    static PetMood petMood(AnswerFeedbackView view) {
+        return view.correct() ? PetMood.HAPPY : PetMood.SAD;
+    }
+
+    /**
+     * 채점 결과에 맞는 펫 말풍선입니다. 오답이면 학습 카드를 다시 보도록 권합니다.
+     * 오답(카드 있음)·처음 정답 문구는 디자인 시안 UI-06D·06C 문구이고, 나머지는 시안에 없는 경우의 문구입니다.
+     */
+    static String petMessage(AnswerFeedbackView view) {
+        if (!view.correct()) {
+            return view.hasLearningCard() ? "으앙… 카드를 한 번 더 볼까?" : "아쉽다. 다음엔 맞혀 보자.";
+        }
+        return view.gainedXp() > 0 ? "정답이야! 머리가 똑똑해진 느낌!" : "정답! 이미 맞힌 문제야.";
     }
 
     private JComponent buildBody() {
@@ -242,6 +281,7 @@ public class AnswerFeedbackPanel extends JPanel {
         statRewardLabel.setForeground(rewarded ? HIGHLIGHT : TEXT_MUTED);
         xpRewardLabel.setForeground(rewarded ? HIGHLIGHT : TEXT_MUTED);
         rewardNoteLabel.setText(rewardNote(view));
+        petStage.showPet(petSpriteKey, petMood(view), petMessage(view));
 
         viewCardButton.setEnabled(view.hasLearningCard());
         viewCardButton.setToolTipText(view.hasLearningCard() ? null : "연결된 학습 카드가 없습니다.");
