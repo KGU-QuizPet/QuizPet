@@ -14,7 +14,8 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
+import javax.swing.JSplitPane;
+import main.java.com.quizpet.ui.component.CategoryAccuracyChart;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
@@ -37,6 +38,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -51,11 +54,20 @@ public class HistoryPanel extends JPanel {
             double accuracyPercent,
             long totalXp,
             List<CategoryRate> categoryRates,
-            List<RecordRow> recentRecords
+            List<RecordRow> recentRecords,
+            Set<Category> unavailableCategories
     ) {
         public HistoryView {
             categoryRates = List.copyOf(categoryRates);
             recentRecords = List.copyOf(recentRecords);
+            unavailableCategories = Set.copyOf(unavailableCategories);
+        }
+
+        /** 기존 Controller 계약: 기록은 있지만 분야 목록이 비면 전체 집계 불가입니다. */
+        public HistoryView(String selectedCategoryId, int totalSubmissions, double accuracyPercent,
+                           long totalXp, List<CategoryRate> categoryRates, List<RecordRow> recentRecords) {
+            this(selectedCategoryId, totalSubmissions, accuracyPercent, totalXp, categoryRates, recentRecords,
+                    totalSubmissions > 0 && categoryRates.isEmpty() ? EnumSet.allOf(Category.class) : Set.of());
         }
 
         public boolean isEmpty() {
@@ -166,7 +178,7 @@ public class HistoryPanel extends JPanel {
     private final JLabel totalCountValue = centeredLabel("0", TITLE, TEXT);
     private final JLabel accuracyValue = centeredLabel("0%", TITLE, TEXT);
     private final JLabel totalXpValue = centeredLabel("0", TITLE, TEXT);
-    private final JPanel categoryRatesPanel = new JPanel(new GridBagLayout());
+    private final CategoryAccuracyChart categoryAccuracyChart = new CategoryAccuracyChart();
     private final DefaultTableModel recordModel = readOnlyModel("일시", "분야", "문제", "내 답", "결과", "EXP");
     private final JTable recordTable = new JTable(recordModel);
     private final CardLayout recordListPages = new CardLayout();
@@ -224,10 +236,7 @@ public class HistoryPanel extends JPanel {
 
         JPanel ratesCard = card();
         ratesCard.setLayout(new BorderLayout(0, 8));
-        ratesCard.add(label("분야별 정답률", BODY_BOLD, TEXT), BorderLayout.NORTH);
-        categoryRatesPanel.setOpaque(false);
-        ratesCard.add(categoryRatesPanel, BorderLayout.CENTER);
-        top.add(leftAligned(ratesCard));
+        ratesCard.add(categoryAccuracyChart, BorderLayout.CENTER);
         body.add(top, BorderLayout.NORTH);
 
         JPanel recentCard = card();
@@ -260,9 +269,18 @@ public class HistoryPanel extends JPanel {
         recordErrorLabel.setBorder(BorderFactory.createEmptyBorder(24, 0, 24, 0));
         recordListArea.add(recordErrorLabel, CARD_ERROR);
         recentCard.add(recordListArea, BorderLayout.CENTER);
-        body.add(recentCard, BorderLayout.CENTER);
-
-        page.add(body, BorderLayout.CENTER);
+        ratesCard.setMinimumSize(new Dimension(250, 300));
+        recentCard.setMinimumSize(new Dimension(350, 300));
+        JSplitPane columns = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, ratesCard, recentCard);
+        columns.setResizeWeight(0.4);
+        columns.setContinuousLayout(true);
+        columns.setBorder(BorderFactory.createEmptyBorder());
+        columns.setPreferredSize(new Dimension(900, 400));
+        body.add(columns, BorderLayout.CENTER);
+        JScrollPane contentScroll = new JScrollPane(body);
+        contentScroll.setBorder(BorderFactory.createEmptyBorder());
+        contentScroll.getVerticalScrollBar().setUnitIncrement(16);
+        page.add(contentScroll, BorderLayout.CENTER);
 
         JButton mainButton = button("메인으로");
         mainButton.addActionListener(e -> onGoMain.run());
@@ -334,13 +352,13 @@ public class HistoryPanel extends JPanel {
     public void showHistory(HistoryView view) {
         Objects.requireNonNull(view, "HistoryView가 null입니다. 학습 통계를 먼저 받아오세요.");
 
+        rebuildCategoryRates(view);
         selectCategory(recordCategoryBox, view.selectedCategoryId());
 
         totalCountValue.setText(String.valueOf(view.totalSubmissions()));
         accuracyValue.setText(percent(view.accuracyPercent(), view.totalSubmissions()));
         totalXpValue.setText(String.valueOf(view.totalXp()));
 
-        rebuildCategoryRates(view.categoryRates());
 
         recordRows = view.recentRecords();
         recordModel.setRowCount(0);
@@ -367,8 +385,8 @@ public class HistoryPanel extends JPanel {
         totalCountValue.setText("-");
         accuracyValue.setText("-");
         totalXpValue.setText("-");
-        categoryRatesPanel.removeAll();
-        categoryRatesPanel.add(label("분야별 정답률을 불러오지 못했습니다.", SMALL, TEXT_MUTED));
+        categoryAccuracyChart.showError(message == null || message.isBlank()
+                ? "분야별 정답률을 불러오지 못했습니다." : message);
         recordRows = List.of();
         recordModel.setRowCount(0);
         showRecordDetail(-1);
@@ -384,39 +402,11 @@ public class HistoryPanel extends JPanel {
         repaint();
     }
 
-    private void rebuildCategoryRates(List<HistoryView.CategoryRate> rates) {
-        categoryRatesPanel.removeAll();
-        if (rates.isEmpty()) {
-            categoryRatesPanel.add(label("문제 정보를 확인할 수 없어 분야별 통계를 제공하지 않습니다.", SMALL, TEXT_MUTED));
-            return;
-        }
-        int row = 0;
-        for (HistoryView.CategoryRate rate : rates) {
-            GridBagConstraints name = new GridBagConstraints();
-            name.gridx = 0;
-            name.gridy = row;
-            name.anchor = GridBagConstraints.WEST;
-            name.insets = new Insets(3, 0, 3, 12);
-            categoryRatesPanel.add(label(orDash(rate.categoryName()), BODY, TEXT), name);
-
-            JProgressBar bar = new JProgressBar(0, 1000);
-            bar.setValue((int) Math.round(Math.max(0, Math.min(100, rate.accuracyPercent())) * 10));
-            bar.setStringPainted(true);
-            bar.setString(percent(rate.accuracyPercent(), rate.submissions())
-                    + "  (" + rate.submissions() + "회)");
-            bar.setFont(SMALL);
-            bar.setForeground(PRIMARY);
-            bar.setPreferredSize(new Dimension(180, 18));
-
-            GridBagConstraints barGc = new GridBagConstraints();
-            barGc.gridx = 1;
-            barGc.gridy = row;
-            barGc.weightx = 1;
-            barGc.fill = GridBagConstraints.HORIZONTAL;
-            barGc.insets = new Insets(3, 0, 3, 0);
-            categoryRatesPanel.add(bar, barGc);
-            row++;
-        }
+    private void rebuildCategoryRates(HistoryView view) {
+        List<CategoryAccuracyChart.CategoryData> data = view.categoryRates().stream()
+                .map(rate -> new CategoryAccuracyChart.CategoryData(Category.valueOf(rate.categoryId()),
+                        rate.submissions(), rate.accuracyPercent())).toList();
+        categoryAccuracyChart.setData(data, view.unavailableCategories());
     }
 
     private JComponent buildWrongNotePage() {
