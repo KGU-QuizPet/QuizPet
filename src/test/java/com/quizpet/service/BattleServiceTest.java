@@ -6,7 +6,7 @@ import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetAppearance;
 import main.java.com.quizpet.model.PetStats;
 
-/** 보스전 전투 규칙과 능력치 계산을 검증합니다. */
+// 보스전 전투 규칙과 능력치 계산을 검증.
 public final class BattleServiceTest {
   public static void main(String[] args) {
     BattleService service = new BattleService();

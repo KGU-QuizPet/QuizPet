@@ -13,7 +13,7 @@ import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetAppearance;
 import main.java.com.quizpet.service.BattleService;
 
-/** 보스전 화면의 초기화·버튼·자동 타이머 설정을 검증합니다. */
+// 보스전 화면의 초기화·버튼·자동 타이머 설정을 검증.
 public final class BossBattlePanelTest {
   public static void main(String[] args) throws Exception {
     SwingUtilities.invokeAndWait(() -> {
