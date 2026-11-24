@@ -41,6 +41,8 @@ public final class AppController {
   private final AnswerFeedbackPanel feedback = new AnswerFeedbackPanel();
   private final QuizResultPanel result = new QuizResultPanel();
   private final HistoryPanel history = new HistoryPanel();
+  private final BattleService battles = new BattleService();
+  private final BossBattlePanel bossBattle = new BossBattlePanel();
   private User currentUser;
   private Category currentCategory;
   private QuizSession session;
@@ -85,6 +87,7 @@ public final class AppController {
     screens.addScreen(ScreenManager.ANSWER_FEEDBACK, feedback);
     screens.addScreen(ScreenManager.QUIZ_RESULT, result);
     screens.addScreen(ScreenManager.HISTORY, history);
+    screens.addScreen(ScreenManager.BOSS_BATTLE, bossBattle);
   }
 
   private void connectActions() {
@@ -95,6 +98,8 @@ public final class AppController {
     home.setOnLearn(() -> run(this::showCategories));
     home.setOnHistory(() -> run(() -> showHistory(null)));
     home.setOnChangeUser(() -> run(this::showStart));
+    home.setOnBossBattle(() -> run(this::showBossBattle));
+    bossBattle.setOnExit(() -> run(this::showHome));
     categories.setOnSelect(id -> run(() -> selectCategory(id)));
     cards.setOnQuiz(() -> run(this::startQuiz));
     cards.setOnBack(this::backFromLearning);
@@ -154,6 +159,13 @@ public final class AppController {
     requireUser();
     ready();
     displayHome(currentPet());
+  }
+
+  public void showBossBattle() throws IOException {
+    requireUser();
+    ready();
+    bossBattle.showBattle(currentPet());
+    screens.show(ScreenManager.BOSS_BATTLE);
   }
 
   private void displayHome(Pet pet) {
