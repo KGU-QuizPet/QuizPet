@@ -28,6 +28,7 @@ public final class CategoryAccuracyChartTest {
         assert bars.get(i).getForeground().equals(UiStyle.categoryColor(Category.values()[i]));
         assert bars.get(i).isFocusable() && bars.get(i).getAccessibleContext().getAccessibleName() != null;
       }
+      checkFocusRepaints(bars.get(0));
       assert labels(chart).contains("66.7%") && labels(chart).contains("2147483647회 풀이");
       for (int width : List.of(180, 320, 600, 1000, 1280)) {
         chart.setSize(width, 400); layout(chart);
@@ -75,6 +76,29 @@ public final class CategoryAccuracyChartTest {
     catch(IllegalStateException expected) { }
     System.out.println("CategoryAccuracyChart checks passed");
   }
+  private static void checkFocusRepaints(JProgressBar bar) {
+    bar.setSize(120, 18);
+    RepaintManager previous = RepaintManager.currentManager(bar);
+    boolean[] repainted = {false};
+    RepaintManager tracking = new RepaintManager() {
+      @Override public void addDirtyRegion(JComponent component, int x, int y, int width, int height) {
+        if (component == bar && width > 0 && height > 0) repainted[0] = true;
+      }
+    };
+    RepaintManager.setCurrentManager(tracking);
+    try {
+      for (int event : new int[]{java.awt.event.FocusEvent.FOCUS_GAINED, java.awt.event.FocusEvent.FOCUS_LOST}) {
+        repainted[0] = false;
+        var focus = new java.awt.event.FocusEvent(bar, event);
+        for (var listener : bar.getFocusListeners()) {
+          if (event == java.awt.event.FocusEvent.FOCUS_GAINED) listener.focusGained(focus);
+          else listener.focusLost(focus);
+        }
+        assert repainted[0] : "focus transition did not repaint: " + event;
+      }
+    } finally { RepaintManager.setCurrentManager(previous); }
+  }
+
   private static void reject(Runnable action) { try { action.run(); throw new AssertionError("invalid data accepted"); } catch(IllegalArgumentException expected) { } }
   private static void layout(Container parent) { parent.doLayout(); for(Component child:parent.getComponents()) if(child instanceof Container c) layout(c); }
   private static String labels(Component c) { return find(c,JLabel.class).stream().map(JLabel::getText).reduce("",(a,b)->a+" "+b); }

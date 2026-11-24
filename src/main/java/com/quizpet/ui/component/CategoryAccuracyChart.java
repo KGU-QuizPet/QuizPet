@@ -177,6 +177,10 @@ public final class CategoryAccuracyChart extends JPanel {
       setMinimumSize(new Dimension(60, 18));
       setBorderPainted(false);
       setOpaque(false);
+      addFocusListener(new java.awt.event.FocusAdapter() {
+        @Override public void focusGained(java.awt.event.FocusEvent event) { repaint(); }
+        @Override public void focusLost(java.awt.event.FocusEvent event) { repaint(); }
+      });
     }
 
     @Override protected void paintComponent(Graphics graphics) {
