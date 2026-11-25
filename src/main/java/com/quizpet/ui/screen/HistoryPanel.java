@@ -180,7 +180,14 @@ public class HistoryPanel extends JPanel {
     private final JLabel totalXpValue = centeredLabel("0", TITLE, TEXT);
     private final CategoryAccuracyChart categoryAccuracyChart = new CategoryAccuracyChart();
     private final DefaultTableModel recordModel = readOnlyModel("일시", "분야", "문제", "내 답", "결과", "EXP");
-    private final JTable recordTable = new JTable(recordModel);
+    private final JTable recordTable = new JTable(recordModel) {
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            // 넓은 영역에서는 기존처럼 늘리고, 최소 열 너비 합계보다 좁으면 가로 스크롤합니다.
+            return getParent() instanceof javax.swing.JViewport viewport
+                    && viewport.getWidth() >= getMinimumSize().width;
+        }
+    };
     private final CardLayout recordListPages = new CardLayout();
     private final JPanel recordListArea = new JPanel(recordListPages);
     private final JLabel recordErrorLabel = centeredLabel(" ", BODY, WRONG);

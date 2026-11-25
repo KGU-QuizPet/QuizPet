@@ -52,6 +52,17 @@ public final class HistoryChartIntegrationTest {
         JSplitPane columns=find(panel,JSplitPane.class).get(0);
         assert !columns.getLeftComponent().getBounds().intersects(columns.getRightComponent().getBounds());
         assert chart.getWidth()>0 && visibleTable(panel).getWidth()>0;
+        columns.setDividerLocation(columns.getMaximumDividerLocation());
+        for(int i=0;i<8;i++)layout(panel);
+        JTable records=visibleTable(panel);
+        JScrollPane tableScroll=(JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class,records);
+        Rectangle lastCell=records.getCellRect(0,records.getColumnCount()-1,true);
+        assert lastCell.getMaxX() <= tableScroll.getViewport().getExtentSize().width
+            || tableScroll.getHorizontalScrollBar().isVisible() : "EXP column clipped without horizontal scrolling";
+        records.scrollRectToVisible(lastCell);
+        assert tableScroll.getViewport().getViewRect().contains(lastCell) : "cannot reach last EXP column: " + lastCell + " viewport=" + tableScroll.getViewport().getViewRect() + " table=" + records.getSize() + " width=" + width;
+        columns.setDividerLocation(0.4);
+
       }
     });
     System.out.println("History chart integration checks passed");
