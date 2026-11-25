@@ -150,11 +150,10 @@ public class AnswerFeedbackPanel extends JPanel {
     private final GaugeBar expBar = new GaugeBar(UiStyle.EXP, 12, true);
     private final JLabel expLabel = label(" ", CARD_CAPTION, TEXT);
     private final JLabel expGainLabel = label(" ", CARD_CAPTION, UiStyle.CORRECT);
-    private final Badge statChip = new Badge("INT", UiStyle.statColor("INT"), Color.WHITE, CARD_CAPTION, 46);
-    private final JLabel statName = label(" ", CARD_CAPTION, TEXT_MUTED);
-    private final java.util.Map<String, GaugeBar> statBars = new java.util.HashMap<>();
-    private final JPanel statBarSlot = new JPanel(new BorderLayout());
-    private final JLabel statValueLabel = label(" ", CARD_VALUE, TEXT);
+    private final java.util.Map<String, GaugeBar> statBars = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String, JLabel> statNames = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String, JLabel> statValueLabels = new java.util.LinkedHashMap<>();
+    private String shownStatType = "INT";
     private PetStatus petStatus;
 
     /** 피드백을 보여 줄 때의 캐릭터 상태입니다(보상이 반영된 뒤의 값). */
@@ -192,36 +191,52 @@ public class AnswerFeedbackPanel extends JPanel {
         c.insets = new Insets(0, 0, 12, 0);
         growthCard.add(expRow, c);
 
-        // 분야마다 막대 색이 달라서 능력치별 막대를 만들어 두고 바꿔 끼웁니다.
+        // 능력치 네 가지를 모두 보여 주고, 이번 문제로 오른 능력치만 증가량을 강조합니다.
         for (String type : UiStyle.STAT_TYPES) {
-            GaugeBar bar = new GaugeBar(UiStyle.statColor(type), 10, false);
-            bar.setPreferredSize(new Dimension(60, 10));
-            bar.getAccessibleContext().setAccessibleName(UiStyle.statLabel(type) + "(" + type + ")");
-            statBars.put(type, bar);
+            c.gridy++;
+            c.insets = new Insets(0, 0, 6, 0);
+            growthCard.add(createStatRow(type), c);
         }
-        statBarSlot.setOpaque(false);
-        JPanel statRow = new JPanel(new GridBagLayout());
-        statRow.setOpaque(false);
+
+        growthCard.setVisible(false);
+        return growthCard;
+    }
+
+    private JPanel createStatRow(String type) {
+        Badge chip = new Badge(type, UiStyle.statColor(type), Color.WHITE, CARD_CAPTION, 44);
+        JLabel name = label(UiStyle.statLabel(type), CARD_CAPTION, TEXT_MUTED);
+        Dimension nameSize = new Dimension(30, name.getPreferredSize().height);
+        name.setPreferredSize(nameSize);
+        name.setMinimumSize(nameSize);
+        GaugeBar bar = new GaugeBar(UiStyle.statColor(type), 8, false);
+        bar.setPreferredSize(new Dimension(50, 8));
+        bar.getAccessibleContext().setAccessibleName(UiStyle.statLabel(type) + "(" + type + ")");
+        JLabel value = label(" ", CARD_VALUE, TEXT);
+        value.setHorizontalAlignment(SwingConstants.RIGHT);
+        // "(+1)"이 붙어도 막대 길이가 줄마다 같도록 값 칸 폭을 고정합니다.
+        Dimension valueSize = new Dimension(58, value.getPreferredSize().height);
+        value.setPreferredSize(valueSize);
+        value.setMinimumSize(valueSize);
+        statBars.put(type, bar);
+        statNames.put(type, name);
+        statValueLabels.put(type, value);
+
+        JPanel row = new JPanel(new GridBagLayout());
+        row.setOpaque(false);
         GridBagConstraints s = new GridBagConstraints();
         s.gridy = 0;
         s.anchor = GridBagConstraints.WEST;
         s.insets = new Insets(0, 0, 0, 8);
-        statRow.add(statChip, s);
-        statName.setPreferredSize(new Dimension(30, statName.getPreferredSize().height));
-        statRow.add(statName, s);
+        row.add(chip, s);
+        row.add(name, s);
         s.weightx = 1;
         s.fill = GridBagConstraints.HORIZONTAL;
-        statRow.add(statBarSlot, s);
+        row.add(bar, s);
         s.weightx = 0;
         s.fill = GridBagConstraints.NONE;
         s.insets = new Insets(0, 0, 0, 0);
-        statRow.add(statValueLabel, s);
-        c.gridy++;
-        c.insets = new Insets(0, 0, 0, 0);
-        growthCard.add(statRow, c);
-
-        growthCard.setVisible(false);
-        return growthCard;
+        row.add(value, s);
+        return row;
     }
 
     /**
@@ -254,18 +269,29 @@ public class AnswerFeedbackPanel extends JPanel {
         expLabel.setText("EXP " + xp + " / " + petStatus.xpPerLevel());
         expGainLabel.setText(gainedXp > 0 ? "+" + gainedXp : " ");
 
-        String type = view.statType();
-        int value = petStatus.stats().getOrDefault(type, 0);
+        shownStatType = view.statType();
         int gain = rewarded ? Math.max(0, view.statGain()) : 0;
-        statChip.setText(type);
-        statChip.setBackground(UiStyle.statColor(type));
-        statName.setText(UiStyle.statLabel(type));
-        GaugeBar bar = statBars.get(type);
-        statBarSlot.removeAll();
-        statBarSlot.add(bar, BorderLayout.CENTER);
-        bar.setValue(value, PetStatusPanel.statScale(value), gain > 0 ? value - gain : -1, gain > 0);
-        statValueLabel.setText(gain > 0 ? value + " (+" + gain + ")" : String.valueOf(value));
-        statValueLabel.setForeground(gain > 0 ? UiStyle.CORRECT : TEXT);
+        java.util.Map<String, Integer> stats = petStatus.stats();
+        int highest = 0;
+        for (String type : UiStyle.STAT_TYPES) {
+            highest = Math.max(highest, stats.getOrDefault(type, 0));
+        }
+        // 막대 최대값은 홈 사이드바와 같은 규칙이라 네 능력치를 같은 기준으로 비교할 수 있습니다.
+        int scale = PetStatusPanel.statScale(highest);
+        List<String> weakest = StatComparisonPanel.weakestStats(stats);
+        for (String type : UiStyle.STAT_TYPES) {
+            int value = stats.getOrDefault(type, 0);
+            int typeGain = type.equals(shownStatType) ? gain : 0;
+            statBars.get(type).setValue(value, scale, typeGain > 0 ? value - typeGain : -1, typeGain > 0);
+            JLabel valueLabel = statValueLabels.get(type);
+            valueLabel.setText(typeGain > 0 ? value + " (+" + typeGain + ")" : String.valueOf(value));
+            valueLabel.setForeground(typeGain > 0 ? UiStyle.CORRECT : TEXT);
+            JLabel name = statNames.get(type);
+            boolean weak = weakest.contains(type);
+            name.setForeground(weak ? WRONG : TEXT_MUTED);
+            name.setToolTipText(weak ? "가장 낮은 능력치예요. "
+                    + String.join("·", StatComparisonPanel.categoryNames(type)) + " 퀴즈를 맞히면 올라요." : null);
+        }
         growthCard.setVisible(true);
     }
 
@@ -277,12 +303,26 @@ public class AnswerFeedbackPanel extends JPanel {
         return expBar;
     }
 
+    /** 이번 문제 분야의 능력치 막대입니다. */
     public GaugeBar getGrowthStatBar() {
-        return statBarSlot.getComponentCount() == 0 ? null : (GaugeBar) statBarSlot.getComponent(0);
+        return statBars.get(shownStatType);
     }
 
+    public GaugeBar getGrowthStatBar(String statType) {
+        return statBars.get(statType);
+    }
+
+    /** 이번 문제 분야의 능력치 값 문구입니다(예: "15 (+1)"). */
     public String getGrowthStatText() {
-        return statValueLabel.getText();
+        return getGrowthStatText(shownStatType);
+    }
+
+    public String getGrowthStatText(String statType) {
+        return statValueLabels.get(statType).getText();
+    }
+
+    public boolean isGrowthStatMarkedWeak(String statType) {
+        return statNames.get(statType).getToolTipText() != null;
     }
 
     public String getGrowthLevelNote() {

@@ -95,6 +95,12 @@ public class GrowthVisualTest {
     assert feedback.getGrowthStatBar().getGain() == 1 && feedback.getGrowthStatBar().getValue() == 15;
     assert feedback.getGrowthStatText().equals("15 (+1)") : feedback.getGrowthStatText();
     assert feedback.getGrowthLevelNote().isEmpty();
+    // 네 능력치를 모두 보여 주며, 다른 능력치는 현재 값만 표시하고 가장 낮은 능력치를 강조한다.
+    for (String type : UiStyle.STAT_TYPES) {
+      assert feedback.getGrowthStatBar(type) != null && feedback.getGrowthStatBar(type).getMaximum() == 30;
+    }
+    assert feedback.getGrowthStatText("STR").equals("10") && !feedback.getGrowthStatBar("STR").hasGain();
+    assert feedback.isGrowthStatMarkedWeak("STR") && !feedback.isGrowthStatMarkedWeak("INT");
 
     // 경험치가 레벨 경계를 넘으면 0부터 채우고 레벨 업을 알린다.
     feedback.setPetStatus(3, 5, 50, stats(10, 16, 10, 10));
