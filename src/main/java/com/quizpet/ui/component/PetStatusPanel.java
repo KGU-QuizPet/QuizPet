@@ -45,6 +45,12 @@ public final class PetStatusPanel extends JPanel {
   private final JLabel remainLabel = new JLabel(" ", SwingConstants.RIGHT);
   private final Map<String, GaugeBar> statBars = new LinkedHashMap<>();
   private final Map<String, JLabel> statValues = new LinkedHashMap<>();
+  private final Map<String, JLabel> statNames = new LinkedHashMap<>();
+  private final Map<String, JLabel> statDeltas = new LinkedHashMap<>();
+  private final Map<String, Integer> currentStats = new LinkedHashMap<>();
+  private final JLabel weakHint = new JLabel(" ");
+  private int currentXpInLevel;
+  private int currentXpPerLevel = 1;
   private final JPanel summary = new RoundedBox(UiStyle.SUNKEN, null);
   private final JLabel accuracyLabel = new JLabel("-");
   private final JLabel solvedLabel = new JLabel("-", SwingConstants.RIGHT);
@@ -86,16 +92,95 @@ public final class PetStatusPanel extends JPanel {
     expLabel.setText("EXP " + safeXp + " / " + xpPerLevel);
     remainLabel.setText("다음 레벨까지 " + (xpPerLevel - safeXp));
 
+    currentXpInLevel = safeXp;
+    currentXpPerLevel = xpPerLevel;
+
     Map<String, Integer> values = Map.of("STR", str, "INT", intel, "FOC", foc, "WIS", wis);
+    currentStats.clear();
+    currentStats.putAll(values);
     int scale = statScale(Math.max(Math.max(str, intel), Math.max(foc, wis)));
     for (String type : UiStyle.STAT_TYPES) {
       int value = values.get(type);
       statBars.get(type).setValue(value, scale);
       statValues.get(type).setText(String.valueOf(value));
+      statDeltas.get(type).setText(" ");
     }
+    markWeakest(StatComparisonPanel.weakestStats(values));
     stage.showPet(spriteKey, stage.getMood(), stage.getMessage());
     revalidate();
     repaint();
+  }
+
+  /** 가장 낮은 능력치 이름을 강조하고, 올리는 방법을 능력치 아래에 안내합니다. */
+  private void markWeakest(java.util.List<String> weakest) {
+    for (String type : UiStyle.STAT_TYPES) {
+      boolean weak = weakest.contains(type);
+      JLabel name = statNames.get(type);
+      name.setForeground(weak ? UiStyle.WRONG : UiStyle.MUTED);
+      name.setToolTipText(weak ? "가장 낮은 능력치예요. "
+          + String.join("·", StatComparisonPanel.categoryNames(type)) + " 퀴즈를 맞히면 올라요." : null);
+    }
+    weakHint.setText(weakest.isEmpty() ? " " : shortWeaknessHint(weakest));
+    weakHint.setToolTipText(weakest.isEmpty() ? null : StatComparisonPanel.weaknessHint(weakest));
+  }
+
+  /** 사이드바용 짧은 안내입니다. 예: "체력이 가장 낮아요 · 스포츠 퀴즈 추천" */
+  static String shortWeaknessHint(java.util.List<String> weakest) {
+    java.util.List<String> stats = new java.util.ArrayList<>();
+    java.util.List<String> categories = new java.util.ArrayList<>();
+    for (String type : weakest) {
+      stats.add(UiStyle.statLabel(type));
+      categories.addAll(StatComparisonPanel.categoryNames(type));
+    }
+    String last = stats.get(stats.size() - 1);
+    char end = last.charAt(last.length() - 1);
+    String particle = end >= 0xAC00 && end <= 0xD7A3 && (end - 0xAC00) % 28 == 0 ? "가" : "이";
+    return String.join("·", stats) + particle + " 가장 낮아요 · " + String.join("·", categories) + " 퀴즈 추천";
+  }
+
+  /**
+   * showPet 다음에 호출하여 지난 퀴즈에서 늘어난 만큼을 강조합니다.
+   * 늘어난 능력치는 막대가 성장 전 값에서 차오르고 옆에 "+1"을 표시합니다.
+   *
+   * @param before 성장 전 능력치(키: STR·INT·FOC·WIS)
+   * @param gainedXp 이번에 얻은 경험치. 레벨이 오르지 않았으면 경험치 막대도 이전 값에서 차오릅니다.
+   * @param leveledUp 레벨이 올랐으면 경험치 막대를 0에서부터 채웁니다.
+   */
+  public void showGrowth(Map<String, Integer> before, int gainedXp, boolean leveledUp) {
+    if (before == null) {
+      throw new IllegalArgumentException("성장 전 능력치는 필수입니다.");
+    }
+    int scale = statBars.get(UiStyle.STAT_TYPES[0]).getMaximum();
+    for (String type : UiStyle.STAT_TYPES) {
+      Integer from = before.get(type);
+      int to = currentStats.getOrDefault(type, 0);
+      if (from == null || from >= to) {
+        continue;
+      }
+      statBars.get(type).setValue(to, scale, from, true);
+      JLabel delta = statDeltas.get(type);
+      delta.setText("+" + (to - from));
+    }
+    if (gainedXp > 0) {
+      int fromXp = leveledUp ? 0 : Math.max(0, currentXpInLevel - gainedXp);
+      expBar.setValue(currentXpInLevel, currentXpPerLevel, fromXp, true);
+    }
+    revalidate();
+    repaint();
+  }
+
+  /** 능력치 옆에 표시된 증가량입니다(없으면 빈 문자열). */
+  public String getStatDeltaText(String statType) {
+    return statDeltas.get(statType).getText().strip();
+  }
+
+  /** 가장 낮은 능력치로 강조된 능력치인지 여부입니다. */
+  public boolean isStatMarkedWeak(String statType) {
+    return statNames.get(statType).getToolTipText() != null;
+  }
+
+  public String getWeakHintText() {
+    return weakHint.getText().strip();
   }
 
   /** 표정과 말풍선 문구를 바꿉니다. message가 비어 있으면 말풍선을 숨깁니다. */
@@ -209,6 +294,14 @@ public final class PetStatusPanel extends JPanel {
     }
 
     c.gridy++;
+    c.insets = new Insets(0, 0, 0, 0);
+    weakHint.setFont(SMALL_FONT);
+    weakHint.setForeground(UiStyle.MUTED);
+    // 사이드바 폭을 넘는 안내는 줄임표로 자르고 전체 문장은 툴팁으로 보여 줍니다.
+    weakHint.setPreferredSize(new Dimension(SIDEBAR_WIDTH - 40, weakHint.getPreferredSize().height));
+    info.add(weakHint, c);
+
+    c.gridy++;
     c.insets = new Insets(10, 0, 0, 0);
     info.add(createSummary(), c);
     return info;
@@ -227,8 +320,21 @@ public final class PetStatusPanel extends JPanel {
     value.setFont(VALUE_FONT);
     value.setForeground(UiStyle.TEXT);
     value.setPreferredSize(new Dimension(34, value.getPreferredSize().height));
+    JLabel delta = new JLabel(" ", SwingConstants.LEFT);
+    delta.setFont(CHIP_FONT);
+    delta.setForeground(UiStyle.CORRECT);
+    // 증가량이 있든 없든 모든 줄의 막대 길이가 같도록 칸 폭을 고정합니다.
+    Dimension deltaSize = new Dimension(24, delta.getPreferredSize().height);
+    delta.setPreferredSize(deltaSize);
+    delta.setMinimumSize(deltaSize);
+    value.setMinimumSize(value.getPreferredSize());
+    name.setMinimumSize(name.getPreferredSize());
+    // 사이드바 폭(320px) 안에 들어가도록 막대의 기본 폭을 줄이고 남는 폭은 막대가 채웁니다.
+    bar.setPreferredSize(new Dimension(80, bar.getPreferredSize().height));
     statBars.put(type, bar);
     statValues.put(type, value);
+    statNames.put(type, name);
+    statDeltas.put(type, delta);
 
     JPanel row = new JPanel(new GridBagLayout());
     row.setOpaque(false);
@@ -245,6 +351,8 @@ public final class PetStatusPanel extends JPanel {
     c.fill = GridBagConstraints.NONE;
     c.insets = new Insets(0, 0, 0, 0);
     row.add(value, c);
+    c.insets = new Insets(0, 4, 0, 0);
+    row.add(delta, c);
     return row;
   }
 

@@ -147,6 +147,29 @@ public class AnswerFeedbackPanel extends JPanel {
         return view.gainedXp() > 0 ? "정답이야! 머리가 똑똑해진 느낌!" : "정답! 이미 맞힌 문제야.";
     }
 
+    /**
+     * 정답 반응 때 캐릭터 위로 떠오를 획득 문구입니다. 보상이 저장된 경우에만 보여 주고,
+     * 이미 맞힌 문제나 저장 전(예정) 보상이면 문구 없이 기뻐하기만 합니다.
+     */
+    static List<PetStage.Effect> petEffects(AnswerFeedbackView view) {
+        if (!view.correct() || !view.rewardConfirmed()) {
+            return List.of();
+        }
+        List<PetStage.Effect> effects = new java.util.ArrayList<>();
+        if (view.gainedXp() > 0) {
+            effects.add(new PetStage.Effect("+" + view.gainedXp() + " EXP", UiStyle.EXP_DARK));
+        }
+        if (view.statGain() > 0 && isStatType(view.statType())) {
+            effects.add(new PetStage.Effect("+" + view.statGain() + " " + view.statType(),
+                    UiStyle.statColor(view.statType())));
+        }
+        return List.copyOf(effects);
+    }
+
+    private static boolean isStatType(String statType) {
+        return List.of(UiStyle.STAT_TYPES).contains(statType);
+    }
+
     private JComponent buildBody() {
         JPanel body = new JPanel();
         body.setOpaque(false);
@@ -282,6 +305,11 @@ public class AnswerFeedbackPanel extends JPanel {
         xpRewardLabel.setForeground(rewarded ? HIGHLIGHT : TEXT_MUTED);
         rewardNoteLabel.setText(rewardNote(view));
         petStage.showPet(petSpriteKey, petMood(view), petMessage(view));
+        if (view.correct()) {
+            petStage.celebrate(petEffects(view));
+        } else {
+            petStage.shake();
+        }
 
         viewCardButton.setEnabled(view.hasLearningCard());
         viewCardButton.setToolTipText(view.hasLearningCard() ? null : "연결된 학습 카드가 없습니다.");

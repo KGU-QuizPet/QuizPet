@@ -61,6 +61,22 @@ public class HomePanel extends JPanel {
         + "까지 <font color='#FFC233'>" + remain + " EXP</font> 남았어요</html>");
   }
 
+  /**
+   * showPet 다음에 호출하여 지난 퀴즈의 성장을 강조합니다.
+   * 늘어난 능력치·경험치 막대가 차오르고, 캐릭터가 기뻐하며 성장(레벨 업)을 알려 줍니다.
+   */
+  public void showGrowth(java.util.Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) {
+    status.showGrowth(statsBefore, gainedXp, leveledUp);
+    if (leveledUp) {
+      status.setMood(PetMood.LEVEL_UP, "레벨 업! 더 강해졌어!");
+    } else if (gainedXp > 0) {
+      status.setMood(PetMood.HAPPY, "공부한 만큼 쑥쑥 컸어!");
+    }
+    if (gainedXp > 0) {
+      status.getStage().celebrate(java.util.List.of());
+    }
+  }
+
   /** 배너 첫 줄 인사말입니다. nickname이 없으면 기본 인사를 표시합니다. */
   public void setGreeting(String nickname) {
     greetingLabel.setText(nickname == null || nickname.isBlank()

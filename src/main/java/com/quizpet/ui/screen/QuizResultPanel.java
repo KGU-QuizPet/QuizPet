@@ -2,6 +2,7 @@ package main.java.com.quizpet.ui.screen;
 
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.QuizResult;
+import main.java.com.quizpet.ui.component.StatComparisonPanel;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -21,6 +22,7 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.Map;
 import java.util.Objects;
 
 /** UI-07 퀴즈 결과. */
@@ -80,6 +82,7 @@ public class QuizResultPanel extends JPanel {
     private final JLabel levelValue = label(" ", SUBTITLE, TEXT);
     private final JLabel levelUpBadge = label("LEVEL UP!", BODY_BOLD, HIGHLIGHT);
     private final JProgressBar xpBar = new JProgressBar();
+    private final StatComparisonPanel statComparison = new StatComparisonPanel();
 
     private final JButton mainButton = button("메인으로");
     private final JButton historyButton = button("학습 기록");
@@ -135,6 +138,16 @@ public class QuizResultPanel extends JPanel {
         barGc.weightx = 1;
         barGc.insets = new Insets(12, 0, 0, 0);
         rewardCard.add(xpBar, barGc);
+
+        GridBagConstraints statGc = new GridBagConstraints();
+        statGc.gridx = 0;
+        statGc.gridy = 4;
+        statGc.gridwidth = 2;
+        statGc.fill = GridBagConstraints.HORIZONTAL;
+        statGc.weightx = 1;
+        statGc.insets = new Insets(18, 0, 0, 0);
+        statComparison.setVisible(false);
+        rewardCard.add(statComparison, statGc);
 
         rewardCard.setAlignmentX(Component.CENTER_ALIGNMENT);
         body.add(rewardCard);
@@ -212,6 +225,26 @@ public class QuizResultPanel extends JPanel {
                 result.getCorrectCount(), result.getTotalCount(), result.getAccuracy(),
                 gainedXp, statGain, levelBefore, levelAfter, xpInLevel, DEFAULT_XP_PER_LEVEL,
                 result.getAnsweredCount()));
+    }
+
+    /**
+     * 퀴즈 전·후 능력치를 비교해 보여 줍니다(키: STR·INT·FOC·WIS).
+     * 늘어난 능력치는 막대가 차오르며 강조되고, 가장 낮은 능력치에는 보충 안내가 붙습니다.
+     */
+    public void showStatComparison(Map<String, Integer> before, Map<String, Integer> after) {
+        statComparison.showComparison(before, after, true);
+        statComparison.setVisible(true);
+        revalidate();
+        repaint();
+    }
+
+    public void hideStatComparison() {
+        statComparison.setVisible(false);
+        revalidate();
+    }
+
+    public StatComparisonPanel getStatComparison() {
+        return statComparison;
     }
 
     public void setOnGoMain(Runnable action) {
