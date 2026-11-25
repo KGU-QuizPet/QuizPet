@@ -31,6 +31,7 @@ public final class AppController {
   private final RecordService records;
   private final StatisticsService statistics;
   private final RecordQuestionLookup recordQuestions;
+  private final WrongAnswerService wrongAnswers;
   private final SubmissionService submissions;
   private final StartPanel start = new StartPanel(screens);
   private final PetCreatePanel petCreate = new PetCreatePanel(screens);
@@ -65,6 +66,7 @@ public final class AppController {
     records = new RecordService(new RecordRepository(saveDirectory.resolve("record.txt")));
     recordQuestions = new RecordQuestionLookup(questions, contentDirectory.resolve("question-legacy.txt"));
     statistics = new StatisticsService(records, id -> recordQuestions.findById(id).map(Question::getCategory));
+    wrongAnswers = new WrongAnswerService(records, recordQuestions);
     submissions = new SubmissionService(saveDirectory);
     registerScreens();
     connectActions();
@@ -106,12 +108,18 @@ public final class AppController {
     result.setOnGoHistory(() -> run(() -> showHistory(null)));
     history.setOnGoMain(() -> run(this::showHome));
     history.setOnCategoryChanged(id -> run(() -> showHistory(id)));
-    history.setWrongNoteEnabled(false);
+    history.setWrongNoteEnabled(true);
+    history.setReviewEnabled(false);
+    history.setOnOpenWrongNote(id -> run(() -> showWrongNote(id, false)));
+    history.setOnWrongNoteCategoryChanged(id -> run(() -> showWrongNote(id, history.isNeedsReviewOnly())));
+    history.setOnWrongNoteRefresh(() -> run(() -> showWrongNote(history.getWrongCategoryId(), history.isNeedsReviewOnly())));
+    history.setOnWrongNoteBack(() -> run(() -> showHistory(null)));
   }
 
   public void showStart() throws IOException {
     ready();
     start.showProfiles(profiles.getProfiles());
+    history.clearWrongNote();
     currentUser = null;
     currentCategory = null;
     session = null;
@@ -130,6 +138,7 @@ public final class AppController {
     ready();
     User selected = users.getUser(userId);
     Pet pet = pets.findPetByUserId(userId).orElse(null);
+    history.clearWrongNote();
     currentUser = selected;
     currentCategory = null;
     session = null;
@@ -326,6 +335,30 @@ public final class AppController {
       history.showHistory(HistoryView.of(selected, rates, rows));
     } catch (IOException | RuntimeException e) {
       history.showHistoryError("기록을 불러오지 못했습니다: " + e.getMessage());
+      throw e;
+    }
+  }
+
+  public void showWrongNote(String categoryId, boolean needsReviewOnly) throws IOException {
+    requireUser();
+    history.setWrongCategoryId(categoryId);
+    history.setWrongNeedsReviewOnly(needsReviewOnly);
+    history.showWrongNoteError("오답 기록을 불러오는 중입니다.");
+    screens.show(ScreenManager.HISTORY);
+    try {
+      ready();
+      Category selectedCategory = categoryId == null || categoryId.equals("UNCLASSIFIED")
+          ? null : Category.valueOf(categoryId);
+      var all = wrongAnswers.getWrongAnswers(currentUser.getUserId());
+      var selected = all.stream()
+          .filter(item -> categoryId == null || (categoryId.equals("UNCLASSIFIED") ? item.category().isEmpty()
+              : item.category().filter(selectedCategory::equals).isPresent()))
+          .filter(item -> !needsReviewOnly || item.reviewStatus() != WrongAnswerService.ReviewStatus.COMPLETED)
+          .toList();
+      history.showWrongNote(WrongNotePresenter.toView(categoryId, all.size(), selected,
+          categoryId != null || needsReviewOnly));
+    } catch (IOException | RuntimeException e) {
+      history.showWrongNoteError("오답 기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }
   }
