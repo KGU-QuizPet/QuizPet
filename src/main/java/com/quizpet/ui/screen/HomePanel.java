@@ -68,9 +68,9 @@ public class HomePanel extends JPanel {
   public void showGrowth(java.util.Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) {
     status.showGrowth(statsBefore, gainedXp, leveledUp);
     if (leveledUp) {
-      status.setMood(PetMood.LEVEL_UP, "레벨 업! 더 강해졌어!");
+      status.setMood(PetMood.LEVEL_UP, "레벨이 올랐어요. 잘하고 있어요!");
     } else if (gainedXp > 0) {
-      status.setMood(PetMood.HAPPY, "공부한 만큼 쑥쑥 컸어!");
+      status.setMood(PetMood.HAPPY, "이번 학습으로 능력치가 올랐어요.");
     }
     if (gainedXp > 0) {
       status.getStage().celebrate(java.util.List.of());

@@ -21,7 +21,7 @@ public class AnswerFeedbackPetTest {
     // 오답이면 시무룩한 표정과 학습 카드를 권하는 말풍선을 보여 준다.
     feedback.showFeedback(view(false, 0, true));
     assert feedback.getPetStage().getMood() == PetMood.SAD;
-    assert feedback.getPetStage().getMessage().equals("으앙… 카드를 한 번 더 볼까?");
+    assert feedback.getPetStage().getMessage().equals("아쉬워요. 학습 카드를 다시 볼까요?");
     assert feedback.getPetStage().hasImage() : "turtle_sad.png를 찾지 못함";
 
     // 연결된 학습 카드가 없으면 카드를 권하지 않는다.
@@ -32,10 +32,10 @@ public class AnswerFeedbackPetTest {
     // 정답이면 기뻐하고, 이미 맞힌 문제(보상 0)는 다른 문구를 보여 준다.
     feedback.showFeedback(view(true, 10, true));
     assert feedback.getPetStage().getMood() == PetMood.HAPPY;
-    assert feedback.getPetStage().getMessage().equals("정답이야! 머리가 똑똑해진 느낌!");
+    assert feedback.getPetStage().getMessage().equals("정답이에요! 능력치가 올랐어요.");
     feedback.showFeedback(view(true, 0, true));
     assert feedback.getPetStage().getMood() == PetMood.HAPPY;
-    assert feedback.getPetStage().getMessage().equals("정답! 이미 맞힌 문제야.");
+    assert feedback.getPetStage().getMessage().equals("정답이에요. 이미 맞힌 문제예요.");
 
     // 다시 오답이 되면 표정도 되돌아간다.
     feedback.showFeedback(view(false, 0, true));
@@ -51,6 +51,15 @@ public class AnswerFeedbackPetTest {
     List<String> clipped = PetStage.wrap("아주 아주 아주 아주 아주 아주 아주 긴 문장입니다", fm, 60, 2);
     assert clipped.size() == 2 && clipped.get(1).endsWith("…") : clipped;
     assert PetStage.wrap("짧아", fm, 120, 2).equals(List.of("짧아"));
+    // 캐릭터 멘트는 가장 좁은 펫 영역(260px)의 말풍선에서도 잘리지 않는다.
+    int bubbleWidth = 260 - 120;
+    for (String message : List.of(PetStatusPanel.DEFAULT_MESSAGE,
+        AnswerFeedbackPanel.petMessage(view(false, 0, true)), AnswerFeedbackPanel.petMessage(view(false, 0, false)),
+        AnswerFeedbackPanel.petMessage(view(true, 10, true)), AnswerFeedbackPanel.petMessage(view(true, 0, true)),
+        "이번 학습으로 능력치가 올랐어요.", "레벨이 올랐어요. 잘하고 있어요!")) {
+      List<String> wrapped = PetStage.wrap(message, fm, bubbleWidth, 2);
+      assert !String.join("", wrapped).endsWith("…") : "말풍선이 잘림: " + message + " " + wrapped;
+    }
   }
 
   private static AnswerFeedbackView view(boolean correct, int xp, boolean hasCard) {

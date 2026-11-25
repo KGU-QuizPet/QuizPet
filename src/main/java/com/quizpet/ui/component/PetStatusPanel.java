@@ -26,7 +26,7 @@ import main.java.com.quizpet.ui.UiStyle;
  */
 public final class PetStatusPanel extends JPanel {
   public static final int SIDEBAR_WIDTH = 320;
-  public static final String DEFAULT_MESSAGE = "오늘은 어떤 걸 배워볼까?";
+  public static final String DEFAULT_MESSAGE = "오늘은 어떤 분야를 공부할까요?";
 
   private static final Font NAME_FONT = new Font(Font.DIALOG, Font.BOLD, 22);
   private static final Font CAPTION_FONT = new Font(Font.DIALOG, Font.BOLD, 12);

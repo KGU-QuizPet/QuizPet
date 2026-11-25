@@ -345,13 +345,13 @@ public class AnswerFeedbackPanel extends JPanel {
 
     /**
      * 채점 결과에 맞는 펫 말풍선입니다. 오답이면 학습 카드를 다시 보도록 권합니다.
-     * 오답(카드 있음)·처음 정답 문구는 디자인 시안 UI-06D·06C 문구이고, 나머지는 시안에 없는 경우의 문구입니다.
+     * 시안(UI-06C·06D)의 반말 문구 대신 학습 앱에 맞게 차분한 해요체로 안내합니다.
      */
     static String petMessage(AnswerFeedbackView view) {
         if (!view.correct()) {
-            return view.hasLearningCard() ? "으앙… 카드를 한 번 더 볼까?" : "아쉽다. 다음엔 맞혀 보자.";
+            return view.hasLearningCard() ? "아쉬워요. 학습 카드를 다시 볼까요?" : "아쉬워요. 해설을 확인해 보세요.";
         }
-        return view.gainedXp() > 0 ? "정답이야! 머리가 똑똑해진 느낌!" : "정답! 이미 맞힌 문제야.";
+        return view.gainedXp() > 0 ? "정답이에요! 능력치가 올랐어요." : "정답이에요. 이미 맞힌 문제예요.";
     }
 
     /**
