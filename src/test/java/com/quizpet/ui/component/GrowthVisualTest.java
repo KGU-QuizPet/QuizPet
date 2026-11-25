@@ -84,6 +84,34 @@ public class GrowthVisualTest {
     feedback.showFeedback(view(false, 0, true));
     assert feedback.getPetStage().isShaking() && feedback.getPetStage().getEffects().isEmpty();
     feedback.getPetStage().stopAnimation();
+
+    // 캐릭터 상태를 받기 전에는 성장 현황 카드를 숨긴다.
+    assert !feedback.isGrowthCardVisible();
+    // 보상 반영 후 Lv.2, EXP 30/50, INT 15 → 경험치 20→30, INT 14→15가 강조된다.
+    feedback.setPetStatus(2, 30, 50, stats(10, 15, 10, 10));
+    feedback.showFeedback(view(true, 10, true));
+    assert feedback.isGrowthCardVisible();
+    assert feedback.getGrowthExpBar().getGain() == 10 && feedback.getGrowthExpBar().getValue() == 30;
+    assert feedback.getGrowthStatBar().getGain() == 1 && feedback.getGrowthStatBar().getValue() == 15;
+    assert feedback.getGrowthStatText().equals("15 (+1)") : feedback.getGrowthStatText();
+    assert feedback.getGrowthLevelNote().isEmpty();
+
+    // 경험치가 레벨 경계를 넘으면 0부터 채우고 레벨 업을 알린다.
+    feedback.setPetStatus(3, 5, 50, stats(10, 16, 10, 10));
+    feedback.showFeedback(view(true, 10, true));
+    assert feedback.getGrowthExpBar().getGain() == 5 && feedback.getGrowthLevelNote().equals("레벨 업!");
+
+    // 오답이면 현재 값만 보여 주고 증가분은 없다.
+    feedback.setPetStatus(3, 5, 50, stats(10, 16, 10, 10));
+    feedback.showFeedback(view(false, 0, true));
+    assert !feedback.getGrowthExpBar().hasGain() && !feedback.getGrowthStatBar().hasGain();
+    assert feedback.getGrowthStatText().equals("16");
+    feedback.getPetStage().stopAnimation();
+
+    // 펫 열 폭은 화면 폭에 맞춰 260~360px 사이에서 변한다.
+    assert AnswerFeedbackPanel.petColumnWidth(1024) == 260;
+    assert AnswerFeedbackPanel.petColumnWidth(1600) == 320;
+    assert AnswerFeedbackPanel.petColumnWidth(2560) == 360;
   }
 
   private static void gaugeGain() {

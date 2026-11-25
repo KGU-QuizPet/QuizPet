@@ -247,7 +247,9 @@ public final class AppController {
 
   private void showFeedback(LearningRecord record) throws IOException {
     Question question = session.getCurrentQuestion();
-    feedback.setPet(currentPet().getSpriteKey());
+    Pet pet = currentPet();
+    feedback.setPet(pet.getSpriteKey());
+    feedback.setPetStatus(pet.getLevel(), pet.getXpInLevel(), Pet.XP_PER_LEVEL, statMap(pet.getStats()));
     feedback.showSession(session);
     feedback.showFeedback(question, record.getSelectedAnswer(), record.isCorrect(),
         record.getEarnedXp() > 0 ? 1 : 0, record.getEarnedXp(),

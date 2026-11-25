@@ -114,12 +114,179 @@ public class AnswerFeedbackPanel extends JPanel {
         nextButton.addActionListener(e -> onNext.run());
     }
 
+    /**
+     * 왼쪽 펫 열입니다. 펫 무대는 남는 높이를 모두 채우고, 아래에 성장 현황 카드를 둡니다.
+     * 열 폭은 화면 폭의 1/5을 260~360px 범위로 맞춰 큰 화면에서는 캐릭터도 커집니다.
+     */
     private JComponent buildPetColumn() {
-        JPanel column = new JPanel(new BorderLayout());
+        JPanel column = new JPanel(new BorderLayout(0, 12)) {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension size = super.getPreferredSize();
+                size.width = petColumnWidth(AnswerFeedbackPanel.this.getWidth());
+                return size;
+            }
+        };
         column.setOpaque(false);
-        petStage.setPreferredSize(new Dimension(260, 280));
-        column.add(petStage, BorderLayout.NORTH);
+        petStage.setPreferredSize(new Dimension(PET_COLUMN_MIN, 280));
+        column.add(petStage, BorderLayout.CENTER);
+        column.add(buildGrowthCard(), BorderLayout.SOUTH);
         return column;
+    }
+
+    static final int PET_COLUMN_MIN = 260;
+    static final int PET_COLUMN_MAX = 360;
+
+    static int petColumnWidth(int panelWidth) {
+        return Math.max(PET_COLUMN_MIN, Math.min(PET_COLUMN_MAX, panelWidth / 5));
+    }
+
+    private static final Font CARD_CAPTION = new Font(Font.DIALOG, Font.BOLD, 12);
+    private static final Font CARD_VALUE = new Font(Font.DIALOG, Font.BOLD, 13);
+
+    private final PetStatusPanel.RoundedBox growthCard = new PetStatusPanel.RoundedBox(SURFACE, BORDER);
+    private final Badge levelBadge = new Badge("Lv.1", UiStyle.INK_PANEL, Color.WHITE, CARD_VALUE, 48);
+    private final JLabel levelNote = label(" ", CARD_VALUE, HIGHLIGHT);
+    private final GaugeBar expBar = new GaugeBar(UiStyle.EXP, 12, true);
+    private final JLabel expLabel = label(" ", CARD_CAPTION, TEXT);
+    private final JLabel expGainLabel = label(" ", CARD_CAPTION, UiStyle.CORRECT);
+    private final Badge statChip = new Badge("INT", UiStyle.statColor("INT"), Color.WHITE, CARD_CAPTION, 46);
+    private final JLabel statName = label(" ", CARD_CAPTION, TEXT_MUTED);
+    private final java.util.Map<String, GaugeBar> statBars = new java.util.HashMap<>();
+    private final JPanel statBarSlot = new JPanel(new BorderLayout());
+    private final JLabel statValueLabel = label(" ", CARD_VALUE, TEXT);
+    private PetStatus petStatus;
+
+    /** 피드백을 보여 줄 때의 캐릭터 상태입니다(보상이 반영된 뒤의 값). */
+    private record PetStatus(int level, int xpInLevel, int xpPerLevel, java.util.Map<String, Integer> stats) { }
+
+    /** 펫 무대 아래의 성장 현황 카드입니다. 레벨·경험치와 이번 문제 분야의 능력치를 보여 줍니다. */
+    private JComponent buildGrowthCard() {
+        growthCard.setLayout(new GridBagLayout());
+        growthCard.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+
+        growthCard.add(label("성장 현황", CARD_CAPTION, TEXT_MUTED), c);
+
+        JPanel levelRow = new JPanel(new BorderLayout(8, 0));
+        levelRow.setOpaque(false);
+        levelRow.add(levelBadge, BorderLayout.WEST);
+        levelRow.add(levelNote, BorderLayout.CENTER);
+        c.gridy++;
+        c.insets = new Insets(10, 0, 8, 0);
+        growthCard.add(levelRow, c);
+
+        c.gridy++;
+        c.insets = new Insets(0, 0, 4, 0);
+        growthCard.add(expBar, c);
+
+        JPanel expRow = new JPanel(new BorderLayout());
+        expRow.setOpaque(false);
+        expRow.add(expLabel, BorderLayout.WEST);
+        expRow.add(expGainLabel, BorderLayout.EAST);
+        c.gridy++;
+        c.insets = new Insets(0, 0, 12, 0);
+        growthCard.add(expRow, c);
+
+        // 분야마다 막대 색이 달라서 능력치별 막대를 만들어 두고 바꿔 끼웁니다.
+        for (String type : UiStyle.STAT_TYPES) {
+            GaugeBar bar = new GaugeBar(UiStyle.statColor(type), 10, false);
+            bar.setPreferredSize(new Dimension(60, 10));
+            bar.getAccessibleContext().setAccessibleName(UiStyle.statLabel(type) + "(" + type + ")");
+            statBars.put(type, bar);
+        }
+        statBarSlot.setOpaque(false);
+        JPanel statRow = new JPanel(new GridBagLayout());
+        statRow.setOpaque(false);
+        GridBagConstraints s = new GridBagConstraints();
+        s.gridy = 0;
+        s.anchor = GridBagConstraints.WEST;
+        s.insets = new Insets(0, 0, 0, 8);
+        statRow.add(statChip, s);
+        statName.setPreferredSize(new Dimension(30, statName.getPreferredSize().height));
+        statRow.add(statName, s);
+        s.weightx = 1;
+        s.fill = GridBagConstraints.HORIZONTAL;
+        statRow.add(statBarSlot, s);
+        s.weightx = 0;
+        s.fill = GridBagConstraints.NONE;
+        s.insets = new Insets(0, 0, 0, 0);
+        statRow.add(statValueLabel, s);
+        c.gridy++;
+        c.insets = new Insets(0, 0, 0, 0);
+        growthCard.add(statRow, c);
+
+        growthCard.setVisible(false);
+        return growthCard;
+    }
+
+    /**
+     * 성장 현황 카드에 표시할 캐릭터 상태입니다. 보상이 반영된 뒤의 값을 넣고 showFeedback 전에 호출합니다.
+     * 호출하지 않으면 카드를 숨깁니다(펫 무대가 열 전체를 씁니다).
+     *
+     * @param stats 키: STR·INT·FOC·WIS
+     */
+    public void setPetStatus(int level, int xpInLevel, int xpPerLevel, java.util.Map<String, Integer> stats) {
+        if (stats == null) {
+            throw new IllegalArgumentException("능력치는 필수입니다.");
+        }
+        petStatus = new PetStatus(level, xpInLevel, Math.max(1, xpPerLevel), java.util.Map.copyOf(stats));
+    }
+
+    /** 보상이 저장된 경우 늘어난 만큼을 막대 증가분으로 강조하며 채웁니다. */
+    private void showGrowthCard(AnswerFeedbackView view) {
+        if (petStatus == null || !isStatType(view.statType())) {
+            growthCard.setVisible(false);
+            return;
+        }
+        boolean rewarded = view.correct() && view.rewardConfirmed();
+        int gainedXp = rewarded ? Math.max(0, view.gainedXp()) : 0;
+        int xp = Math.max(0, Math.min(petStatus.xpInLevel(), petStatus.xpPerLevel()));
+        boolean leveledUp = gainedXp > xp;
+        levelBadge.setText("Lv." + petStatus.level());
+        levelNote.setText(leveledUp ? "레벨 업!" : " ");
+        expBar.setValue(xp, petStatus.xpPerLevel(), gainedXp > 0 ? (leveledUp ? 0 : xp - gainedXp) : -1,
+                gainedXp > 0);
+        expLabel.setText("EXP " + xp + " / " + petStatus.xpPerLevel());
+        expGainLabel.setText(gainedXp > 0 ? "+" + gainedXp : " ");
+
+        String type = view.statType();
+        int value = petStatus.stats().getOrDefault(type, 0);
+        int gain = rewarded ? Math.max(0, view.statGain()) : 0;
+        statChip.setText(type);
+        statChip.setBackground(UiStyle.statColor(type));
+        statName.setText(UiStyle.statLabel(type));
+        GaugeBar bar = statBars.get(type);
+        statBarSlot.removeAll();
+        statBarSlot.add(bar, BorderLayout.CENTER);
+        bar.setValue(value, PetStatusPanel.statScale(value), gain > 0 ? value - gain : -1, gain > 0);
+        statValueLabel.setText(gain > 0 ? value + " (+" + gain + ")" : String.valueOf(value));
+        statValueLabel.setForeground(gain > 0 ? UiStyle.CORRECT : TEXT);
+        growthCard.setVisible(true);
+    }
+
+    public boolean isGrowthCardVisible() {
+        return growthCard.isVisible();
+    }
+
+    public GaugeBar getGrowthExpBar() {
+        return expBar;
+    }
+
+    public GaugeBar getGrowthStatBar() {
+        return statBarSlot.getComponentCount() == 0 ? null : (GaugeBar) statBarSlot.getComponent(0);
+    }
+
+    public String getGrowthStatText() {
+        return statValueLabel.getText();
+    }
+
+    public String getGrowthLevelNote() {
+        return levelNote.getText().strip();
     }
 
     /** 피드백에 반응할 캐릭터 외형입니다. AppController가 현재 캐릭터의 spriteKey를 넣습니다. */
@@ -310,6 +477,7 @@ public class AnswerFeedbackPanel extends JPanel {
         } else {
             petStage.shake();
         }
+        showGrowthCard(view);
 
         viewCardButton.setEnabled(view.hasLearningCard());
         viewCardButton.setToolTipText(view.hasLearningCard() ? null : "연결된 학습 카드가 없습니다.");
