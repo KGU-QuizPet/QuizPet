@@ -19,7 +19,7 @@ import main.java.com.quizpet.ui.component.AnswerFeedbackPanel;
 import main.java.com.quizpet.ui.screen.*;
 import main.java.com.quizpet.ui.screen.HistoryPanel.HistoryView;
 
-/** 화면의 사용자·분야·세션 상태와 서비스 호출을 연결합니다. */
+// 화면의 사용자·분야·세션 상태와 서비스 호출을 연결.
 public final class AppController {
   private final ScreenManager screens = new ScreenManager();
   private final UserService users;
@@ -314,7 +314,7 @@ public final class AppController {
       ready();
       boolean unresolved = records.getRecords(currentUser.getUserId()).stream()
           .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
-      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지합니다.
+      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지.
       if (unresolved) categoryId = null;
       List<HistoryView.CategoryRate> rates = new ArrayList<>();
       for (Category category : unresolved ? List.<Category>of() : learning.getCategories()) {

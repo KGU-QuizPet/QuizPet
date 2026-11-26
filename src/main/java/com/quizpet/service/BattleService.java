@@ -17,15 +17,26 @@ public final class BattleService {
     return createBattle(pet, BOSSES.get(bossIndex));
   }
 
+  public int calculateAttack(Pet pet) {
+    long attack = (long) pet.getStats().getStrength() + pet.getStats().getIntelligence()
+        + pet.getStats().getFocus() + pet.getStats().getWisdom();
+    if (attack <= 0 || attack > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("전투 능력치가 올바르지 않습니다.");
+    }
+    return (int) attack;
+  }
+
+  public int calculateMaxHp(Pet pet) {
+    long hp = 100L + (pet.getLevel() - 1L) * 20L;
+    if (hp <= 0 || hp > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("전투 능력치가 올바르지 않습니다.");
+    }
+    return (int) hp;
+  }
+
   // 테스트·확장 보스용 생성 경로.
   public BattleSession createBattle(Pet pet, Boss boss) {
     if (boss == null) throw new IllegalArgumentException("보스를 선택해 주세요.");
-    long attack = (long) pet.getStats().getStrength() + pet.getStats().getIntelligence()
-        + pet.getStats().getFocus() + pet.getStats().getWisdom();
-    long hp = 100L + (pet.getLevel() - 1L) * 20L;
-    if (attack <= 0 || attack > Integer.MAX_VALUE || hp > Integer.MAX_VALUE) {
-      throw new IllegalArgumentException("전투 능력치가 올바르지 않습니다.");
-    }
-    return new BattleSession(pet, boss, (int) attack, (int) hp);
+    return new BattleSession(pet, boss, calculateAttack(pet), calculateMaxHp(pet));
   }
 }
