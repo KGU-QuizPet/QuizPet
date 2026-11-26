@@ -34,10 +34,11 @@ import javax.swing.Timer;
 import main.java.com.quizpet.model.BattleSession;
 import main.java.com.quizpet.model.Boss;
 import main.java.com.quizpet.model.Pet;
+import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.service.BattleService;
 import main.java.com.quizpet.ui.UiStyle;
 
-// 보스 이미지·배경·고정 펫 이미지와 전투 연출을 제공하는 자동 전투 화면.
+// 보스 이미지·배경·펫 외형별 표정 이미지와 전투 연출을 제공하는 자동 전투 화면.
 public final class BossBattlePanel extends JPanel {
   private static final int NORMAL_TURN_DELAY_MS = 1000;
   private static final int FAST_TURN_DELAY_MS = 500;
@@ -67,6 +68,7 @@ public final class BossBattlePanel extends JPanel {
   private final Timer effectTimer = new Timer(EFFECT_TICK_MS, event -> tickEffects());
   private BattleSession battle;
   private Pet currentPet;
+  private PetMood currentPetMood = PetMood.IDLE;
   private int selectedBossIndex;
   private boolean fastMode;
   private Runnable onExit = () -> { };
@@ -195,8 +197,8 @@ public final class BossBattlePanel extends JPanel {
     arena.background = load(boss.backgroundPath());
     bossBadge.setText("등장 보스 · " + boss.name() + " " + difficultyStars(selectedBossIndex));
     bossImage.setIcon(icon(boss.imagePath(), 330, 285));
-    // 현재 PetAppearance 연동 전 임시로 duck_idle.png를 고정 사용.
-    petImage.setIcon(icon("images/pets/duck_idle.png", 215, 215));
+    // 현재 펫의 외형과 기본 표정(IDLE) 이미지를 적용.
+    setPetMood(PetMood.IDLE);
     bossName.setText(boss.name() + "  (ATK " + boss.attack() + ")");
     int petAttack = service.calculateAttack(currentPet);
     petName.setText(currentPet.getName() + "  (Lv." + currentPet.getLevel() + " · ATK " + petAttack + ")");
@@ -218,6 +220,7 @@ public final class BossBattlePanel extends JPanel {
     battle.start();
     arena.resetEffects();
     setBossImageState("idle");
+    setPetMood(PetMood.IDLE);
     appendLog("[시작] " + battle.getBoss().name() + "과 전투를 시작했습니다.");
     arena.triggerFlash(new Color(0xF59E0B));
     start.setEnabled(false);
@@ -234,9 +237,19 @@ public final class BossBattlePanel extends JPanel {
     boolean playerAttacked = battle.getState() == BattleSession.State.PLAYER_TURN;
     int damage = playerAttacked ? battle.getAttack() : battle.getBoss().attack();
     battle.advanceTurn();
-    if (battle.getState() == BattleSession.State.WON) setBossImageState("defeated");
-    else if (playerAttacked) setBossImageState("hurt");
-    else setBossImageState("attack");
+    if (battle.getState() == BattleSession.State.WON) {
+      setBossImageState("defeated");
+      setPetMood(PetMood.HAPPY);
+    } else if (battle.getState() == BattleSession.State.LOST) {
+      setBossImageState("attack");
+      setPetMood(PetMood.SAD);
+    } else if (playerAttacked) {
+      setBossImageState("hurt");
+      setPetMood(PetMood.FOCUS);
+    } else {
+      setBossImageState("attack");
+      setPetMood(PetMood.SAD);
+    }
 
     appendLog("[" + battle.getTurn() + "턴] " + battle.getMessage());
     arena.triggerAttackEffect(playerAttacked, damage);
@@ -284,6 +297,15 @@ public final class BossBattlePanel extends JPanel {
     String idle = battle.getBoss().imagePath();
     String statePath = idle.replace("_idle.png", "_" + state + ".png");
     bossImage.setIcon(icon(statePath, 330, 285));
+    arena.revalidate();
+    arena.repaint();
+  }
+
+  private void setPetMood(PetMood mood) {
+    if (currentPet == null) return;
+    currentPetMood = mood == null ? PetMood.IDLE : mood;
+    String path = UiStyle.appearanceOf(currentPet.getSpriteKey()).getImagePath(currentPetMood);
+    petImage.setIcon(icon(path, 215, 215));
     arena.revalidate();
     arena.repaint();
   }

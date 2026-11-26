@@ -13,6 +13,7 @@ import javax.swing.Timer;
 import main.java.com.quizpet.model.BattleSession;
 import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetAppearance;
+import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.service.BattleService;
 
 // 보스전 화면의 초기화·배속·재도전·자동 타이머 설정을 검증.
@@ -25,10 +26,13 @@ public final class BossBattlePanelTest {
         AtomicInteger pickCursor = new AtomicInteger();
         setField(panel, "bossIndexPicker", (IntSupplier) () -> picks[pickCursor.getAndIncrement() % picks.length]);
 
-        Pet pet = new Pet("P1", "U1", "화면펫", PetAppearance.DUCK);
+        Pet pet = new Pet("P1", "U1", "화면펫", PetAppearance.TURTLE);
         panel.showBattle(pet);
 
         assert (int) field(panel, "selectedBossIndex") == 0 : "첫 보스가 랜덤 선택되어야 합니다.";
+        assert field(panel, "currentPetMood") == PetMood.IDLE : "전투 준비 시 펫 표정은 IDLE이어야 합니다.";
+        JLabel petImage = (JLabel) field(panel, "petImage");
+        assert petImage.getIcon() != null : "선택한 펫 외형 이미지가 로드되어야 합니다.";
         JLabel bossBadge = (JLabel) field(panel, "bossBadge");
         assert bossBadge.getText().contains(BattleService.BOSSES.get(0).name()) : "보스 배지에 보스 이름이 표시되어야 합니다.";
 
@@ -69,18 +73,24 @@ public final class BossBattlePanelTest {
         speed.doClick();
         assert timer.getDelay() == 500;
 
-        // 전투 종료 후 한글 상태 표기 및 재도전 시 보스 재추첨·화면 갱신 검증.
+        // 전투 턴별 펫 표정 전환(공격 FOCUS, 피격 SAD, 승리 HAPPY) 및 재도전 시 보스 재추첨·화면 갱신 검증.
         Method nextTurn = BossBattlePanel.class.getDeclaredMethod("nextTurn");
         nextTurn.setAccessible(true);
+        nextTurn.invoke(panel);
+        assert field(panel, "currentPetMood") == PetMood.FOCUS : "펫 공격 턴에는 FOCUS 표정이어야 합니다.";
+        nextTurn.invoke(panel);
+        assert field(panel, "currentPetMood") == PetMood.SAD : "보스 공격 피격 시에는 SAD 표정이어야 합니다.";
         while (battle.isRunning())
           nextTurn.invoke(panel);
         assert !timer.isRunning();
+        assert field(panel, "currentPetMood") == PetMood.HAPPY : "전투 승리 시 HAPPY 표정이어야 합니다.";
         assert "재도전".equals(start.getText());
         assert start.isEnabled();
         JLabel turn = (JLabel) field(panel, "turn");
         assert !turn.getText().contains("WON") && !turn.getText().contains("LOST") : "턴 상태는 한글로 표시되어야 합니다.";
 
         start.doClick();
+        assert field(panel, "currentPetMood") == PetMood.IDLE : "재도전 시작 시 펫 표정은 IDLE로 초기화되어야 합니다.";
         assert (int) field(panel, "selectedBossIndex") == 2 : "재도전 시 보스를 다시 추첨해야 합니다.";
         BattleSession retryBattle = (BattleSession) field(panel, "battle");
         assert retryBattle.getBoss().equals(BattleService.BOSSES.get(2));
