@@ -47,13 +47,23 @@ public final class DesktopLayoutTest {
       grows(feedback);
       HomePanel home = new HomePanel(new ScreenManager());
       home.showPet("펫", "DUCK", 1, 0, 10, 10, 10, 10);
+      home.showSummary(68.4, 39);
       resize(home, 1366, 768);
-      for (javax.swing.JLabel label : find(home, javax.swing.JLabel.class)) {
-        if (label.getText().contains("(STR)") || label.getText().contains("(INT)")) {
+      PetStatusPanel sidebar = home.getStatusPanel();
+      assert sidebar.getWidth() == PetStatusPanel.SIDEBAR_WIDTH : "Home sidebar keeps 320px";
+      for (javax.swing.JLabel label : find(sidebar, javax.swing.JLabel.class)) {
+        if (!label.getText().isBlank()) {
           assert label.getHeight() >= label.getFontMetrics(label.getFont()).getHeight()
-              : "Home stat text is clipped";
+              : "Home sidebar text is clipped: " + label.getText();
         }
       }
+      for (String type : new String[] {"INT", "STR", "FOC", "WIS"}) {
+        assert sidebar.getStatBar(type).getWidth() > 40 : type + " bar is too narrow";
+      }
+      int stageHeight = sidebar.getStage().getHeight();
+      assert stageHeight >= sidebar.getStage().getMinimumSize().height : "Pet stage is squeezed";
+      resize(home, 1920, 1080);
+      assert sidebar.getStage().getHeight() > stageHeight : "Pet stage should grow with the window";
       StartPanel start = new StartPanel(new ScreenManager());
       resize(start, 1024, 768);
       int listWidth = find(start, JList.class).get(0).getWidth();

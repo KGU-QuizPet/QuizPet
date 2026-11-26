@@ -156,7 +156,10 @@ public final class AppController {
     displayHome(currentPet());
   }
 
-  private void displayHome(Pet pet) {
+  private void displayHome(Pet pet) throws IOException {
+    home.setGreeting(currentUser == null ? null : currentUser.getNickname());
+    StatisticsService.Statistics overall = statistics.getOverallStatistics(pet.getUserId());
+    home.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
     home.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
         pet.getStats().getStrength(), pet.getStats().getIntelligence(),
         pet.getStats().getFocus(), pet.getStats().getWisdom());
@@ -223,8 +226,9 @@ public final class AppController {
     return record;
   }
 
-  private void showFeedback(LearningRecord record) {
+  private void showFeedback(LearningRecord record) throws IOException {
     Question question = session.getCurrentQuestion();
+    feedback.setPet(currentPet().getSpriteKey());
     feedback.showSession(session);
     feedback.showFeedback(question, record.getSelectedAnswer(), record.isCorrect(),
         record.getEarnedXp() > 0 ? 1 : 0, record.getEarnedXp(),
