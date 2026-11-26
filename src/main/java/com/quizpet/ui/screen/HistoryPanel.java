@@ -10,6 +10,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -99,10 +100,14 @@ public class HistoryPanel extends JPanel {
             String selectedCategoryId,
             int submissions,
             double accuracyPercent,
-            List<WrongItem> items
+            List<WrongItem> items, boolean queryView, boolean filtered
     ) {
         public WrongNoteView {
             items = List.copyOf(items);
+        }
+
+        public WrongNoteView(String categoryId, int submissions, double accuracy, List<WrongItem> items) {
+            this(categoryId, submissions, accuracy, items, false, false);
         }
 
         public boolean isEmpty() {
@@ -110,7 +115,11 @@ public class HistoryPanel extends JPanel {
         }
 
         public record WrongItem(String questionId, String categoryName, String prompt,
-                                String lastAnswer, String correctAnswer, String explanation) {
+                                String lastAnswer, String correctAnswer, String explanation,
+                                int wrongCount, String status, LocalDateTime lastAnsweredAt, String details) {
+            public WrongItem(String id, String category, String prompt, String answer, String correct, String explanation) {
+                this(id, category, prompt, answer, correct, explanation, 0, "-", null, "");
+            }
             public static WrongItem of(Question question, String lastAnswer) {
                 return new WrongItem(question.getQuestionId(), question.getCategory().getName(),
                         question.getPrompt(), answerText(question, lastAnswer),
@@ -181,6 +190,12 @@ public class HistoryPanel extends JPanel {
     private final CardLayout wrongListPages = new CardLayout();
     private final JPanel wrongListArea = new JPanel(wrongListPages);
     private final JButton reviewButton = button("복습하기");
+    private final JCheckBox needsReviewOnly = new JCheckBox("복습 필요만 보기");
+    private final JLabel wrongEmptyLabel = centeredLabel("아직 틀린 문제가 없습니다.", BODY, TEXT_MUTED);
+    private final JLabel wrongErrorLabel = centeredLabel(" ", BODY, WRONG);
+    private boolean reviewEnabled = true;
+    private Runnable onWrongRefresh = () -> { };
+    private Runnable onWrongBack = this::showRecordPage;
 
     private List<WrongNoteView.WrongItem> wrongItems = List.of();
     private List<HistoryView.RecordRow> recordRows = List.of();
@@ -427,9 +442,23 @@ public class HistoryPanel extends JPanel {
         JPanel body = new JPanel(new BorderLayout(0, 12));
         body.setOpaque(false);
         body.setBorder(BorderFactory.createEmptyBorder(16, 20, 8, 20));
-        body.add(categoryRow(wrongCategoryBox, wrongAccuracyLabel), BorderLayout.NORTH);
+        JPanel filters = new JPanel(new BorderLayout());
+        filters.setOpaque(false);
+        filters.add(categoryRow(wrongCategoryBox, wrongAccuracyLabel), BorderLayout.CENTER);
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        actions.setOpaque(false);
+        needsReviewOnly.setOpaque(false);
+        needsReviewOnly.addActionListener(e -> { if (!updatingCombo) onWrongRefresh.run(); });
+        JButton refresh = button("다시 조회");
+        refresh.addActionListener(e -> onWrongRefresh.run());
+        actions.add(needsReviewOnly); actions.add(refresh);
+        filters.add(actions, BorderLayout.SOUTH);
+        body.add(filters, BorderLayout.NORTH);
 
         styleTable(wrongTable);
+        wrongTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        int[] widths = {40, 90, 300, 80, 120, 180, 150};
+        for (int i = 0; i < widths.length; i++) wrongTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         wrongTable.getColumnModel().getColumn(0).setMaxWidth(40);
         wrongTable.getColumnModel().getColumn(1).setPreferredWidth(90);
         wrongTable.getColumnModel().getColumn(2).setPreferredWidth(300);
@@ -444,11 +473,12 @@ public class HistoryPanel extends JPanel {
         scroll.setBorder(BorderFactory.createLineBorder(BORDER));
         wrongListArea.setOpaque(false);
         wrongListArea.add(scroll, CARD_TABLE);
-        wrongListArea.add(emptyMessage("틀린 문제가 없습니다. 모두 맞혔어요!"), CARD_EMPTY);
+        wrongListArea.add(wrongEmptyLabel, CARD_EMPTY);
+        wrongListArea.add(wrongErrorLabel, CARD_ERROR);
 
         JPanel listCard = card();
         listCard.setLayout(new BorderLayout(0, 8));
-        listCard.add(label("복습할 문제를 체크하세요", BODY_BOLD, TEXT), BorderLayout.NORTH);
+        listCard.add(label("문제를 선택하면 상세 이력을 볼 수 있어요", BODY_BOLD, TEXT), BorderLayout.NORTH);
         listCard.add(wrongListArea, BorderLayout.CENTER);
 
         wrongDetailArea.setFont(BODY);
@@ -466,11 +496,13 @@ public class HistoryPanel extends JPanel {
         center.add(listCard, BorderLayout.CENTER);
         center.add(detailCard, BorderLayout.SOUTH);
         body.add(center, BorderLayout.CENTER);
-        page.add(body, BorderLayout.CENTER);
+        JScrollPane content = new JScrollPane(body);
+        content.setBorder(BorderFactory.createEmptyBorder());
+        page.add(content, BorderLayout.CENTER);
 
         JButton backButton = button("이전");
         JButton mainButton = button("메인으로");
-        backButton.addActionListener(e -> showRecordPage());
+        backButton.addActionListener(e -> onWrongBack.run());
         mainButton.addActionListener(e -> onGoMain.run());
         reviewButton.addActionListener(e -> {
             List<String> ids = checkedQuestionIds();
@@ -492,7 +524,10 @@ public class HistoryPanel extends JPanel {
         Objects.requireNonNull(view, "WrongNoteView가 null입니다. 오답 목록을 먼저 받아오세요.");
 
         selectCategory(wrongCategoryBox, view.selectedCategoryId());
-        wrongAccuracyLabel.setText("정답률 " + percent(view.accuracyPercent(), view.submissions()));
+        wrongAccuracyLabel.setText(view.queryView()
+                ? "오답 문제 " + view.items().size() + "개 / 전체 " + view.submissions() + "개"
+                : "정답률 " + percent(view.accuracyPercent(), view.submissions()));
+        wrongEmptyLabel.setText(view.filtered() ? "해당 조건의 오답 기록이 없습니다." : "아직 틀린 문제가 없습니다.");
 
         wrongItems = view.items();
         wrongModel.setItems(wrongItems);
@@ -537,6 +572,11 @@ public class HistoryPanel extends JPanel {
             return;
         }
         WrongNoteView.WrongItem item = wrongItems.get(row);
+        if (!item.details().isEmpty()) {
+            wrongDetailArea.setText(item.details());
+            wrongDetailArea.setCaretPosition(0);
+            return;
+        }
         wrongDetailArea.setText("문제: " + orDash(item.prompt())
                 + "\n내 답: " + orDash(item.lastAnswer())
                 + "    정답: " + orDash(item.correctAnswer())
@@ -556,6 +596,12 @@ public class HistoryPanel extends JPanel {
 
     private void updateReviewButton() {
         int count = checkedQuestionIds().size();
+        if (!reviewEnabled) {
+            reviewButton.setEnabled(false);
+            reviewButton.setText("복습 기능 준비 중");
+            reviewButton.setToolTipText("선택 문제 복습 세션은 추후 지원합니다.");
+            return;
+        }
         reviewButton.setEnabled(count > 0);
         reviewButton.setText(count > 0 ? "복습하기 (" + count + ")" : "복습하기");
     }
@@ -570,9 +616,41 @@ public class HistoryPanel extends JPanel {
                 recordCategoryBox.addItem(option);
                 wrongCategoryBox.addItem(option);
             }
+            wrongCategoryBox.addItem(new CategoryOption("UNCLASSIFIED", "미분류"));
         } finally {
             updatingCombo = false;
         }
+    }
+
+    public void setWrongNeedsReviewOnly(boolean selected) {
+        updatingCombo = true;
+        try { needsReviewOnly.setSelected(selected); } finally { updatingCombo = false; }
+    }
+    public boolean isNeedsReviewOnly() { return needsReviewOnly.isSelected(); }
+    public String getWrongCategoryId() { return selectedId(wrongCategoryBox); }
+    public void setWrongCategoryId(String categoryId) { selectCategory(wrongCategoryBox, categoryId); }
+    public void setOnWrongNoteRefresh(Runnable action) { onWrongRefresh = Objects.requireNonNull(action); }
+    public void setOnWrongNoteBack(Runnable action) { onWrongBack = Objects.requireNonNull(action); }
+    public void setReviewEnabled(boolean enabled) { reviewEnabled = enabled; updateReviewButton(); }
+
+    public void clearWrongNote() {
+        updatingCombo = true;
+        try { needsReviewOnly.setSelected(false); wrongCategoryBox.setSelectedIndex(0); }
+        finally { updatingCombo = false; }
+        wrongItems = List.of(); wrongModel.setItems(wrongItems); showWrongDetail(-1);
+        wrongAccuracyLabel.setText(" "); wrongErrorLabel.setText(" ");
+        wrongEmptyLabel.setText("아직 틀린 문제가 없습니다.");
+        wrongListPages.show(wrongListArea, CARD_EMPTY); updateReviewButton();
+    }
+
+    public void showWrongNoteError(String message) {
+        wrongItems = List.of(); wrongModel.setItems(wrongItems); showWrongDetail(-1);
+        wrongAccuracyLabel.setText("조회 실패");
+        String safe = message == null ? "오답 기록을 불러오지 못했습니다." : message;
+        wrongErrorLabel.setText("<html>" + safe.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;") + "</html>");
+        wrongListPages.show(wrongListArea, CARD_ERROR); pages.show(this, CARD_WRONG_NOTE);
+        updateReviewButton(); revalidate(); repaint();
     }
 
     public void setWrongNoteEnabled(boolean enabled) {
@@ -748,13 +826,14 @@ public class HistoryPanel extends JPanel {
 
     private static final class WrongNoteTableModel extends DefaultTableModel {
         WrongNoteTableModel() {
-            super(new Object[]{"", "분야", "문제"}, 0);
+            super(new Object[]{"", "분야", "문제", "오답 횟수", "복습 상태", "최근 풀이", "문제 ID"}, 0);
         }
 
         void setItems(List<WrongNoteView.WrongItem> items) {
             setRowCount(0);
             for (WrongNoteView.WrongItem item : items) {
-                addRow(new Object[]{Boolean.FALSE, orDash(item.categoryName()), orDash(item.prompt())});
+                addRow(new Object[]{Boolean.FALSE, orDash(item.categoryName()), orDash(item.prompt()),
+                        item.wrongCount(), item.status(), item.lastAnsweredAt(), item.questionId()});
             }
         }
 
