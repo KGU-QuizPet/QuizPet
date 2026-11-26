@@ -2,6 +2,7 @@ package main.java.com.quizpet.ui.screen;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JList;
@@ -13,6 +14,8 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
+import main.java.com.quizpet.model.Profile;
+import main.java.com.quizpet.model.User;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.component.*;
 
@@ -65,6 +68,7 @@ public final class DesktopLayoutTest {
       resize(home, 1920, 1080);
       assert sidebar.getStage().getHeight() > stageHeight : "Pet stage should grow with the window";
       StartPanel start = new StartPanel(new ScreenManager());
+      start.showProfiles(List.of(new Profile(new User("U1", "사용자", LocalDateTime.now()), null)));
       resize(start, 1024, 768);
       int listWidth = find(start, JList.class).get(0).getWidth();
       resize(start, 1920, 1080);

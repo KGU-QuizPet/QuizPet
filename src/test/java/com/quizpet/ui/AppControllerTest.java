@@ -35,13 +35,13 @@ public class AppControllerTest {
   private static void creationBackRefresh() throws Exception {
     AppController app = new AppController(Files.createTempDirectory("quizpet-creation-back-"));
     User created = app.createUser("돌아가기");
-    clickVisible(app.getView(), "사용자 선택으로");
+    assert clickVisible(app.getView(), "이전");
     assert visible(app, StartPanel.class);
     javax.swing.JList<?> list = findVisible(app.getView(), javax.swing.JList.class);
     assert list.getModel().getSize() == 1 : "created user missing after returning to start";
     assert ((Profile) list.getModel().getElementAt(0)).getUser().getUserId().equals(created.getUserId());
     list.setSelectedIndex(0);
-    clickVisible(app.getView(), "시작");
+    list.getActionMap().get(StartPanel.ENTER_ACTION).actionPerformed(null);
     assert visible(app, PetCreatePanel.class);
   }
 
