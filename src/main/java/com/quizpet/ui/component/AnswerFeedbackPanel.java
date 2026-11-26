@@ -114,12 +114,219 @@ public class AnswerFeedbackPanel extends JPanel {
         nextButton.addActionListener(e -> onNext.run());
     }
 
+    /**
+     * 왼쪽 펫 열입니다. 펫 무대는 남는 높이를 모두 채우고, 아래에 성장 현황 카드를 둡니다.
+     * 열 폭은 화면 폭의 1/5을 260~360px 범위로 맞춰 큰 화면에서는 캐릭터도 커집니다.
+     */
     private JComponent buildPetColumn() {
-        JPanel column = new JPanel(new BorderLayout());
+        JPanel column = new JPanel(new BorderLayout(0, 12)) {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension size = super.getPreferredSize();
+                size.width = petColumnWidth(AnswerFeedbackPanel.this.getWidth());
+                return size;
+            }
+        };
         column.setOpaque(false);
-        petStage.setPreferredSize(new Dimension(260, 280));
-        column.add(petStage, BorderLayout.NORTH);
+        petStage.setPreferredSize(new Dimension(PET_COLUMN_MIN, 280));
+        column.add(petStage, BorderLayout.CENTER);
+        column.add(buildGrowthCard(), BorderLayout.SOUTH);
         return column;
+    }
+
+    static final int PET_COLUMN_MIN = 260;
+    static final int PET_COLUMN_MAX = 360;
+
+    static int petColumnWidth(int panelWidth) {
+        return Math.max(PET_COLUMN_MIN, Math.min(PET_COLUMN_MAX, panelWidth / 5));
+    }
+
+    private static final Font CARD_CAPTION = new Font(Font.DIALOG, Font.BOLD, 12);
+    private static final Font CARD_VALUE = new Font(Font.DIALOG, Font.BOLD, 13);
+
+    private final PetStatusPanel.RoundedBox growthCard = new PetStatusPanel.RoundedBox(SURFACE, BORDER);
+    private final Badge levelBadge = new Badge("Lv.1", UiStyle.INK_PANEL, Color.WHITE, CARD_VALUE, 48);
+    private final JLabel levelNote = label(" ", CARD_VALUE, HIGHLIGHT);
+    private final GaugeBar expBar = new GaugeBar(UiStyle.EXP, 12, true);
+    private final JLabel expLabel = label(" ", CARD_CAPTION, TEXT);
+    private final JLabel expGainLabel = label(" ", CARD_CAPTION, UiStyle.CORRECT);
+    private final java.util.Map<String, GaugeBar> statBars = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String, JLabel> statNames = new java.util.LinkedHashMap<>();
+    private final java.util.Map<String, JLabel> statValueLabels = new java.util.LinkedHashMap<>();
+    private String shownStatType = "INT";
+    private PetStatus petStatus;
+
+    /** 피드백을 보여 줄 때의 캐릭터 상태입니다(보상이 반영된 뒤의 값). */
+    private record PetStatus(int level, int xpInLevel, int xpPerLevel, java.util.Map<String, Integer> stats) { }
+
+    /** 펫 무대 아래의 성장 현황 카드입니다. 레벨·경험치와 이번 문제 분야의 능력치를 보여 줍니다. */
+    private JComponent buildGrowthCard() {
+        growthCard.setLayout(new GridBagLayout());
+        growthCard.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+
+        growthCard.add(label("성장 현황", CARD_CAPTION, TEXT_MUTED), c);
+
+        JPanel levelRow = new JPanel(new BorderLayout(8, 0));
+        levelRow.setOpaque(false);
+        levelRow.add(levelBadge, BorderLayout.WEST);
+        levelRow.add(levelNote, BorderLayout.CENTER);
+        c.gridy++;
+        c.insets = new Insets(10, 0, 8, 0);
+        growthCard.add(levelRow, c);
+
+        c.gridy++;
+        c.insets = new Insets(0, 0, 4, 0);
+        growthCard.add(expBar, c);
+
+        JPanel expRow = new JPanel(new BorderLayout());
+        expRow.setOpaque(false);
+        expRow.add(expLabel, BorderLayout.WEST);
+        expRow.add(expGainLabel, BorderLayout.EAST);
+        c.gridy++;
+        c.insets = new Insets(0, 0, 12, 0);
+        growthCard.add(expRow, c);
+
+        // 능력치 네 가지를 모두 보여 주고, 이번 문제로 오른 능력치만 증가량을 강조합니다.
+        for (String type : UiStyle.STAT_TYPES) {
+            c.gridy++;
+            c.insets = new Insets(0, 0, 6, 0);
+            growthCard.add(createStatRow(type), c);
+        }
+
+        growthCard.setVisible(false);
+        return growthCard;
+    }
+
+    private JPanel createStatRow(String type) {
+        Badge chip = new Badge(type, UiStyle.statColor(type), Color.WHITE, CARD_CAPTION, 44);
+        JLabel name = label(UiStyle.statLabel(type), CARD_CAPTION, TEXT_MUTED);
+        Dimension nameSize = new Dimension(30, name.getPreferredSize().height);
+        name.setPreferredSize(nameSize);
+        name.setMinimumSize(nameSize);
+        GaugeBar bar = new GaugeBar(UiStyle.statColor(type), 8, false);
+        bar.setPreferredSize(new Dimension(50, 8));
+        bar.getAccessibleContext().setAccessibleName(UiStyle.statLabel(type) + "(" + type + ")");
+        JLabel value = label(" ", CARD_VALUE, TEXT);
+        value.setHorizontalAlignment(SwingConstants.RIGHT);
+        // "(+1)"이 붙어도 막대 길이가 줄마다 같도록 값 칸 폭을 고정합니다.
+        Dimension valueSize = new Dimension(58, value.getPreferredSize().height);
+        value.setPreferredSize(valueSize);
+        value.setMinimumSize(valueSize);
+        statBars.put(type, bar);
+        statNames.put(type, name);
+        statValueLabels.put(type, value);
+
+        JPanel row = new JPanel(new GridBagLayout());
+        row.setOpaque(false);
+        GridBagConstraints s = new GridBagConstraints();
+        s.gridy = 0;
+        s.anchor = GridBagConstraints.WEST;
+        s.insets = new Insets(0, 0, 0, 8);
+        row.add(chip, s);
+        row.add(name, s);
+        s.weightx = 1;
+        s.fill = GridBagConstraints.HORIZONTAL;
+        row.add(bar, s);
+        s.weightx = 0;
+        s.fill = GridBagConstraints.NONE;
+        s.insets = new Insets(0, 0, 0, 0);
+        row.add(value, s);
+        return row;
+    }
+
+    /**
+     * 성장 현황 카드에 표시할 캐릭터 상태입니다. 보상이 반영된 뒤의 값을 넣고 showFeedback 전에 호출합니다.
+     * 호출하지 않으면 카드를 숨깁니다(펫 무대가 열 전체를 씁니다).
+     *
+     * @param stats 키: STR·INT·FOC·WIS
+     */
+    public void setPetStatus(int level, int xpInLevel, int xpPerLevel, java.util.Map<String, Integer> stats) {
+        if (stats == null) {
+            throw new IllegalArgumentException("능력치는 필수입니다.");
+        }
+        petStatus = new PetStatus(level, xpInLevel, Math.max(1, xpPerLevel), java.util.Map.copyOf(stats));
+    }
+
+    /** 보상이 저장된 경우 늘어난 만큼을 막대 증가분으로 강조하며 채웁니다. */
+    private void showGrowthCard(AnswerFeedbackView view) {
+        if (petStatus == null || !isStatType(view.statType())) {
+            growthCard.setVisible(false);
+            return;
+        }
+        boolean rewarded = view.correct() && view.rewardConfirmed();
+        int gainedXp = rewarded ? Math.max(0, view.gainedXp()) : 0;
+        int xp = Math.max(0, Math.min(petStatus.xpInLevel(), petStatus.xpPerLevel()));
+        boolean leveledUp = gainedXp > xp;
+        levelBadge.setText("Lv." + petStatus.level());
+        levelNote.setText(leveledUp ? "레벨 업!" : " ");
+        expBar.setValue(xp, petStatus.xpPerLevel(), gainedXp > 0 ? (leveledUp ? 0 : xp - gainedXp) : -1,
+                gainedXp > 0);
+        expLabel.setText("EXP " + xp + " / " + petStatus.xpPerLevel());
+        expGainLabel.setText(gainedXp > 0 ? "+" + gainedXp : " ");
+
+        shownStatType = view.statType();
+        int gain = rewarded ? Math.max(0, view.statGain()) : 0;
+        java.util.Map<String, Integer> stats = petStatus.stats();
+        int highest = 0;
+        for (String type : UiStyle.STAT_TYPES) {
+            highest = Math.max(highest, stats.getOrDefault(type, 0));
+        }
+        // 막대 최대값은 홈 사이드바와 같은 규칙이라 네 능력치를 같은 기준으로 비교할 수 있습니다.
+        int scale = PetStatusPanel.statScale(highest);
+        List<String> weakest = StatComparisonPanel.weakestStats(stats);
+        for (String type : UiStyle.STAT_TYPES) {
+            int value = stats.getOrDefault(type, 0);
+            int typeGain = type.equals(shownStatType) ? gain : 0;
+            statBars.get(type).setValue(value, scale, typeGain > 0 ? value - typeGain : -1, typeGain > 0);
+            JLabel valueLabel = statValueLabels.get(type);
+            valueLabel.setText(typeGain > 0 ? value + " (+" + typeGain + ")" : String.valueOf(value));
+            valueLabel.setForeground(typeGain > 0 ? UiStyle.CORRECT : TEXT);
+            JLabel name = statNames.get(type);
+            boolean weak = weakest.contains(type);
+            name.setForeground(weak ? WRONG : TEXT_MUTED);
+            name.setToolTipText(weak ? "가장 낮은 능력치예요. "
+                    + String.join("·", StatComparisonPanel.categoryNames(type)) + " 퀴즈를 맞히면 올라요." : null);
+        }
+        growthCard.setVisible(true);
+    }
+
+    public boolean isGrowthCardVisible() {
+        return growthCard.isVisible();
+    }
+
+    public GaugeBar getGrowthExpBar() {
+        return expBar;
+    }
+
+    /** 이번 문제 분야의 능력치 막대입니다. */
+    public GaugeBar getGrowthStatBar() {
+        return statBars.get(shownStatType);
+    }
+
+    public GaugeBar getGrowthStatBar(String statType) {
+        return statBars.get(statType);
+    }
+
+    /** 이번 문제 분야의 능력치 값 문구입니다(예: "15 (+1)"). */
+    public String getGrowthStatText() {
+        return getGrowthStatText(shownStatType);
+    }
+
+    public String getGrowthStatText(String statType) {
+        return statValueLabels.get(statType).getText();
+    }
+
+    public boolean isGrowthStatMarkedWeak(String statType) {
+        return statNames.get(statType).getToolTipText() != null;
+    }
+
+    public String getGrowthLevelNote() {
+        return levelNote.getText().strip();
     }
 
     /** 피드백에 반응할 캐릭터 외형입니다. AppController가 현재 캐릭터의 spriteKey를 넣습니다. */
@@ -138,13 +345,36 @@ public class AnswerFeedbackPanel extends JPanel {
 
     /**
      * 채점 결과에 맞는 펫 말풍선입니다. 오답이면 학습 카드를 다시 보도록 권합니다.
-     * 오답(카드 있음)·처음 정답 문구는 디자인 시안 UI-06D·06C 문구이고, 나머지는 시안에 없는 경우의 문구입니다.
+     * 시안(UI-06C·06D)의 반말 문구 대신 학습 앱에 맞게 차분한 해요체로 안내합니다.
      */
     static String petMessage(AnswerFeedbackView view) {
         if (!view.correct()) {
-            return view.hasLearningCard() ? "으앙… 카드를 한 번 더 볼까?" : "아쉽다. 다음엔 맞혀 보자.";
+            return view.hasLearningCard() ? "아쉬워요. 학습 카드를 다시 볼까요?" : "아쉬워요. 해설을 확인해 보세요.";
         }
-        return view.gainedXp() > 0 ? "정답이야! 머리가 똑똑해진 느낌!" : "정답! 이미 맞힌 문제야.";
+        return view.gainedXp() > 0 ? "정답이에요! 능력치가 올랐어요." : "정답이에요. 이미 맞힌 문제예요.";
+    }
+
+    /**
+     * 정답 반응 때 캐릭터 위로 떠오를 획득 문구입니다. 보상이 저장된 경우에만 보여 주고,
+     * 이미 맞힌 문제나 저장 전(예정) 보상이면 문구 없이 기뻐하기만 합니다.
+     */
+    static List<PetStage.Effect> petEffects(AnswerFeedbackView view) {
+        if (!view.correct() || !view.rewardConfirmed()) {
+            return List.of();
+        }
+        List<PetStage.Effect> effects = new java.util.ArrayList<>();
+        if (view.gainedXp() > 0) {
+            effects.add(new PetStage.Effect("+" + view.gainedXp() + " EXP", UiStyle.EXP_DARK));
+        }
+        if (view.statGain() > 0 && isStatType(view.statType())) {
+            effects.add(new PetStage.Effect("+" + view.statGain() + " " + view.statType(),
+                    UiStyle.statColor(view.statType())));
+        }
+        return List.copyOf(effects);
+    }
+
+    private static boolean isStatType(String statType) {
+        return List.of(UiStyle.STAT_TYPES).contains(statType);
     }
 
     private JComponent buildBody() {
@@ -282,6 +512,12 @@ public class AnswerFeedbackPanel extends JPanel {
         xpRewardLabel.setForeground(rewarded ? HIGHLIGHT : TEXT_MUTED);
         rewardNoteLabel.setText(rewardNote(view));
         petStage.showPet(petSpriteKey, petMood(view), petMessage(view));
+        if (view.correct()) {
+            petStage.celebrate(petEffects(view));
+        } else {
+            petStage.shake();
+        }
+        showGrowthCard(view);
 
         viewCardButton.setEnabled(view.hasLearningCard());
         viewCardButton.setToolTipText(view.hasLearningCard() ? null : "연결된 학습 카드가 없습니다.");
