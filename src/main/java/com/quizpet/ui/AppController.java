@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.LearningContent;
 import main.java.com.quizpet.model.LearningRecord;
 import main.java.com.quizpet.model.Pet;
+import main.java.com.quizpet.model.PetStats;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.model.User;
@@ -31,6 +33,7 @@ public final class AppController {
   private final RecordService records;
   private final StatisticsService statistics;
   private final RecordQuestionLookup recordQuestions;
+  private final WrongAnswerService wrongAnswers;
   private final SubmissionService submissions;
   private final StartPanel start = new StartPanel(screens);
   private final PetCreatePanel petCreate = new PetCreatePanel(screens);
@@ -47,6 +50,10 @@ public final class AppController {
   private Category currentCategory;
   private QuizSession session;
   private int levelBefore;
+  /** 퀴즈 시작 시점의 능력치입니다. 결과 화면 비교와 홈 성장 강조에 씁니다. */
+  private Map<String, Integer> statsBefore;
+  /** 결과 화면을 본 뒤 홈에서 한 번 보여 줄 성장 정보입니다(없으면 null). */
+  private Growth pendingGrowth;
   private boolean feedbackCard;
   private String pendingAnswer;
 
@@ -67,6 +74,7 @@ public final class AppController {
     records = new RecordService(new RecordRepository(saveDirectory.resolve("record.txt")));
     recordQuestions = new RecordQuestionLookup(questions, contentDirectory.resolve("question-legacy.txt"));
     statistics = new StatisticsService(records, id -> recordQuestions.findById(id).map(Question::getCategory));
+    wrongAnswers = new WrongAnswerService(records, recordQuestions);
     submissions = new SubmissionService(saveDirectory);
     registerScreens();
     connectActions();
@@ -111,12 +119,19 @@ public final class AppController {
     result.setOnGoHistory(() -> run(() -> showHistory(null)));
     history.setOnGoMain(() -> run(this::showHome));
     history.setOnCategoryChanged(id -> run(() -> showHistory(id)));
-    history.setWrongNoteEnabled(false);
+    history.setWrongNoteEnabled(true);
+    history.setReviewEnabled(false);
+    history.setOnOpenWrongNote(id -> run(() -> showWrongNote(id, false)));
+    history.setOnWrongNoteCategoryChanged(id -> run(() -> showWrongNote(id, history.isNeedsReviewOnly())));
+    history.setOnWrongNoteRefresh(
+        () -> run(() -> showWrongNote(history.getWrongCategoryId(), history.isNeedsReviewOnly())));
+    history.setOnWrongNoteBack(() -> run(() -> showHistory(null)));
   }
 
   public void showStart() throws IOException {
     ready();
     start.showProfiles(profiles.getProfiles());
+    history.clearWrongNote();
     currentUser = null;
     currentCategory = null;
     session = null;
@@ -135,6 +150,7 @@ public final class AppController {
     ready();
     User selected = users.getUser(userId);
     Pet pet = pets.findPetByUserId(userId).orElse(null);
+    history.clearWrongNote();
     currentUser = selected;
     currentCategory = null;
     session = null;
@@ -168,11 +184,26 @@ public final class AppController {
     screens.show(ScreenManager.BOSS_BATTLE);
   }
 
-  private void displayHome(Pet pet) {
+  private void displayHome(Pet pet) throws IOException {
+    home.setGreeting(currentUser == null ? null : currentUser.getNickname());
+    StatisticsService.Statistics overall = statistics.getOverallStatistics(pet.getUserId());
+    home.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
     home.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
         pet.getStats().getStrength(), pet.getStats().getIntelligence(),
         pet.getStats().getFocus(), pet.getStats().getWisdom());
+    if (pendingGrowth != null && pendingGrowth.userId().equals(pet.getUserId())) {
+      home.showGrowth(pendingGrowth.statsBefore(), pendingGrowth.gainedXp(), pendingGrowth.leveledUp());
+    }
+    pendingGrowth = null;
     screens.show(ScreenManager.HOME);
+  }
+
+  private static Map<String, Integer> statMap(PetStats stats) {
+    return Map.of("STR", stats.getStrength(), "INT", stats.getIntelligence(),
+        "FOC", stats.getFocus(), "WIS", stats.getWisdom());
+  }
+
+  private record Growth(String userId, Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) {
   }
 
   public void showCategories() throws IOException {
@@ -210,6 +241,8 @@ public final class AppController {
     Pet pet = currentPet();
     QuizSession created = quizzes.startSession(currentUser.getUserId(), currentCategory.getCategoryId());
     levelBefore = pet.getLevel();
+    statsBefore = statMap(pet.getStats());
+    pendingGrowth = null;
     session = created;
     quiz.showSession(session);
     screens.show(ScreenManager.QUIZ);
@@ -235,8 +268,11 @@ public final class AppController {
     return record;
   }
 
-  private void showFeedback(LearningRecord record) {
+  private void showFeedback(LearningRecord record) throws IOException {
     Question question = session.getCurrentQuestion();
+    Pet pet = currentPet();
+    feedback.setPet(pet.getSpriteKey());
+    feedback.setPetStatus(pet.getLevel(), pet.getXpInLevel(), Pet.XP_PER_LEVEL, statMap(pet.getStats()));
     feedback.showSession(session);
     feedback.showFeedback(question, record.getSelectedAnswer(), record.isCorrect(),
         record.getEarnedXp() > 0 ? 1 : 0, record.getEarnedXp(),
@@ -258,9 +294,11 @@ public final class AppController {
     String contentId = session.getCurrentQuestion().getContentId();
     int index = -1;
     for (int i = 0; i < selectedCards.size(); i++) {
-      if (selectedCards.get(i).getContentId().equals(contentId)) index = i;
+      if (selectedCards.get(i).getContentId().equals(contentId))
+        index = i;
     }
-    if (index < 0) throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
+    if (index < 0)
+      throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
     feedbackCard = true;
     cards.setQuizEnabled(false);
     cards.showContents(session.getCategory(), selectedCards, index);
@@ -302,6 +340,16 @@ public final class AppController {
     int statGain = (int) saved.stream().filter(record -> record.getEarnedXp() > 0).count();
     result.showResult(session.getCategory(), session.getResult(), gainedXp, statGain,
         levelBefore, pet.getLevel(), pet.getXpInLevel());
+    Map<String, Integer> statsAfter = statMap(pet.getStats());
+    if (statsBefore != null) {
+      result.showStatComparison(statsBefore, statsAfter);
+      pendingGrowth = gainedXp > 0
+          ? new Growth(pet.getUserId(), statsBefore, gainedXp, pet.getLevel() > levelBefore)
+          : null;
+    } else {
+      result.hideStatComparison();
+      pendingGrowth = null;
+    }
     screens.show(ScreenManager.QUIZ_RESULT);
   }
 
@@ -315,7 +363,8 @@ public final class AppController {
       boolean unresolved = records.getRecords(currentUser.getUserId()).stream()
           .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
       // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지.
-      if (unresolved) categoryId = null;
+      if (unresolved)
+        categoryId = null;
       List<HistoryView.CategoryRate> rates = new ArrayList<>();
       for (Category category : unresolved ? List.<Category>of() : learning.getCategories()) {
         rates.add(HistoryView.CategoryRate.of(category,
@@ -330,7 +379,8 @@ public final class AppController {
                   "문제 정보 없음: " + record.getQuestionId(), record.getSelectedAnswer(),
                   record.isCorrect(), record.getEarnedXp())
               : HistoryView.RecordRow.of(question, record));
-          if (rows.size() == 20) break;
+          if (rows.size() == 20)
+            break;
         }
       }
       var selected = categoryId == null ? statistics.getOverallStatistics(currentUser.getUserId())
@@ -338,6 +388,31 @@ public final class AppController {
       history.showHistory(HistoryView.of(selected, rates, rows));
     } catch (IOException | RuntimeException e) {
       history.showHistoryError("기록을 불러오지 못했습니다: " + e.getMessage());
+      throw e;
+    }
+  }
+
+  public void showWrongNote(String categoryId, boolean needsReviewOnly) throws IOException {
+    requireUser();
+    history.setWrongCategoryId(categoryId);
+    history.setWrongNeedsReviewOnly(needsReviewOnly);
+    history.showWrongNoteError("오답 기록을 불러오는 중입니다.");
+    screens.show(ScreenManager.HISTORY);
+    try {
+      ready();
+      Category selectedCategory = categoryId == null || categoryId.equals("UNCLASSIFIED")
+          ? null
+          : Category.valueOf(categoryId);
+      var all = wrongAnswers.getWrongAnswers(currentUser.getUserId());
+      var selected = all.stream()
+          .filter(item -> categoryId == null || (categoryId.equals("UNCLASSIFIED") ? item.category().isEmpty()
+              : item.category().filter(selectedCategory::equals).isPresent()))
+          .filter(item -> !needsReviewOnly || item.reviewStatus() != WrongAnswerService.ReviewStatus.COMPLETED)
+          .toList();
+      history.showWrongNote(WrongNotePresenter.toView(categoryId, all.size(), selected,
+          categoryId != null || needsReviewOnly));
+    } catch (IOException | RuntimeException e) {
+      history.showWrongNoteError("오답 기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }
   }
@@ -361,12 +436,14 @@ public final class AppController {
   }
 
   private void requireUser() {
-    if (currentUser == null) throw new IllegalStateException("사용자를 먼저 선택해 주세요.");
+    if (currentUser == null)
+      throw new IllegalStateException("사용자를 먼저 선택해 주세요.");
   }
 
   private void requireSession() {
     requireUser();
-    if (session == null) throw new IllegalStateException("퀴즈를 먼저 시작해 주세요.");
+    if (session == null)
+      throw new IllegalStateException("퀴즈를 먼저 시작해 주세요.");
   }
 
   private void run(Action action) {
@@ -378,5 +455,7 @@ public final class AppController {
   }
 
   @FunctionalInterface
-  private interface Action { void run() throws IOException; }
+  private interface Action {
+    void run() throws IOException;
+  }
 }

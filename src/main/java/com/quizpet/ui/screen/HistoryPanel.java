@@ -10,11 +10,13 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
+import javax.swing.JSplitPane;
+import main.java.com.quizpet.ui.component.CategoryAccuracyChart;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
@@ -37,6 +39,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -51,11 +55,20 @@ public class HistoryPanel extends JPanel {
             double accuracyPercent,
             long totalXp,
             List<CategoryRate> categoryRates,
-            List<RecordRow> recentRecords
+            List<RecordRow> recentRecords,
+            Set<Category> unavailableCategories
     ) {
         public HistoryView {
             categoryRates = List.copyOf(categoryRates);
             recentRecords = List.copyOf(recentRecords);
+            unavailableCategories = Set.copyOf(unavailableCategories);
+        }
+
+        /** 기존 Controller 계약: 기록은 있지만 분야 목록이 비면 전체 집계 불가입니다. */
+        public HistoryView(String selectedCategoryId, int totalSubmissions, double accuracyPercent,
+                           long totalXp, List<CategoryRate> categoryRates, List<RecordRow> recentRecords) {
+            this(selectedCategoryId, totalSubmissions, accuracyPercent, totalXp, categoryRates, recentRecords,
+                    totalSubmissions > 0 && categoryRates.isEmpty() ? EnumSet.allOf(Category.class) : Set.of());
         }
 
         public boolean isEmpty() {
@@ -99,10 +112,14 @@ public class HistoryPanel extends JPanel {
             String selectedCategoryId,
             int submissions,
             double accuracyPercent,
-            List<WrongItem> items
+            List<WrongItem> items, boolean queryView, boolean filtered
     ) {
         public WrongNoteView {
             items = List.copyOf(items);
+        }
+
+        public WrongNoteView(String categoryId, int submissions, double accuracy, List<WrongItem> items) {
+            this(categoryId, submissions, accuracy, items, false, false);
         }
 
         public boolean isEmpty() {
@@ -110,7 +127,11 @@ public class HistoryPanel extends JPanel {
         }
 
         public record WrongItem(String questionId, String categoryName, String prompt,
-                                String lastAnswer, String correctAnswer, String explanation) {
+                                String lastAnswer, String correctAnswer, String explanation,
+                                int wrongCount, String status, LocalDateTime lastAnsweredAt, String details) {
+            public WrongItem(String id, String category, String prompt, String answer, String correct, String explanation) {
+                this(id, category, prompt, answer, correct, explanation, 0, "-", null, "");
+            }
             public static WrongItem of(Question question, String lastAnswer) {
                 return new WrongItem(question.getQuestionId(), question.getCategory().getName(),
                         question.getPrompt(), answerText(question, lastAnswer),
@@ -166,9 +187,16 @@ public class HistoryPanel extends JPanel {
     private final JLabel totalCountValue = centeredLabel("0", TITLE, TEXT);
     private final JLabel accuracyValue = centeredLabel("0%", TITLE, TEXT);
     private final JLabel totalXpValue = centeredLabel("0", TITLE, TEXT);
-    private final JPanel categoryRatesPanel = new JPanel(new GridBagLayout());
+    private final CategoryAccuracyChart categoryAccuracyChart = new CategoryAccuracyChart();
     private final DefaultTableModel recordModel = readOnlyModel("일시", "분야", "문제", "내 답", "결과", "EXP");
-    private final JTable recordTable = new JTable(recordModel);
+    private final JTable recordTable = new JTable(recordModel) {
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            // 넓은 영역에서는 기존처럼 늘리고, 최소 열 너비 합계보다 좁으면 가로 스크롤합니다.
+            return getParent() instanceof javax.swing.JViewport viewport
+                    && viewport.getWidth() >= getMinimumSize().width;
+        }
+    };
     private final CardLayout recordListPages = new CardLayout();
     private final JPanel recordListArea = new JPanel(recordListPages);
     private final JLabel recordErrorLabel = centeredLabel(" ", BODY, WRONG);
@@ -181,6 +209,12 @@ public class HistoryPanel extends JPanel {
     private final CardLayout wrongListPages = new CardLayout();
     private final JPanel wrongListArea = new JPanel(wrongListPages);
     private final JButton reviewButton = button("복습하기");
+    private final JCheckBox needsReviewOnly = new JCheckBox("복습 필요만 보기");
+    private final JLabel wrongEmptyLabel = centeredLabel("아직 틀린 문제가 없습니다.", BODY, TEXT_MUTED);
+    private final JLabel wrongErrorLabel = centeredLabel(" ", BODY, WRONG);
+    private boolean reviewEnabled = true;
+    private Runnable onWrongRefresh = () -> { };
+    private Runnable onWrongBack = this::showRecordPage;
 
     private List<WrongNoteView.WrongItem> wrongItems = List.of();
     private List<HistoryView.RecordRow> recordRows = List.of();
@@ -224,10 +258,7 @@ public class HistoryPanel extends JPanel {
 
         JPanel ratesCard = card();
         ratesCard.setLayout(new BorderLayout(0, 8));
-        ratesCard.add(label("분야별 정답률", BODY_BOLD, TEXT), BorderLayout.NORTH);
-        categoryRatesPanel.setOpaque(false);
-        ratesCard.add(categoryRatesPanel, BorderLayout.CENTER);
-        top.add(leftAligned(ratesCard));
+        ratesCard.add(categoryAccuracyChart, BorderLayout.CENTER);
         body.add(top, BorderLayout.NORTH);
 
         JPanel recentCard = card();
@@ -260,9 +291,18 @@ public class HistoryPanel extends JPanel {
         recordErrorLabel.setBorder(BorderFactory.createEmptyBorder(24, 0, 24, 0));
         recordListArea.add(recordErrorLabel, CARD_ERROR);
         recentCard.add(recordListArea, BorderLayout.CENTER);
-        body.add(recentCard, BorderLayout.CENTER);
-
-        page.add(body, BorderLayout.CENTER);
+        ratesCard.setMinimumSize(new Dimension(250, 300));
+        recentCard.setMinimumSize(new Dimension(350, 300));
+        JSplitPane columns = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, ratesCard, recentCard);
+        columns.setResizeWeight(0.4);
+        columns.setContinuousLayout(true);
+        columns.setBorder(BorderFactory.createEmptyBorder());
+        columns.setPreferredSize(new Dimension(900, 400));
+        body.add(columns, BorderLayout.CENTER);
+        JScrollPane contentScroll = new JScrollPane(body);
+        contentScroll.setBorder(BorderFactory.createEmptyBorder());
+        contentScroll.getVerticalScrollBar().setUnitIncrement(16);
+        page.add(contentScroll, BorderLayout.CENTER);
 
         JButton mainButton = button("메인으로");
         mainButton.addActionListener(e -> onGoMain.run());
@@ -334,13 +374,13 @@ public class HistoryPanel extends JPanel {
     public void showHistory(HistoryView view) {
         Objects.requireNonNull(view, "HistoryView가 null입니다. 학습 통계를 먼저 받아오세요.");
 
+        rebuildCategoryRates(view);
         selectCategory(recordCategoryBox, view.selectedCategoryId());
 
         totalCountValue.setText(String.valueOf(view.totalSubmissions()));
         accuracyValue.setText(percent(view.accuracyPercent(), view.totalSubmissions()));
         totalXpValue.setText(String.valueOf(view.totalXp()));
 
-        rebuildCategoryRates(view.categoryRates());
 
         recordRows = view.recentRecords();
         recordModel.setRowCount(0);
@@ -367,8 +407,8 @@ public class HistoryPanel extends JPanel {
         totalCountValue.setText("-");
         accuracyValue.setText("-");
         totalXpValue.setText("-");
-        categoryRatesPanel.removeAll();
-        categoryRatesPanel.add(label("분야별 정답률을 불러오지 못했습니다.", SMALL, TEXT_MUTED));
+        categoryAccuracyChart.showError(message == null || message.isBlank()
+                ? "분야별 정답률을 불러오지 못했습니다." : message);
         recordRows = List.of();
         recordModel.setRowCount(0);
         showRecordDetail(-1);
@@ -384,39 +424,11 @@ public class HistoryPanel extends JPanel {
         repaint();
     }
 
-    private void rebuildCategoryRates(List<HistoryView.CategoryRate> rates) {
-        categoryRatesPanel.removeAll();
-        if (rates.isEmpty()) {
-            categoryRatesPanel.add(label("문제 정보를 확인할 수 없어 분야별 통계를 제공하지 않습니다.", SMALL, TEXT_MUTED));
-            return;
-        }
-        int row = 0;
-        for (HistoryView.CategoryRate rate : rates) {
-            GridBagConstraints name = new GridBagConstraints();
-            name.gridx = 0;
-            name.gridy = row;
-            name.anchor = GridBagConstraints.WEST;
-            name.insets = new Insets(3, 0, 3, 12);
-            categoryRatesPanel.add(label(orDash(rate.categoryName()), BODY, TEXT), name);
-
-            JProgressBar bar = new JProgressBar(0, 1000);
-            bar.setValue((int) Math.round(Math.max(0, Math.min(100, rate.accuracyPercent())) * 10));
-            bar.setStringPainted(true);
-            bar.setString(percent(rate.accuracyPercent(), rate.submissions())
-                    + "  (" + rate.submissions() + "회)");
-            bar.setFont(SMALL);
-            bar.setForeground(PRIMARY);
-            bar.setPreferredSize(new Dimension(180, 18));
-
-            GridBagConstraints barGc = new GridBagConstraints();
-            barGc.gridx = 1;
-            barGc.gridy = row;
-            barGc.weightx = 1;
-            barGc.fill = GridBagConstraints.HORIZONTAL;
-            barGc.insets = new Insets(3, 0, 3, 0);
-            categoryRatesPanel.add(bar, barGc);
-            row++;
-        }
+    private void rebuildCategoryRates(HistoryView view) {
+        List<CategoryAccuracyChart.CategoryData> data = view.categoryRates().stream()
+                .map(rate -> new CategoryAccuracyChart.CategoryData(Category.valueOf(rate.categoryId()),
+                        rate.submissions(), rate.accuracyPercent())).toList();
+        categoryAccuracyChart.setData(data, view.unavailableCategories());
     }
 
     private JComponent buildWrongNotePage() {
@@ -427,9 +439,23 @@ public class HistoryPanel extends JPanel {
         JPanel body = new JPanel(new BorderLayout(0, 12));
         body.setOpaque(false);
         body.setBorder(BorderFactory.createEmptyBorder(16, 20, 8, 20));
-        body.add(categoryRow(wrongCategoryBox, wrongAccuracyLabel), BorderLayout.NORTH);
+        JPanel filters = new JPanel(new BorderLayout());
+        filters.setOpaque(false);
+        filters.add(categoryRow(wrongCategoryBox, wrongAccuracyLabel), BorderLayout.CENTER);
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        actions.setOpaque(false);
+        needsReviewOnly.setOpaque(false);
+        needsReviewOnly.addActionListener(e -> { if (!updatingCombo) onWrongRefresh.run(); });
+        JButton refresh = button("다시 조회");
+        refresh.addActionListener(e -> onWrongRefresh.run());
+        actions.add(needsReviewOnly); actions.add(refresh);
+        filters.add(actions, BorderLayout.SOUTH);
+        body.add(filters, BorderLayout.NORTH);
 
         styleTable(wrongTable);
+        wrongTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        int[] widths = {40, 90, 300, 80, 120, 180, 150};
+        for (int i = 0; i < widths.length; i++) wrongTable.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         wrongTable.getColumnModel().getColumn(0).setMaxWidth(40);
         wrongTable.getColumnModel().getColumn(1).setPreferredWidth(90);
         wrongTable.getColumnModel().getColumn(2).setPreferredWidth(300);
@@ -444,11 +470,12 @@ public class HistoryPanel extends JPanel {
         scroll.setBorder(BorderFactory.createLineBorder(BORDER));
         wrongListArea.setOpaque(false);
         wrongListArea.add(scroll, CARD_TABLE);
-        wrongListArea.add(emptyMessage("틀린 문제가 없습니다. 모두 맞혔어요!"), CARD_EMPTY);
+        wrongListArea.add(wrongEmptyLabel, CARD_EMPTY);
+        wrongListArea.add(wrongErrorLabel, CARD_ERROR);
 
         JPanel listCard = card();
         listCard.setLayout(new BorderLayout(0, 8));
-        listCard.add(label("복습할 문제를 체크하세요", BODY_BOLD, TEXT), BorderLayout.NORTH);
+        listCard.add(label("문제를 선택하면 상세 이력을 볼 수 있어요", BODY_BOLD, TEXT), BorderLayout.NORTH);
         listCard.add(wrongListArea, BorderLayout.CENTER);
 
         wrongDetailArea.setFont(BODY);
@@ -466,11 +493,13 @@ public class HistoryPanel extends JPanel {
         center.add(listCard, BorderLayout.CENTER);
         center.add(detailCard, BorderLayout.SOUTH);
         body.add(center, BorderLayout.CENTER);
-        page.add(body, BorderLayout.CENTER);
+        JScrollPane content = new JScrollPane(body);
+        content.setBorder(BorderFactory.createEmptyBorder());
+        page.add(content, BorderLayout.CENTER);
 
         JButton backButton = button("이전");
         JButton mainButton = button("메인으로");
-        backButton.addActionListener(e -> showRecordPage());
+        backButton.addActionListener(e -> onWrongBack.run());
         mainButton.addActionListener(e -> onGoMain.run());
         reviewButton.addActionListener(e -> {
             List<String> ids = checkedQuestionIds();
@@ -492,7 +521,10 @@ public class HistoryPanel extends JPanel {
         Objects.requireNonNull(view, "WrongNoteView가 null입니다. 오답 목록을 먼저 받아오세요.");
 
         selectCategory(wrongCategoryBox, view.selectedCategoryId());
-        wrongAccuracyLabel.setText("정답률 " + percent(view.accuracyPercent(), view.submissions()));
+        wrongAccuracyLabel.setText(view.queryView()
+                ? "오답 문제 " + view.items().size() + "개 / 전체 " + view.submissions() + "개"
+                : "정답률 " + percent(view.accuracyPercent(), view.submissions()));
+        wrongEmptyLabel.setText(view.filtered() ? "해당 조건의 오답 기록이 없습니다." : "아직 틀린 문제가 없습니다.");
 
         wrongItems = view.items();
         wrongModel.setItems(wrongItems);
@@ -537,6 +569,11 @@ public class HistoryPanel extends JPanel {
             return;
         }
         WrongNoteView.WrongItem item = wrongItems.get(row);
+        if (!item.details().isEmpty()) {
+            wrongDetailArea.setText(item.details());
+            wrongDetailArea.setCaretPosition(0);
+            return;
+        }
         wrongDetailArea.setText("문제: " + orDash(item.prompt())
                 + "\n내 답: " + orDash(item.lastAnswer())
                 + "    정답: " + orDash(item.correctAnswer())
@@ -556,6 +593,12 @@ public class HistoryPanel extends JPanel {
 
     private void updateReviewButton() {
         int count = checkedQuestionIds().size();
+        if (!reviewEnabled) {
+            reviewButton.setEnabled(false);
+            reviewButton.setText("복습 기능 준비 중");
+            reviewButton.setToolTipText("선택 문제 복습 세션은 추후 지원합니다.");
+            return;
+        }
         reviewButton.setEnabled(count > 0);
         reviewButton.setText(count > 0 ? "복습하기 (" + count + ")" : "복습하기");
     }
@@ -570,9 +613,41 @@ public class HistoryPanel extends JPanel {
                 recordCategoryBox.addItem(option);
                 wrongCategoryBox.addItem(option);
             }
+            wrongCategoryBox.addItem(new CategoryOption("UNCLASSIFIED", "미분류"));
         } finally {
             updatingCombo = false;
         }
+    }
+
+    public void setWrongNeedsReviewOnly(boolean selected) {
+        updatingCombo = true;
+        try { needsReviewOnly.setSelected(selected); } finally { updatingCombo = false; }
+    }
+    public boolean isNeedsReviewOnly() { return needsReviewOnly.isSelected(); }
+    public String getWrongCategoryId() { return selectedId(wrongCategoryBox); }
+    public void setWrongCategoryId(String categoryId) { selectCategory(wrongCategoryBox, categoryId); }
+    public void setOnWrongNoteRefresh(Runnable action) { onWrongRefresh = Objects.requireNonNull(action); }
+    public void setOnWrongNoteBack(Runnable action) { onWrongBack = Objects.requireNonNull(action); }
+    public void setReviewEnabled(boolean enabled) { reviewEnabled = enabled; updateReviewButton(); }
+
+    public void clearWrongNote() {
+        updatingCombo = true;
+        try { needsReviewOnly.setSelected(false); wrongCategoryBox.setSelectedIndex(0); }
+        finally { updatingCombo = false; }
+        wrongItems = List.of(); wrongModel.setItems(wrongItems); showWrongDetail(-1);
+        wrongAccuracyLabel.setText(" "); wrongErrorLabel.setText(" ");
+        wrongEmptyLabel.setText("아직 틀린 문제가 없습니다.");
+        wrongListPages.show(wrongListArea, CARD_EMPTY); updateReviewButton();
+    }
+
+    public void showWrongNoteError(String message) {
+        wrongItems = List.of(); wrongModel.setItems(wrongItems); showWrongDetail(-1);
+        wrongAccuracyLabel.setText("조회 실패");
+        String safe = message == null ? "오답 기록을 불러오지 못했습니다." : message;
+        wrongErrorLabel.setText("<html>" + safe.replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;") + "</html>");
+        wrongListPages.show(wrongListArea, CARD_ERROR); pages.show(this, CARD_WRONG_NOTE);
+        updateReviewButton(); revalidate(); repaint();
     }
 
     public void setWrongNoteEnabled(boolean enabled) {
@@ -748,13 +823,14 @@ public class HistoryPanel extends JPanel {
 
     private static final class WrongNoteTableModel extends DefaultTableModel {
         WrongNoteTableModel() {
-            super(new Object[]{"", "분야", "문제"}, 0);
+            super(new Object[]{"", "분야", "문제", "오답 횟수", "복습 상태", "최근 풀이", "문제 ID"}, 0);
         }
 
         void setItems(List<WrongNoteView.WrongItem> items) {
             setRowCount(0);
             for (WrongNoteView.WrongItem item : items) {
-                addRow(new Object[]{Boolean.FALSE, orDash(item.categoryName()), orDash(item.prompt())});
+                addRow(new Object[]{Boolean.FALSE, orDash(item.categoryName()), orDash(item.prompt()),
+                        item.wrongCount(), item.status(), item.lastAnsweredAt(), item.questionId()});
             }
         }
 

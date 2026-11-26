@@ -19,6 +19,7 @@ public class AppControllerTest {
       try {
         creationBackRefresh();
         fullFlow();
+        growthFlow();
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
@@ -151,6 +152,43 @@ public class AppControllerTest {
       assert visible(restarted, HistoryPanel.class);
       assert texts(restarted.getView()).contains("불러오");
     }
+  }
+
+  /** 정답으로 성장하면 결과 화면에 능력치 전후 비교가, 홈에 증가량과 성장 반응이 한 번 표시됩니다. */
+  private static void growthFlow() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-growth-"));
+    app.createUser("성장확인");
+    app.createPet("쑥쑥이", "DUCK");
+    app.selectCategory("SCIENCE");
+    QuizSession session = app.startQuiz();
+    int correct = 0;
+    while (true) {
+      app.submitAnswer(session.getCurrentQuestion().getAnswer());
+      correct++;
+      if (session.isFinished()) break;
+      app.nextQuestion();
+    }
+    app.nextQuestion();
+    assert visible(app, QuizResultPanel.class);
+    main.java.com.quizpet.ui.component.StatComparisonPanel comparison =
+        findVisible(app.getView(), main.java.com.quizpet.ui.component.StatComparisonPanel.class);
+    assert comparison != null : "결과 화면에 능력치 비교가 없음";
+    int after = 10 + correct;
+    assert comparison.getChangeText("INT").equals("10 → " + after + "  (+" + correct + ")")
+        : comparison.getChangeText("INT");
+    assert comparison.getChangeText("STR").equals("10");
+
+    app.showHome();
+    main.java.com.quizpet.ui.component.PetStatusPanel status =
+        findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class);
+    assert status.getStatDeltaText("INT").equals("+" + correct) : status.getStatDeltaText("INT");
+    assert status.getStage().isCelebrating();
+    assert status.isStatMarkedWeak("STR") : "INT만 올랐으므로 나머지가 약점으로 표시돼야 함";
+    status.getStage().stopAnimation();
+
+    // 성장 강조는 한 번만 보여 준다.
+    app.showHome();
+    assert status.getStatDeltaText("INT").isEmpty();
   }
 
   private static void unavailableContent() throws Exception {
