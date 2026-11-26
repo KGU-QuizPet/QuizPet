@@ -33,7 +33,7 @@ public class ImageButton extends JButton {
     setBorder(BorderFactory.createEmptyBorder(10, 16, 14, 16));
     setIconTextGap(8);
     if (imagePath != null) {
-      URL resource = ImageButton.class.getResource(imagePath);
+      URL resource = UiStyle.resource(imagePath);
       if (resource != null) {
         setIcon(new ImageIcon(new ImageIcon(resource).getImage()
             .getScaledInstance(imageSize, imageSize, Image.SCALE_SMOOTH)));
