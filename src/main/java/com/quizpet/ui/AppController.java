@@ -385,7 +385,13 @@ public final class AppController {
       }
       var selected = categoryId == null ? statistics.getOverallStatistics(currentUser.getUserId())
           : statistics.getCategoryStatistics(currentUser.getUserId(), categoryId);
-      history.showHistory(HistoryView.of(selected, rates, rows));
+      Integer wrongCount = null;
+      try {
+        wrongCount = wrongAnswers.getWrongAnswers(currentUser.getUserId()).size();
+      } catch (IOException | RuntimeException unavailable) {
+        // Keep valid statistics and records visible even when this independent query fails.
+      }
+      history.showHistory(HistoryView.of(selected, rates, rows), wrongCount);
     } catch (IOException | RuntimeException e) {
       history.showHistoryError("기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
