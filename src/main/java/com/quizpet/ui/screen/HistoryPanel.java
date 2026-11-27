@@ -482,20 +482,26 @@ public class HistoryPanel extends JPanel {
         wrongDetailArea.setLineWrap(true);
         wrongDetailArea.setWrapStyleWord(true);
         wrongDetailArea.setEditable(false);
-        wrongDetailArea.setFocusable(false);
+        wrongDetailArea.setFocusable(true);
         wrongDetailArea.setOpaque(false);
         JPanel detailCard = card();
-        detailCard.setLayout(new BorderLayout());
-        detailCard.add(detailScroll(wrongDetailArea, 4), BorderLayout.CENTER);
+        detailCard.setLayout(new BorderLayout(0, 8));
+        detailCard.add(label("문제 상세 · 제출 이력", BODY_BOLD, TEXT), BorderLayout.NORTH);
+        detailCard.add(detailScroll(wrongDetailArea, 8), BorderLayout.CENTER);
 
-        JPanel center = new JPanel(new BorderLayout(0, 12));
-        center.setOpaque(false);
-        center.add(listCard, BorderLayout.CENTER);
-        center.add(detailCard, BorderLayout.SOUTH);
-        body.add(center, BorderLayout.CENTER);
-        JScrollPane content = new JScrollPane(body);
-        content.setBorder(BorderFactory.createEmptyBorder());
-        page.add(content, BorderLayout.CENTER);
+        // Keep both areas inside the page. Only their contents scroll; a tall table
+        // must not enlarge an outer scroll pane and push the detail below the fold.
+        listCard.setMinimumSize(new Dimension(0, 100));
+        detailCard.setMinimumSize(new Dimension(0, 140));
+        JSplitPane sections = new JSplitPane(JSplitPane.VERTICAL_SPLIT, listCard, detailCard);
+        sections.setOpaque(false);
+        sections.setBorder(BorderFactory.createEmptyBorder());
+        sections.setContinuousLayout(true);
+        sections.setResizeWeight(0.4);
+        sections.setDividerLocation(180);
+        sections.getAccessibleContext().setAccessibleName("오답 목록과 문제 상세 크기 조절");
+        body.add(sections, BorderLayout.CENTER);
+        page.add(body, BorderLayout.CENTER);
 
         JButton backButton = button("이전");
         JButton mainButton = button("메인으로");
