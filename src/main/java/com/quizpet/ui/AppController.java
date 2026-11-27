@@ -21,7 +21,7 @@ import main.java.com.quizpet.ui.component.AnswerFeedbackPanel;
 import main.java.com.quizpet.ui.screen.*;
 import main.java.com.quizpet.ui.screen.HistoryPanel.HistoryView;
 
-/** 화면의 사용자·분야·세션 상태와 서비스 호출을 연결합니다. */
+// 화면의 사용자·분야·세션 상태와 서비스 호출을 연결.
 public final class AppController {
   private final ScreenManager screens = new ScreenManager();
   private final UserService users;
@@ -44,6 +44,8 @@ public final class AppController {
   private final AnswerFeedbackPanel feedback = new AnswerFeedbackPanel();
   private final QuizResultPanel result = new QuizResultPanel();
   private final HistoryPanel history = new HistoryPanel();
+  private final BattleService battles = new BattleService();
+  private final BossBattlePanel bossBattle = new BossBattlePanel();
   private User currentUser;
   private Category currentCategory;
   private QuizSession session;
@@ -93,6 +95,7 @@ public final class AppController {
     screens.addScreen(ScreenManager.ANSWER_FEEDBACK, feedback);
     screens.addScreen(ScreenManager.QUIZ_RESULT, result);
     screens.addScreen(ScreenManager.HISTORY, history);
+    screens.addScreen(ScreenManager.BOSS_BATTLE, bossBattle);
   }
 
   private void connectActions() {
@@ -103,6 +106,8 @@ public final class AppController {
     home.setOnLearn(() -> run(this::showCategories));
     home.setOnHistory(() -> run(() -> showHistory(null)));
     home.setOnChangeUser(() -> run(this::showStart));
+    home.setOnBossBattle(() -> run(this::showBossBattle));
+    bossBattle.setOnExit(() -> run(this::showHome));
     categories.setOnSelect(id -> run(() -> selectCategory(id)));
     cards.setOnQuiz(() -> run(this::startQuiz));
     cards.setOnBack(this::backFromLearning);
@@ -118,7 +123,8 @@ public final class AppController {
     history.setReviewEnabled(false);
     history.setOnOpenWrongNote(id -> run(() -> showWrongNote(id, false)));
     history.setOnWrongNoteCategoryChanged(id -> run(() -> showWrongNote(id, history.isNeedsReviewOnly())));
-    history.setOnWrongNoteRefresh(() -> run(() -> showWrongNote(history.getWrongCategoryId(), history.isNeedsReviewOnly())));
+    history.setOnWrongNoteRefresh(
+        () -> run(() -> showWrongNote(history.getWrongCategoryId(), history.isNeedsReviewOnly())));
     history.setOnWrongNoteBack(() -> run(() -> showHistory(null)));
   }
 
@@ -171,6 +177,13 @@ public final class AppController {
     displayHome(currentPet());
   }
 
+  public void showBossBattle() throws IOException {
+    requireUser();
+    ready();
+    bossBattle.showBattle(currentPet());
+    screens.show(ScreenManager.BOSS_BATTLE);
+  }
+
   private void displayHome(Pet pet) throws IOException {
     home.setGreeting(currentUser == null ? null : currentUser.getNickname());
     StatisticsService.Statistics overall = statistics.getOverallStatistics(pet.getUserId());
@@ -190,7 +203,8 @@ public final class AppController {
         "FOC", stats.getFocus(), "WIS", stats.getWisdom());
   }
 
-  private record Growth(String userId, Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) { }
+  private record Growth(String userId, Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) {
+  }
 
   public void showCategories() throws IOException {
     requireUser();
@@ -280,9 +294,11 @@ public final class AppController {
     String contentId = session.getCurrentQuestion().getContentId();
     int index = -1;
     for (int i = 0; i < selectedCards.size(); i++) {
-      if (selectedCards.get(i).getContentId().equals(contentId)) index = i;
+      if (selectedCards.get(i).getContentId().equals(contentId))
+        index = i;
     }
-    if (index < 0) throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
+    if (index < 0)
+      throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
     feedbackCard = true;
     cards.setQuizEnabled(false);
     cards.showContents(session.getCategory(), selectedCards, index);
@@ -328,7 +344,8 @@ public final class AppController {
     if (statsBefore != null) {
       result.showStatComparison(statsBefore, statsAfter);
       pendingGrowth = gainedXp > 0
-          ? new Growth(pet.getUserId(), statsBefore, gainedXp, pet.getLevel() > levelBefore) : null;
+          ? new Growth(pet.getUserId(), statsBefore, gainedXp, pet.getLevel() > levelBefore)
+          : null;
     } else {
       result.hideStatComparison();
       pendingGrowth = null;
@@ -345,8 +362,9 @@ public final class AppController {
       ready();
       boolean unresolved = records.getRecords(currentUser.getUserId()).stream()
           .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
-      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지합니다.
-      if (unresolved) categoryId = null;
+      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지.
+      if (unresolved)
+        categoryId = null;
       List<HistoryView.CategoryRate> rates = new ArrayList<>();
       for (Category category : unresolved ? List.<Category>of() : learning.getCategories()) {
         rates.add(HistoryView.CategoryRate.of(category,
@@ -361,7 +379,8 @@ public final class AppController {
                   "문제 정보 없음: " + record.getQuestionId(), record.getSelectedAnswer(),
                   record.isCorrect(), record.getEarnedXp())
               : HistoryView.RecordRow.of(question, record));
-          if (rows.size() == 20) break;
+          if (rows.size() == 20)
+            break;
         }
       }
       var selected = categoryId == null ? statistics.getOverallStatistics(currentUser.getUserId())
@@ -382,7 +401,8 @@ public final class AppController {
     try {
       ready();
       Category selectedCategory = categoryId == null || categoryId.equals("UNCLASSIFIED")
-          ? null : Category.valueOf(categoryId);
+          ? null
+          : Category.valueOf(categoryId);
       var all = wrongAnswers.getWrongAnswers(currentUser.getUserId());
       var selected = all.stream()
           .filter(item -> categoryId == null || (categoryId.equals("UNCLASSIFIED") ? item.category().isEmpty()
@@ -416,12 +436,14 @@ public final class AppController {
   }
 
   private void requireUser() {
-    if (currentUser == null) throw new IllegalStateException("사용자를 먼저 선택해 주세요.");
+    if (currentUser == null)
+      throw new IllegalStateException("사용자를 먼저 선택해 주세요.");
   }
 
   private void requireSession() {
     requireUser();
-    if (session == null) throw new IllegalStateException("퀴즈를 먼저 시작해 주세요.");
+    if (session == null)
+      throw new IllegalStateException("퀴즈를 먼저 시작해 주세요.");
   }
 
   private void run(Action action) {
@@ -433,5 +455,7 @@ public final class AppController {
   }
 
   @FunctionalInterface
-  private interface Action { void run() throws IOException; }
+  private interface Action {
+    void run() throws IOException;
+  }
 }

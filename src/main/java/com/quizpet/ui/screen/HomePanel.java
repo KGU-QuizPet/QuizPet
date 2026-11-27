@@ -29,6 +29,7 @@ public class HomePanel extends JPanel {
   private Runnable onLearn;
   private Runnable onHistory;
   private Runnable onChangeUser;
+  private Runnable onBossBattle;
 
   private final PetStatusPanel status = new PetStatusPanel();
   private final JLabel greetingLabel = new JLabel(" ");
@@ -39,6 +40,7 @@ public class HomePanel extends JPanel {
     onLearn = () -> screens.show(ScreenManager.CATEGORY);
     onHistory = () -> screens.show(ScreenManager.HISTORY);
     onChangeUser = () -> screens.show(ScreenManager.START);
+    onBossBattle = () -> screens.show(ScreenManager.BOSS_BATTLE);
     setLayout(new BorderLayout());
     setBackground(UiStyle.BACKGROUND);
 
@@ -51,6 +53,8 @@ public class HomePanel extends JPanel {
   public void setOnHistory(Runnable action) { onHistory = action; }
 
   public void setOnChangeUser(Runnable action) { onChangeUser = action; }
+
+  public void setOnBossBattle(Runnable action) { onBossBattle = action; }
 
   public void showPet(String petName, String spriteKey, int level, int expInLevel,
       int str, int intel, int foc, int wis) {
@@ -131,9 +135,13 @@ public class HomePanel extends JPanel {
     actions.setOpaque(false);
     JButton historyButton = UiStyle.button("학습 기록");
     historyButton.addActionListener(e -> onHistory.run());
+    JButton bossButton = UiStyle.button("보스 잡기");
+    bossButton.addActionListener(e -> onBossBattle.run());
     JButton changeUserButton = UiStyle.button("사용자 변경");
     changeUserButton.addActionListener(e -> onChangeUser.run());
     actions.add(historyButton);
+    actions.add(javax.swing.Box.createHorizontalStrut(12));
+    actions.add(bossButton);
     actions.add(javax.swing.Box.createHorizontalStrut(12));
     actions.add(changeUserButton);
     content.add(actions, c);
