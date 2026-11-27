@@ -15,7 +15,6 @@ import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import main.java.com.quizpet.model.*;
 import main.java.com.quizpet.ui.ScreenManager;
-import main.java.com.quizpet.ui.UiStyle;
 
 public final class RealDataPanelsTest {
   public static void main(String[] args) throws Exception {
@@ -39,8 +38,9 @@ public final class RealDataPanelsTest {
     JList<?> list = components(start, JList.class).get(0);
     assert list.getModel().getSize() == 1;
     list.setSelectedIndex(0);
-    button(start, "시작").doClick();
+    list.getActionMap().get(StartPanel.ENTER_ACTION).actionPerformed(null);
     assert "U1".equals(selected.get());
+    assert !button(start, "새 사용자 만들기").isEnabled() : "empty nickname must disable create";
     components(start, JTextField.class).get(0).setText("실제사용자");
     button(start, "새 사용자 만들기").doClick();
     assert "실제사용자".equals(created.get());
@@ -54,12 +54,12 @@ public final class RealDataPanelsTest {
     components(pet, JTextField.class).get(0).setText("캐릭터");
     List<JToggleButton> looks = components(pet, JToggleButton.class);
     looks.get(2).doClick();
-    button(pet, "생성하기").doClick();
+    button(pet, "이 친구로 시작하기").doClick();
     assert PetAppearance.LIZARD.name().equals(appearance.get());
     pet.prepare("다른사용자");
     assert components(pet, JTextField.class).get(0).getText().isEmpty();
     assert looks.get(0).isSelected();
-    for (String key : UiStyle.PET_KEYS) { PetAppearance.valueOf(key); }
+    assert !button(pet, "이 친구로 시작하기").isEnabled() : "empty pet name must disable create";
   }
 
   private static void categoryAndLearning() {

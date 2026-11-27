@@ -2,19 +2,17 @@ package main.java.com.quizpet.ui;
 
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import javax.imageio.ImageIO;
-import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
@@ -48,15 +46,8 @@ public final class UiStyle {
   public static final Font SUBTITLE_FONT = new Font(Font.DIALOG, Font.BOLD, 18);
   public static final Font BODY_FONT = new Font(Font.DIALOG, Font.PLAIN, 15);
 
-  public static final String[] PET_KEYS = {"DUCK", "TURTLE", "LIZARD"};
-  public static final String[] PET_LABELS = {"고라파카", "고북이", "파이리"};
-  private static final Color[] PET_COLORS = {
-    new Color(0xFFE08A), new Color(0x9ED9A0), new Color(0xF4A9A0)
-  };
-
   private static final Map<PetAppearance, Map<PetMood, Optional<BufferedImage>>> PET_IMAGES =
       new EnumMap<>(PetAppearance.class);
-  private static final Map<String, ImageIcon> PET_ICONS = new HashMap<>();
 
   private UiStyle() {}
 
@@ -103,8 +94,25 @@ public final class UiStyle {
         .orElse(null);
   }
 
-  private static Optional<BufferedImage> loadImage(String resourcePath) {
+  /**
+   * 클래스패스에서 리소스를 찾고, 없으면 프로젝트 루트 기준 src/main/resources에서 찾습니다.
+   * IDE 실행 설정에 리소스 폴더가 빠져 있어도 이미지가 보이게 하기 위함입니다. 둘 다 없으면 null입니다.
+   */
+  public static URL resource(String resourcePath) {
     URL resource = UiStyle.class.getResource(resourcePath);
+    if (resource != null) {
+      return resource;
+    }
+    Path file = Path.of("src/main/resources", resourcePath.replaceFirst("^/", ""));
+    try {
+      return Files.isRegularFile(file) ? file.toUri().toURL() : null;
+    } catch (MalformedURLException e) {
+      return null;
+    }
+  }
+
+  private static Optional<BufferedImage> loadImage(String resourcePath) {
+    URL resource = resource(resourcePath);
     if (resource == null) {
       return Optional.empty();
     }
@@ -113,15 +121,6 @@ public final class UiStyle {
     } catch (IOException e) {
       return Optional.empty();
     }
-  }
-
-  private static ImageIcon petIcon(String spriteKey, int size) {
-    PetAppearance appearance = appearanceOf(spriteKey);
-    return PET_ICONS.computeIfAbsent(appearance.name() + "@" + size, key -> {
-      BufferedImage image = petImage(spriteKey, PetMood.IDLE);
-      return image == null ? null
-          : new ImageIcon(image.getScaledInstance(size, size, Image.SCALE_SMOOTH));
-    });
   }
 
   public static Color categoryColor(Category category) {
@@ -147,35 +146,5 @@ public final class UiStyle {
     button.setFocusPainted(false);
     button.setAlignmentX(Component.CENTER_ALIGNMENT);
     return button;
-  }
-
-  public static JLabel createPetBox() {
-    JLabel box = new JLabel("", SwingConstants.CENTER);
-    Dimension size = new Dimension(180, 180);
-    box.setPreferredSize(size);
-    box.setMaximumSize(size);
-    box.setOpaque(true);
-    box.setFont(SUBTITLE_FONT);
-    box.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 2));
-    box.setAlignmentX(Component.CENTER_ALIGNMENT);
-    return box;
-  }
-
-  public static void showPet(JLabel box, String spriteKey) {
-    int index = indexOfPet(spriteKey);
-    box.setBackground(PET_COLORS[index]);
-    box.setText(PET_LABELS[index]);
-    box.setIcon(petIcon(spriteKey, 160));
-    box.setHorizontalTextPosition(SwingConstants.CENTER);
-    box.setVerticalTextPosition(SwingConstants.BOTTOM);
-  }
-
-  private static int indexOfPet(String spriteKey) {
-    for (int i = 0; i < PET_KEYS.length; i++) {
-      if (PET_KEYS[i].equals(spriteKey)) {
-        return i;
-      }
-    }
-    return 0;
   }
 }
