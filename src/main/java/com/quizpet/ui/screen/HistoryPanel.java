@@ -333,15 +333,29 @@ public class HistoryPanel extends JPanel {
 
     private JComponent buildSummaryCard() {
         JPanel cards = new JPanel(new GridLayout(1, 4, 12, 12)) {
+            private int cardWidth() {
+                int width = 0;
+                for (Component card : getComponents()) width = Math.max(width, card.getPreferredSize().width);
+                return width;
+            }
+            private int columns() {
+                if (getWidth() <= 0) return 4;
+                for (int count : new int[]{4, 2}) {
+                    if (getWidth() >= count * cardWidth() + (count - 1) * 12) return count;
+                }
+                return 1;
+            }
             @Override public Dimension getPreferredSize() {
-                int rows = getWidth() > 0 && getWidth() < 600 ? 2 : 1;
-                return new Dimension(640, rows * 88 + (rows - 1) * 12);
+                int rows = 4 / columns();
+                int height = 88;
+                for (Component card : getComponents()) height = Math.max(height, card.getPreferredSize().height);
+                return new Dimension(640, rows * height + (rows - 1) * 12);
             }
             @Override public void doLayout() {
-                int rows = getWidth() > 0 && getWidth() < 600 ? 2 : 1;
+                int count = columns();
                 GridLayout grid = (GridLayout) getLayout();
-                if (grid.getRows() != rows) {
-                    grid.setRows(rows); grid.setColumns(rows == 1 ? 4 : 2); revalidate();
+                if (grid.getRows() != 4 / count) {
+                    grid.setRows(4 / count); grid.setColumns(count); revalidate();
                 }
                 super.doLayout();
             }

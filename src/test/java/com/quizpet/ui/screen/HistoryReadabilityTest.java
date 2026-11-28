@@ -44,6 +44,15 @@ public final class HistoryReadabilityTest {
       JScrollPane scroll=(JScrollPane)SwingUtilities.getAncestorOfClass(JScrollPane.class,table);
       assert scroll.getViewport().getViewRect().contains(table.getCellRect(1,5,true)):"XP unreachable";
     }
+    // Simulate wider font metrics / display scaling independently of the installed JDK.
+    JLabel largeXp=kpi(panel,"누적 EXP");
+    largeXp.setFont(largeXp.getFont().deriveFont(36f));
+    panel.setSize(800,600);layout(panel);
+    assert largeXp.getFontMetrics(largeXp.getFont()).stringWidth(largeXp.getText())<=largeXp.getWidth()
+        : "Large-font KPI clipped";
+    assert largeXp.getFontMetrics(largeXp.getFont()).getHeight()<=largeXp.getHeight()
+        : "Large-font KPI height clipped";
+    largeXp.setFont(largeXp.getFont().deriveFont(26f));
     panel.showHistoryError("failure");assert kpi(panel,"전체 오답노트").getText().equals("—");
     panel.showHistory(new HistoryView(null,0,0,0,List.of(),List.of()),0);
     assert kpi(panel,"전체 오답노트").getText().equals("0");
