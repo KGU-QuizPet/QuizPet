@@ -9,6 +9,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.GradientPaint;
+import java.awt.GridLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -37,6 +38,7 @@ import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.service.BattleService;
 import main.java.com.quizpet.ui.UiStyle;
+import main.java.com.quizpet.ui.component.RoundCard;
 
 // 보스 이미지·배경·펫 외형별 표정 이미지와 전투 연출을 제공하는 자동 전투 화면.
 public final class BossBattlePanel extends JPanel {
@@ -63,6 +65,7 @@ public final class BossBattlePanel extends JPanel {
   private final StyledButton start = new StyledButton("전투 시작", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
   private final StyledButton speedToggle = new StyledButton("배속 1x", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
   private final StyledButton exit = new StyledButton("나가기", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
+  private final JLabel[] statValues = new JLabel[4];
   private final JLabel turnPill = UiStyle.label("READY", UiStyle.SUBTITLE_FONT);
   private final Arena arena = new Arena();
   private final Timer timer = new Timer(NORMAL_TURN_DELAY_MS, event -> nextTurn());
@@ -135,37 +138,70 @@ public final class BossBattlePanel extends JPanel {
   }
 
   private JPanel buildBottom() {
-    JPanel bottom = new JPanel(new BorderLayout(0, 8));
-    bottom.setOpaque(false);
+    JPanel bottom = new JPanel(new BorderLayout(22, 0));
+    bottom.setBackground(UiStyle.SURFACE);
+    bottom.setBorder(BorderFactory.createCompoundBorder(
+        BorderFactory.createMatteBorder(2, 0, 0, 0, UiStyle.BORDER),
+        BorderFactory.createEmptyBorder(16, 32, 16, 32)));
+    bottom.setPreferredSize(new Dimension(0, 248));
 
-    JPanel statusBox = new JPanel(new BorderLayout(0, 2));
-    statusBox.setOpaque(false);
+    JPanel actions = new JPanel(new BorderLayout(0, 8));
+    actions.setOpaque(false);
+    JPanel heading = new JPanel(new BorderLayout(12, 0));
+    heading.setOpaque(false);
     turn.setForeground(UiStyle.TEXT);
+    turn.setHorizontalAlignment(SwingConstants.LEFT);
     message.setForeground(UiStyle.MUTED);
-    statusBox.add(turn, BorderLayout.NORTH);
-    statusBox.add(message, BorderLayout.CENTER);
-    bottom.add(statusBox, BorderLayout.NORTH);
+    message.setHorizontalAlignment(SwingConstants.LEFT);
+    JPanel status = new JPanel(new GridLayout(2, 1, 0, 3));
+    status.setOpaque(false);
+    status.add(turn);
+    status.add(message);
+    heading.add(status, BorderLayout.CENTER);
+    actions.add(heading, BorderLayout.NORTH);
 
+    JPanel stats = new JPanel(new GridLayout(2, 2, 12, 6));
+    stats.setOpaque(false);
+    for (int i = 0; i < UiStyle.STAT_TYPES.length; i++) {
+      String type = UiStyle.STAT_TYPES[i];
+      Color color = UiStyle.statColor(type);
+      RoundCard card = new RoundCard(new BorderLayout(12, 0));
+      card.setBorder(BorderFactory.createEmptyBorder(8, 16, 12, 16));
+      JLabel name = UiStyle.label(type + "  " + UiStyle.statLabel(type), UiStyle.SUBTITLE_FONT);
+      name.setForeground(color);
+      name.setHorizontalAlignment(SwingConstants.LEFT);
+      statValues[i] = UiStyle.label("0", UiStyle.TITLE_FONT.deriveFont(22f));
+      statValues[i].setForeground(color);
+      card.add(name, BorderLayout.CENTER);
+      card.add(statValues[i], BorderLayout.EAST);
+      stats.add(card);
+    }
+    actions.add(stats, BorderLayout.CENTER);
+    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+    buttons.setOpaque(false);
+    buttons.add(start);
+    buttons.add(speedToggle);
+    buttons.add(exit);
+    actions.add(buttons, BorderLayout.SOUTH);
+    bottom.add(actions, BorderLayout.CENTER);
+
+    JPanel logPanel = new JPanel(new BorderLayout(0, 8));
+    logPanel.setBackground(UiStyle.SUNKEN);
+    logPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 12, 16));
+    logPanel.setPreferredSize(new Dimension(310, 0));
+    bossBadge.setForeground(UiStyle.TEXT);
+    logPanel.add(bossBadge, BorderLayout.NORTH);
     battleLog.setEditable(false);
     battleLog.setFocusable(false);
     battleLog.setLineWrap(true);
     battleLog.setWrapStyleWord(true);
     battleLog.setFont(UiStyle.BODY_FONT.deriveFont(13f));
-    battleLog.setForeground(UiStyle.TEXT);
-    battleLog.setBackground(Color.WHITE);
-    battleLog.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-
+    battleLog.setForeground(UiStyle.MUTED);
+    battleLog.setBackground(UiStyle.SUNKEN);
     JScrollPane logScroll = new JScrollPane(battleLog);
-    logScroll.setBorder(BorderFactory.createLineBorder(UiStyle.BORDER, 1, true));
-    logScroll.setPreferredSize(new Dimension(0, 74));
-    bottom.add(logScroll, BorderLayout.CENTER);
-
-    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 2));
-    buttons.setOpaque(false);
-    buttons.add(start);
-    buttons.add(speedToggle);
-    buttons.add(exit);
-    bottom.add(buttons, BorderLayout.SOUTH);
+    logScroll.setBorder(BorderFactory.createEmptyBorder());
+    logPanel.add(logScroll, BorderLayout.CENTER);
+    bottom.add(logPanel, BorderLayout.EAST);
     return bottom;
   }
 
@@ -173,13 +209,16 @@ public final class BossBattlePanel extends JPanel {
     if (currentPet == null) return;
     Boss boss = selectedBoss();
     arena.resetEffects();
-    bossBadge.setText("등장 보스 · " + boss.name() + " " + difficultyStars(selectedBossIndex));
+    bossBadge.setText("전투 기록 · " + boss.name() + " " + difficultyStars(selectedBossIndex));
     bossImage.setIcon(icon(boss.imagePath(), 330, 285));
     // 현재 펫의 외형과 기본 표정(IDLE) 이미지를 적용.
     setPetMood(PetMood.IDLE);
     bossName.setText(boss.name() + "  (ATK " + boss.attack() + ")");
     int petAttack = service.calculateAttack(currentPet);
     petName.setText(currentPet.getName() + "  (Lv." + currentPet.getLevel() + " · ATK " + petAttack + ")");
+    for (int i = 0; i < statValues.length; i++) {
+      statValues[i].setText(String.valueOf(currentPet.getStats().get(UiStyle.STAT_TYPES[i])));
+    }
     bossHp.reset(boss.maxHp());
     int maxHp = service.calculateMaxHp(currentPet);
     petHp.reset(maxHp);
@@ -316,20 +355,8 @@ public final class BossBattlePanel extends JPanel {
   private Boss selectedBoss() { return BattleService.BOSSES.get(selectedBossIndex); }
 
   private static JLabel createBossBadge() {
-    JLabel badge = new JLabel("등장 보스 · 준비 중", SwingConstants.CENTER) {
-      @Override protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(UiStyle.TEXT);
-        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
-        g2.dispose();
-        super.paintComponent(g);
-      }
-    };
-    badge.setOpaque(false);
-    badge.setForeground(Color.WHITE);
-    badge.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 13f));
-    badge.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
+    JLabel badge = UiStyle.label("전투 기록", UiStyle.BODY_FONT.deriveFont(Font.BOLD, 13f));
+    badge.setHorizontalAlignment(SwingConstants.LEFT);
     return badge;
   }
 
@@ -465,6 +492,11 @@ public final class BossBattlePanel extends JPanel {
       if (bg.equals(Color.WHITE) && isEnabled()) {
         g2.setColor(UiStyle.BORDER);
         g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+      }
+      if (hasFocus()) {
+        g2.setColor(UiStyle.TEXT);
+        g2.setStroke(new BasicStroke(2));
+        g2.drawRoundRect(4, 4, getWidth() - 9, getHeight() - 9, 10, 10);
       }
       g2.dispose();
       super.paintComponent(g);
@@ -616,7 +648,7 @@ public final class BossBattlePanel extends JPanel {
       hudWidth = Math.min(380, w / 3);
       petGroupX = (int) (w * 0.10);
       bossGroupX = (int) (w * 0.64);
-      petY = Math.max(128, h - 280);
+      petY = Math.max(142, h - 280);
       bossY = 58;
       bossName.setBounds(50, 40, hudWidth - 36, 26);
       bossHp.setBounds(50, 78, hudWidth - 36, 40);
@@ -629,7 +661,7 @@ public final class BossBattlePanel extends JPanel {
     }
 
     private void applyCharacterBounds() {
-      int petSize = Math.min(236, getHeight() - petY - 20);
+      int petSize = Math.min(236, getHeight() - petY - 40);
       int bossSize = Math.min(300, getHeight() - bossY - 130);
       petImage.setBounds(petGroupX + 40 + petOffsetX, petY, petSize, petSize);
       bossImage.setBounds(bossGroupX + bossOffsetX, bossY, bossSize, bossSize);
