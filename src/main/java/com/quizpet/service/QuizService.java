@@ -6,7 +6,11 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.UUID;
-import main.java.com.quizpet.model.*;
+import main.java.com.quizpet.model.Category;
+import main.java.com.quizpet.model.Question;
+import main.java.com.quizpet.model.OXQuestion;
+import main.java.com.quizpet.model.MultipleChoiceQuestion;
+import main.java.com.quizpet.model.ShortAnswerQuestion;
 import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.repository.QuestionRepository;
 

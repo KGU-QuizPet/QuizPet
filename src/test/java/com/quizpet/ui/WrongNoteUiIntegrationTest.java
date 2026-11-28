@@ -48,7 +48,7 @@ public class WrongNoteUiIntegrationTest {
    if(table.getValueAt(row,6).equals("UNKNOWN"))assert detail.contains("문제 정보 없음")&&detail.contains("raw answer");
    if(table.getValueAt(row,6).equals(choice.getQuestionId()))assert detail.contains("선택지: 2. ");
   }
-  JButton review=find(app.getView(),JButton.class).stream().filter(x->x.getText().contains("복습 기능 준비 중")).findFirst().orElseThrow();assert !review.isEnabled();
+  JButton review=find(app.getView(),JButton.class).stream().filter(x->x.getText().equals("복습하기")).findFirst().orElseThrow();assert !review.isEnabled();
   JCheckBox needed=find(app.getView(),JCheckBox.class).get(0);needed.doClick();assert table(app.getView()).getRowCount()==5;
   select(app.getView(),"상식");assert table(app.getView()).getRowCount()==1;
   select(app.getView(),"미분류");assert table(app.getView()).getRowCount()==1&&cells(table(app.getView())).contains("UNKNOWN");
