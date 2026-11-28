@@ -23,6 +23,11 @@ public class AppControllerTest {
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
+        failedSubmissionExitRetry();
+        topBarNavigation();
+        battleStopsOnNavigation();
+        homeReviewCounts();
+        unavailableCategoryProgress();
         rejectedSubmissionAllowsNavigation();
         partiallySavedSubmissionRetry();
       } catch (Exception e) {
@@ -240,6 +245,177 @@ public class AppControllerTest {
     assert session.getAnsweredCount() == 1;
     assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
     assert new PetRepository(save.resolve("pet.txt")).findByUserId(user.getUserId()).orElseThrow().getTotalXp() == 10;
+  }
+
+  private static void failedSubmissionExitRetry() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-exit-retry-");
+    AppController app = new AppController(save);
+    User user = app.createUser("종료재시도");
+    app.createPet("재시도펫", "DUCK");
+    app.selectCategory("SCIENCE");
+    QuizSession session = app.startQuiz();
+    String answer = session.getCurrentQuestion().getAnswer();
+    Files.createDirectory(save.resolve("record.txt"));
+    try {
+      app.submitAnswer(answer);
+      throw new AssertionError("save failure ignored");
+    } catch (IOException expected) { }
+    try {
+      app.endQuizSession();
+      throw new AssertionError("quiz ended before pending answer was saved");
+    } catch (IOException expected) { }
+    assert !session.isFinished();
+    assert session.getAnsweredCount() == 0;
+    assert visible(app, QuizPanel.class);
+    Files.delete(save.resolve("record.txt"));
+    app.endQuizSession();
+    assert visible(app, QuizPanel.class) : "탭 이탈 준비 중 결과 화면이 표시됨";
+    assert session.isFinished();
+    assert session.getAnsweredCount() == 1;
+    assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
+    assert new PetRepository(save.resolve("pet.txt")).findByUserId(user.getUserId()).orElseThrow().getTotalXp() == 10;
+    app.showHome();
+    assert !findVisible(app.getView(), HomePanel.class).getStatusPanel().getStage().isCelebrating();
+    app.showStart();
+    assert visible(app, StartPanel.class);
+  }
+
+  private static void topBarNavigation() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-topbar-"));
+    var bar = app.getTopBar();
+    assert !bar.isVisible();
+    app.createUser("탭사용자");
+    assert !bar.isVisible();
+    app.createPet("탭펫", "DUCK");
+    assert bar.isVisible();
+    assert javax.swing.SwingUtilities.isDescendingFrom(bar, app.getWindowContent());
+    assert bar.getSelectedTab().equals("HOME");
+    bar.getTab("LEARN").doClick();
+    assert visible(app, CategoryPanel.class);
+    app.selectCategory("SCIENCE");
+    assert bar.getSelectedTab().equals("LEARN");
+    bar.getTab("WRONG_NOTE").doClick();
+    assert visible(app, HistoryPanel.class);
+    assert bar.getSelectedTab().equals("WRONG_NOTE");
+    bar.getTab("HISTORY").doClick();
+    assert bar.getSelectedTab().equals("HISTORY");
+    bar.getTab("BATTLE").doClick();
+    assert visible(app, BossBattlePanel.class);
+    assert bar.getSelectedTab().equals("BATTLE");
+    app.showHome();
+    assert bar.getSelectedTab().equals("HOME");
+    app.showStart();
+    assert !bar.isVisible();
+  }
+
+  private static void battleStopsOnNavigation() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-battle-navigation-"));
+    User user = app.createUser("전투사용자");
+    app.createPet("전투펫", "DUCK");
+    for (String destination : List.of("HOME", "LEARN", "HISTORY", "WRONG_NOTE", "USER")) {
+      app.getTopBar().getTab("BATTLE").doClick();
+      BossBattlePanel panel = findVisible(app.getView(), BossBattlePanel.class);
+      assert clickVisible(panel, "전투 시작");
+      var timerField = BossBattlePanel.class.getDeclaredField("timer");
+      var effectField = BossBattlePanel.class.getDeclaredField("effectTimer");
+      var battleField = BossBattlePanel.class.getDeclaredField("battle");
+      timerField.setAccessible(true);
+      effectField.setAccessible(true);
+      battleField.setAccessible(true);
+      var timer = (javax.swing.Timer) timerField.get(panel);
+      var effectTimer = (javax.swing.Timer) effectField.get(panel);
+      var battle = (BattleSession) battleField.get(panel);
+      try {
+        assert timer.isRunning() && effectTimer.isRunning();
+        if (destination.equals("USER")) {
+          assert clickVisible(app.getTopBar(), "사용자 변경");
+        } else {
+          app.getTopBar().getTab(destination).doClick();
+        }
+        assert !visible(app, BossBattlePanel.class);
+        assert !timer.isRunning() : destination + " 이동 후 전투 타이머 실행 중";
+        assert !effectTimer.isRunning() : destination + " 이동 후 효과 타이머 실행 중";
+        assert battle.getState() == BattleSession.State.ABANDONED;
+      } finally {
+        panel.stopBattle();
+      }
+    }
+    app.selectUser(user.getUserId());
+    app.getTopBar().getTab("BATTLE").doClick();
+    BossBattlePanel panel = findVisible(app.getView(), BossBattlePanel.class);
+    assert clickVisible(panel, "전투 시작") : "재진입 후 새 전투를 시작할 수 없음";
+    app.showHome();
+    panel.stopBattle();
+  }
+
+  private static void homeReviewCounts() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-home-review-");
+    AppController app = new AppController(save);
+    User user = app.createUser("복습집계");
+    app.createPet("복습펫", "DUCK");
+    var questions = new QuestionRepository().findByCategory(Category.SCIENCE);
+    RecordRepository records = new RecordRepository(save.resolve("record.txt"));
+    var time = java.time.LocalDateTime.of(2026, 11, 28, 12, 0);
+    String again = questions.get(0).getQuestionId();
+    String ambiguous = questions.get(1).getQuestionId();
+    String completed = questions.get(2).getQuestionId();
+    records.save(new LearningRecord("RIGHT", user.getUserId(), again, "S1", "O", true, 0, time));
+    records.save(new LearningRecord("WRONG", user.getUserId(), again, "S2", "X", false, 0, time.plusSeconds(1)));
+    app.showHome();
+    HomePanel home = findVisible(app.getView(), HomePanel.class);
+    assert home.getWrongCountText().contains("1개") : home.getWrongCountText();
+
+    records.save(new LearningRecord("AMB-R", user.getUserId(), ambiguous, "S3", "O", true, 0, time));
+    records.save(new LearningRecord("AMB-W", user.getUserId(), ambiguous, "S4", "X", false, 0, time));
+    app.showHome();
+    assert home.getWrongCountText().contains("2개") : home.getWrongCountText();
+
+    records.save(new LearningRecord("UNKNOWN", user.getUserId(), "MISSING", "S5", "X", false, 0, time));
+    records.save(new LearningRecord("DONE-W", user.getUserId(), completed, "S6", "X", false, 0, time));
+    records.save(new LearningRecord("DONE-R", user.getUserId(), completed, "S7", "O", true, 0, time.plusSeconds(1)));
+    records.save(new LearningRecord("OTHER", "OTHER-USER", questions.get(3).getQuestionId(),
+        "S8", "X", false, 0, time));
+    app.showHome();
+    assert home.getWrongCountText().contains("3개") : home.getWrongCountText();
+    assert texts(home).contains("미분류 1") : texts(home);
+    assert clickVisible(app.getView(), "틀린 문제 다시 보기") : "복습 버튼이 숨겨짐";
+    assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 3;
+
+    records.save(new LearningRecord("DONE-AGAIN", user.getUserId(), again, "S9", "O", true, 0, time.plusSeconds(2)));
+    records.save(new LearningRecord("DONE-AMB", user.getUserId(), ambiguous, "S10", "O", true, 0, time.plusSeconds(2)));
+    app.showHome();
+    assert home.getWrongCountText().contains("1개") : home.getWrongCountText();
+    assert clickVisible(app.getView(), "틀린 문제 다시 보기") : "미분류 오답만 있어도 복습 버튼 표시";
+    assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
+  }
+
+  private static void unavailableCategoryProgress() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-category-unavailable-");
+    AppController app = new AppController(save);
+    User user = app.createUser("분야집계");
+    app.createPet("집계펫", "DUCK");
+    var records = new RecordRepository(save.resolve("record.txt"));
+    var time = java.time.LocalDateTime.of(2026, 11, 28, 12, 0);
+    String science = new QuestionRepository().findByCategory(Category.SCIENCE).get(0).getQuestionId();
+    records.save(new LearningRecord("KNOWN", user.getUserId(), science, "S1", "O", true, 0, time));
+    app.showHome();
+    HomePanel home = findVisible(app.getView(), HomePanel.class);
+    assert home.getProgressCard(Category.SCIENCE).getCaptionText().equals("100% · 1문제");
+    assert home.getProgressCard(Category.SPORTS).getCaptionText().equals("아직 시작 전");
+    records.save(new LearningRecord("MISSING", user.getUserId(), "UNKNOWN", "S2", "X", false, 0, time));
+    app.showHome();
+    for (Category category : Category.values()) {
+      var card = home.getProgressCard(category);
+      assert card.getCaptionText().equals("분야 집계 불가") : card.getCaptionText();
+      assert !card.getBar().isVisible() : "집계 불가를 0% 막대로 표시함";
+    }
+    Files.writeString(save.resolve("record.txt"), "");
+    app.showHome();
+    for (Category category : Category.values()) {
+      var card = home.getProgressCard(category);
+      assert card.getCaptionText().equals("아직 시작 전");
+      assert card.getBar().isVisible();
+    }
   }
 
   private static void rejectedSubmissionAllowsNavigation() throws Exception {
