@@ -56,12 +56,51 @@ public final class PetStage extends JPanel {
   private Motion motion = Motion.NONE;
   private java.util.List<Effect> effects = java.util.List.of();
   private int elapsedMs;
+  private boolean ambientAnimation;
+  private int ambientElapsedMs;
+  private final javax.swing.Timer ambientTimer = new javax.swing.Timer(40, e -> advanceAmbient(40));
   private final javax.swing.Timer timer = new javax.swing.Timer(FRAME_MS, e -> advance(FRAME_MS));
 
   public PetStage() {
     setOpaque(false);
     setPreferredSize(new Dimension(280, 270));
     setMinimumSize(new Dimension(200, 170));
+    addHierarchyListener(e -> {
+      if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+        if (isShowing()) {
+          if (ambientAnimation) ambientTimer.start();
+        } else {
+          ambientTimer.stop();
+          ambientElapsedMs = 0;
+          stopAnimation();
+        }
+      }
+    });
+  }
+
+  /** 사이드바에서만 평상시 작은 움직임을 켭니다. 표시 중에만 반복합니다. */
+  public void setAmbientAnimation(boolean enabled) {
+    ambientAnimation = enabled;
+    ambientTimer.stop();
+    ambientElapsedMs = 0;
+    if (enabled && isShowing()) ambientTimer.start();
+    repaint();
+  }
+
+  void advanceAmbient(int ms) {
+    ambientElapsedMs = (ambientElapsedMs + ms) % 3200;
+    repaint();
+  }
+
+  int ambientLift() {
+    if (!ambientAnimation || motion != Motion.NONE) return 0;
+    int amplitude = mood == PetMood.FOCUS || mood == PetMood.SAD ? 1 : 2;
+    return (int) Math.round(amplitude * (1 - Math.cos(2 * Math.PI * ambientElapsedMs / 3200)));
+  }
+
+  int ambientSway() {
+    if (!ambientAnimation || motion != Motion.NONE) return 0;
+    return (int) Math.round(2 * Math.sin(2 * Math.PI * ambientElapsedMs / 3200));
   }
 
   /** 정답 반응입니다. 캐릭터가 통통 뛰고 effects 문구가 차례로 떠올랐다가 사라집니다. */
@@ -151,6 +190,8 @@ public final class PetStage extends JPanel {
 
   @Override
   public void removeNotify() {
+    ambientTimer.stop();
+    ambientElapsedMs = 0;
     stopAnimation();
     super.removeNotify();
   }
@@ -196,8 +237,8 @@ public final class PetStage extends JPanel {
     g.fillRect(0, floorY, w, h - floorY);
 
     int size = Math.max(40, Math.min(w - 40, floorY - 30));
-    int lift = hopOffset(size);
-    int x = (w - size) / 2 + shakeOffset(size);
+    int lift = hopOffset(size) + ambientLift();
+    int x = (w - size) / 2 + shakeOffset(size) + ambientSway();
     int y = floorY - size + size / 12 - lift;
     // 뛰어오르면 그림자가 작고 옅어집니다.
     double shadowScale = 1 - Math.min(0.35, lift / (double) size);

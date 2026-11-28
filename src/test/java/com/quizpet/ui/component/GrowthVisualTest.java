@@ -21,12 +21,63 @@ public class GrowthVisualTest {
   }
 
   private static void run() {
+    ambientAnimations();
     petStageAnimations();
     feedbackReactions();
     gaugeGain();
     weakestStats();
     sidebarGrowth();
     resultComparison();
+  }
+
+  private static void ambientAnimations() {
+    PetStage stage = new PetStatusPanel().getStage();
+    stage.setSize(280, 270);
+    stage.advanceAmbient(800);
+    assert stage.ambientLift() > 0 : "사이드바에서는 평소에도 위아래로 움직인다";
+    assert stage.ambientSway() != 0;
+    paint(stage);
+    stage.celebrate(List.of());
+    assert stage.ambientLift() == 0 && stage.ambientSway() == 0 : "점프 중에는 평상시 움직임을 겹치지 않는다";
+    stage.advance(PetStage.HOP_MS);
+    assert !stage.isAnimating() && stage.ambientLift() > 0 : "점프가 끝나면 평상시 움직임으로 돌아간다";
+    stage.shake();
+    assert stage.ambientSway() == 0;
+    stage.advance(PetStage.SHAKE_MS);
+    PetStage feedbackStage = new PetStage();
+    feedbackStage.advanceAmbient(800);
+    assert feedbackStage.ambientLift() == 0 && feedbackStage.ambientSway() == 0;
+    try {
+      var field = PetStage.class.getDeclaredField("ambientTimer");
+      field.setAccessible(true);
+      javax.swing.Timer timer = (javax.swing.Timer) field.get(stage);
+      assert !timer.isRunning();
+      javax.swing.JPanel cards = new javax.swing.JPanel(new java.awt.CardLayout());
+      cards.add(stage, "pet");
+      cards.add(new javax.swing.JPanel(), "other");
+      cards.addNotify();
+      try {
+        assert timer.isRunning();
+        stage.celebrate(List.of());
+        ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
+        assert !timer.isRunning() && !stage.isAnimating() : "숨겨지면 모든 타이머를 멈춘다";
+        assert stage.ambientLift() == 0;
+        ((java.awt.CardLayout) cards.getLayout()).show(cards, "pet");
+        assert timer.isRunning();
+        for (var action : timer.getActionListeners()) action.actionPerformed(null);
+        stage.advanceAmbient(800);
+        assert stage.ambientLift() > 0;
+        stage.setAmbientAnimation(false);
+        assert !timer.isRunning() && stage.ambientLift() == 0;
+        stage.setAmbientAnimation(true);
+        assert timer.isRunning();
+      } finally {
+        cards.removeNotify();
+      }
+      assert !timer.isRunning() && !stage.isAnimating();
+    } catch (ReflectiveOperationException e) {
+      throw new AssertionError(e);
+    }
   }
 
   private static void petStageAnimations() {

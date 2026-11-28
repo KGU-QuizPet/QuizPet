@@ -88,6 +88,7 @@ public final class PetStatusPanel extends JPanel {
     setPreferredSize(new Dimension(SIDEBAR_WIDTH, 0));
     setMinimumSize(new Dimension(SIDEBAR_WIDTH, 0));
 
+    stage.setAmbientAnimation(true);
     add(stage, BorderLayout.CENTER);
     add(createInfo(), BorderLayout.SOUTH);
     showSituation(Situation.HOME);
