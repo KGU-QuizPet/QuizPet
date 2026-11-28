@@ -1,6 +1,7 @@
 package main.java.com.quizpet.ui.screen;
 
 import main.java.com.quizpet.model.Category;
+import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.model.LearningRecord;
 import main.java.com.quizpet.model.MultipleChoiceQuestion;
 import main.java.com.quizpet.model.Question;
@@ -187,6 +188,7 @@ public class HistoryPanel extends JPanel {
     private final JLabel totalCountValue = centeredLabel("0", TITLE, TEXT);
     private final JLabel accuracyValue = centeredLabel("0%", TITLE, TEXT);
     private final JLabel totalXpValue = centeredLabel("0", TITLE, TEXT);
+    private final JLabel wrongCountValue = centeredLabel("—", TITLE, UiStyle.WRONG);
     private final CategoryAccuracyChart categoryAccuracyChart = new CategoryAccuracyChart();
     private final DefaultTableModel recordModel = readOnlyModel("일시", "분야", "문제", "내 답", "결과", "EXP");
     private final JTable recordTable = new JTable(recordModel) {
@@ -244,17 +246,15 @@ public class HistoryPanel extends JPanel {
         page.setBackground(BACKGROUND);
         page.add(titleBar("학습 기록"), BorderLayout.NORTH);
 
-        JPanel body = new JPanel(new BorderLayout(0, 12));
+        JPanel body = new HistoryBody();
         body.setOpaque(false);
         body.setBorder(BorderFactory.createEmptyBorder(16, 20, 8, 20));
 
         JPanel top = new JPanel();
         top.setOpaque(false);
-        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
-        top.add(leftAligned(categoryRow(recordCategoryBox, null)));
-        top.add(Box.createVerticalStrut(12));
-        top.add(leftAligned(buildSummaryCard()));
-        top.add(Box.createVerticalStrut(12));
+        top.setLayout(new BorderLayout(0, 12));
+        top.add(categoryRow(recordCategoryBox, null), BorderLayout.NORTH);
+        top.add(buildSummaryCard(), BorderLayout.CENTER);
 
         JPanel ratesCard = card();
         ratesCard.setLayout(new BorderLayout(0, 8));
@@ -268,12 +268,12 @@ public class HistoryPanel extends JPanel {
         JScrollPane scroll = new JScrollPane(recordTable);
         scroll.setBorder(BorderFactory.createLineBorder(BORDER));
         scroll.setPreferredSize(new Dimension(300, 120));
-        recordDetailArea.setFont(SMALL);
+        recordDetailArea.setFont(UiStyle.BODY_FONT.deriveFont(16f));
         recordDetailArea.setForeground(TEXT);
         recordDetailArea.setLineWrap(true);
         recordDetailArea.setWrapStyleWord(true);
         recordDetailArea.setEditable(false);
-        recordDetailArea.setFocusable(false);
+        recordDetailArea.setFocusable(true);
         recordDetailArea.setOpaque(false);
         recordDetailArea.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 12));
         recordTable.getSelectionModel().addListSelectionListener(e -> {
@@ -284,7 +284,7 @@ public class HistoryPanel extends JPanel {
         JPanel tableWithDetail = new JPanel(new BorderLayout(0, 6));
         tableWithDetail.setOpaque(false);
         tableWithDetail.add(scroll, BorderLayout.CENTER);
-        tableWithDetail.add(detailScroll(recordDetailArea, 3), BorderLayout.SOUTH);
+        tableWithDetail.add(detailScroll(recordDetailArea, 5), BorderLayout.SOUTH);
         recordListArea.setOpaque(false);
         recordListArea.add(tableWithDetail, CARD_TABLE);
         recordListArea.add(emptyMessage("아직 학습 기록이 없습니다."), CARD_EMPTY);
@@ -298,7 +298,11 @@ public class HistoryPanel extends JPanel {
         columns.setContinuousLayout(true);
         columns.setBorder(BorderFactory.createEmptyBorder());
         columns.setPreferredSize(new Dimension(900, 400));
-        body.add(columns, BorderLayout.CENTER);
+        columns.setDividerLocation(480);
+        JScrollPane columnsScroll = new JScrollPane(columns);
+        columnsScroll.setBorder(BorderFactory.createEmptyBorder());
+        columnsScroll.setMinimumSize(new Dimension(0, 0));
+        body.add(columnsScroll, BorderLayout.CENTER);
         JScrollPane contentScroll = new JScrollPane(body);
         contentScroll.setBorder(BorderFactory.createEmptyBorder());
         contentScroll.getVerticalScrollBar().setUnitIncrement(16);
@@ -317,63 +321,126 @@ public class HistoryPanel extends JPanel {
         return page;
     }
 
-    private JComponent buildSummaryCard() {
-        JPanel card = card();
-        card.setLayout(new GridLayout(1, 3, 8, 0));
-        card.add(summaryCell("총 풀이 수", totalCountValue));
-        card.add(summaryCell("정답률", accuracyValue));
-        card.add(summaryCell("누적 EXP", totalXpValue));
-        return card;
+    /** Keep KPI width tied to the window; only the chart/table region scrolls horizontally. */
+    private static final class HistoryBody extends JPanel implements javax.swing.Scrollable {
+        HistoryBody() { super(new BorderLayout(0, 12)); }
+        public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        public int getScrollableUnitIncrement(java.awt.Rectangle r, int orientation, int direction) { return 16; }
+        public int getScrollableBlockIncrement(java.awt.Rectangle r, int orientation, int direction) { return 120; }
+        public boolean getScrollableTracksViewportWidth() { return true; }
+        public boolean getScrollableTracksViewportHeight() { return getParent() instanceof javax.swing.JViewport viewport && viewport.getHeight() >= getPreferredSize().height; }
     }
 
-    private static JComponent summaryCell(String name, JLabel value) {
-        JPanel cell = new JPanel(new BorderLayout(0, 4));
-        cell.setOpaque(false);
-        cell.add(centeredLabel(name, SMALL, TEXT_MUTED), BorderLayout.NORTH);
+    private JComponent buildSummaryCard() {
+        JPanel cards = new JPanel(new GridLayout(1, 4, 12, 12)) {
+            private int cardWidth() {
+                int width = 0;
+                for (Component card : getComponents()) width = Math.max(width, card.getPreferredSize().width);
+                return width;
+            }
+            private int columns() {
+                if (getWidth() <= 0) return 4;
+                for (int count : new int[]{4, 2}) {
+                    if (getWidth() >= count * cardWidth() + (count - 1) * 12) return count;
+                }
+                return 1;
+            }
+            @Override public Dimension getPreferredSize() {
+                int rows = 4 / columns();
+                int height = 88;
+                for (Component card : getComponents()) height = Math.max(height, card.getPreferredSize().height);
+                return new Dimension(640, rows * height + (rows - 1) * 12);
+            }
+            @Override public void doLayout() {
+                int count = columns();
+                GridLayout grid = (GridLayout) getLayout();
+                if (grid.getRows() != 4 / count) {
+                    grid.setRows(4 / count); grid.setColumns(count); revalidate();
+                }
+                super.doLayout();
+            }
+        };
+        cards.setOpaque(false);
+        cards.add(summaryCell("총 학습 횟수", totalCountValue, UiStyle.TEXT));
+        cards.add(summaryCell("정답률", accuracyValue, UiStyle.CORRECT.darker()));
+        cards.add(summaryCell("누적 EXP", totalXpValue, UiStyle.EXP_DARK));
+        cards.add(summaryCell("전체 오답노트", wrongCountValue, UiStyle.WRONG.darker()));
+        return cards;
+    }
+
+    private static JComponent summaryCell(String name, JLabel value, Color accent) {
+        JPanel cell = new JPanel(new BorderLayout(0, 6));
+        cell.setBackground(UiStyle.SURFACE);
+        cell.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(UiStyle.BORDER),
+                BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        value.setFont(UiStyle.TITLE_FONT.deriveFont(26f));
+        value.setForeground(accent);
+        value.getAccessibleContext().setAccessibleName(name);
+        cell.add(centeredLabel(name, UiStyle.BODY_FONT, UiStyle.MUTED), BorderLayout.NORTH);
         cell.add(value, BorderLayout.CENTER);
         return cell;
     }
 
     private void setUpRecordTable() {
         styleTable(recordTable);
-        recordTable.setFont(SMALL);
-        int[][] widths = {{84, 84}, {64, 90}, {100, Integer.MAX_VALUE}, {56, 90}, {40, 40}, {44, 44}};
+        recordTable.setFont(UiStyle.BODY_FONT.deriveFont(16f));
+        recordTable.setRowHeight(40);
+        recordTable.setIntercellSpacing(new Dimension(0, 1));
+        recordTable.getTableHeader().setFont(UiStyle.SUBTITLE_FONT.deriveFont(16f));
+        recordTable.getTableHeader().setPreferredSize(new Dimension(0, 36));
+        int[][] widths = {{100, 130}, {76, 110}, {130, Integer.MAX_VALUE}, {90, 160}, {70, 80}, {64, 110}};
         for (int i = 0; i < widths.length; i++) {
             var column = recordTable.getColumnModel().getColumn(i);
             column.setMinWidth(widths[i][0]);
             column.setPreferredWidth(widths[i][0]);
             column.setMaxWidth(widths[i][1]);
+            column.setCellRenderer(new RecordCellRenderer());
         }
         recordTable.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
-        recordTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
-                                                           boolean focus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, selected, focus, row, column);
-                setHorizontalAlignment(SwingConstants.CENTER);
-                if (!selected) {
-                    c.setForeground("O".equals(value) ? CORRECT : WRONG);
-                }
-                return c;
-            }
-        });
-        recordTable.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
-                                                           boolean focus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, selected, focus, row, column);
-                setToolTipText(value == null ? null : value.toString());
-                return c;
-            }
-        });
-        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
-        center.setHorizontalAlignment(SwingConstants.CENTER);
-        recordTable.getColumnModel().getColumn(5).setCellRenderer(center);
     }
 
-    public void showHistory(HistoryView view) {
+    private static final class RecordCellRenderer extends DefaultTableCellRenderer {
+        RecordCellRenderer() { putClientProperty("html.disable", Boolean.TRUE); }
+        @Override public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean selected, boolean focus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, selected, focus, row, column);
+            String raw = value == null ? "" : value.toString();
+            setToolTipText("<html>" + raw.replace("&", "&amp;").replace("<", "&lt;")
+                    .replace(">", "&gt;").replace("\n", "<br>") + "</html>");
+            setBorder(BorderFactory.createCompoundBorder(getBorder(),
+                    BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+            setHorizontalAlignment(column >= 4 ? SwingConstants.CENTER : SwingConstants.LEFT);
+            setFont(table.getFont().deriveFont(column == 1 || column >= 4 ? Font.BOLD : Font.PLAIN));
+            if (column == 4) setText("O".equals(raw) ? "정답" : "오답");
+            if (column == 5 && ("+0".equals(raw) || "0".equals(raw))) setText("—");
+            if (!selected) {
+                setBackground(UiStyle.SURFACE); setForeground(UiStyle.TEXT);
+                if (column == 4) {
+                    setBackground("O".equals(raw) ? UiStyle.CORRECT_SOFT : UiStyle.WRONG_SOFT);
+                    setForeground("O".equals(raw) ? UiStyle.CORRECT.darker() : UiStyle.WRONG.darker());
+                } else if (column == 5 && !"—".equals(getText())) {
+                    setBackground(UiStyle.SUNKEN); setForeground(UiStyle.EXP_DARK.darker());
+                } else if (column == 1) {
+                    for (Category category : Category.values()) if (category.getName().equals(raw)) {
+                        setForeground(UiStyle.categoryColor(category).darker()); break;
+                    }
+                }
+            }
+            return this;
+        }
+    }
+
+    public void showHistory(HistoryView view) { showHistory(view, null); }
+
+    /** Count is all ever-wrong unique questions for this user, independent of the selected category.
+     * null means the count was unavailable; never infer it from the recent-record subset. */
+    public void showHistory(HistoryView view, Integer wrongCount) {
+        if (wrongCount != null && wrongCount < 0) throw new IllegalArgumentException("오답 수는 음수일 수 없습니다.");
         Objects.requireNonNull(view, "HistoryView가 null입니다. 학습 통계를 먼저 받아오세요.");
 
+        wrongCountValue.setText(wrongCount == null ? "—" : wrongCount.toString());
+        wrongCountValue.setToolTipText(wrongCount == null ? "오답노트 수를 확인할 수 없습니다."
+                : "전체 분야에서 한 번이라도 틀린 고유 문제 수입니다. 복습 완료도 포함합니다.");
         rebuildCategoryRates(view);
         selectCategory(recordCategoryBox, view.selectedCategoryId());
 
@@ -407,6 +474,8 @@ public class HistoryPanel extends JPanel {
         totalCountValue.setText("-");
         accuracyValue.setText("-");
         totalXpValue.setText("-");
+        wrongCountValue.setText("—");
+        wrongCountValue.setToolTipText("오답노트 수를 확인할 수 없습니다.");
         categoryAccuracyChart.showError(message == null || message.isBlank()
                 ? "분야별 정답률을 불러오지 못했습니다." : message);
         recordRows = List.of();
@@ -549,7 +618,9 @@ public class HistoryPanel extends JPanel {
             return;
         }
         HistoryView.RecordRow r = recordRows.get(row);
-        recordDetailArea.setText("문제: " + orDash(r.prompt()) + "\n내 답: " + orDash(r.myAnswer()));
+        recordDetailArea.setText("분야: " + orDash(r.categoryName()) + " / 풀이 시각: " + r.answeredAt()
+                + "\n결과: " + (r.correct() ? "정답" : "오답") + " / 획득 EXP: " + r.earnedXp()
+                + "\n\n문제: " + orDash(r.prompt()) + "\n내 답: " + orDash(r.myAnswer()));
         recordDetailArea.setCaretPosition(0);
     }
 
