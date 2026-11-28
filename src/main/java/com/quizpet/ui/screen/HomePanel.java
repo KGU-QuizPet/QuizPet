@@ -15,10 +15,7 @@ import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -41,7 +38,9 @@ import main.java.com.quizpet.ui.component.CategoryProgressCard;
 import main.java.com.quizpet.ui.component.ImageButton;
 import main.java.com.quizpet.ui.component.PetStatusPanel;
 import main.java.com.quizpet.ui.component.RoundCard;
+import main.java.com.quizpet.ui.component.StatComparisonPanel;
 
+/** 메인(홈) 화면: 캐릭터 상태 사이드바와 분야별 진행도·최근 학습·복습 카드를 표시합니다. */
 public class HomePanel extends JPanel {
   private static final int EXP_PER_LEVEL = Pet.XP_PER_LEVEL;
   private static final int RECENT_MIN = 3;
@@ -163,6 +162,10 @@ public class HomePanel extends JPanel {
     }
   }
 
+  public void showCategoryProgressUnavailable(Category category) {
+    progressCards.get(category).showProgressUnavailable();
+  }
+
   public void showCategoryProgress(Category category, int attempts, double accuracy) {
     progressCards.get(category).showProgress(attempts, accuracy);
   }
@@ -233,11 +236,13 @@ public class HomePanel extends JPanel {
     return wrongCountLabel.getText();
   }
 
+  /** 배너 첫 줄 인사말입니다. nickname이 없으면 기본 인사를 표시합니다. */
   public void setGreeting(String nickname) {
     greetingLabel.setText(nickname == null || nickname.isBlank()
         ? "안녕하세요!" : nickname + " 님, 안녕하세요!");
   }
 
+  /** 누적 정답률(0~100)과 푼 문제 수를 사이드바 아래에 표시합니다. */
   public void showSummary(double accuracy, int solved) {
     status.showSummary(accuracy, solved);
   }
@@ -250,6 +255,7 @@ public class HomePanel extends JPanel {
     return headlineLabel.getText();
   }
 
+  /** 이름 마지막 글자에 받침이 있으면 "이", 없으면 "가"를 붙입니다. 한글이 아니면 "가"를 씁니다. */
   static String subjectParticle(String name) {
     if (name == null || name.isEmpty()) {
       return "가";
@@ -459,31 +465,14 @@ public class HomePanel extends JPanel {
   }
 
   private void updateRecommendation(int str, int intel, int foc, int wis) {
-    Map<String, Integer> stats = new LinkedHashMap<>();
-    stats.put("INT", intel);
-    stats.put("STR", str);
-    stats.put("FOC", foc);
-    stats.put("WIS", wis);
-    int min = Collections.min(stats.values());
-    int max = Collections.max(stats.values());
-    String weakest = null;
-    for (Map.Entry<String, Integer> entry : stats.entrySet()) {
-      if (entry.getValue() == min) {
-        weakest = entry.getKey();
-        break;
-      }
-    }
-    boolean allSame = min == max;
-    List<String> names = new ArrayList<>();
+    Map<String, Integer> stats = Map.of("STR", str, "INT", intel, "FOC", foc, "WIS", wis);
+    List<String> weakest = StatComparisonPanel.weakestStats(stats);
     for (CategoryProgressCard card : progressCards.values()) {
-      boolean recommended = !allSame && card.getCategory().getStatType().equals(weakest);
-      card.setRecommended(recommended);
-      if (recommended) names.add(card.getCategory().getName());
+      card.setRecommended(weakest.contains(card.getCategory().getStatType()));
     }
-    growthHintLabel.setText(allSame
+    growthHintLabel.setText(weakest.isEmpty()
         ? "능력치가 모두 같아요. 마음에 드는 분야부터 키워 보세요!"
-        : "가장 약한 능력치는 " + UiStyle.statLabel(weakest) + "(" + weakest + ") " + min + "점! "
-            + String.join("·", names) + " 문제를 맞히면 올라가요.");
+        : StatComparisonPanel.weaknessHint(weakest));
   }
 
   private JPanel createBanner() {

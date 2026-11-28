@@ -111,7 +111,13 @@ public final class CategoryProgressCard extends RoundCard {
     onClick = action;
   }
 
+  public void showProgressUnavailable() {
+    bar.setVisible(false);
+    captionLabel.setText("분야 집계 불가");
+  }
+
   public void showProgress(int attempts, double accuracy) {
+    bar.setVisible(true);
     if (attempts <= 0) {
       bar.setValue(0, 100);
       captionLabel.setText("아직 시작 전");

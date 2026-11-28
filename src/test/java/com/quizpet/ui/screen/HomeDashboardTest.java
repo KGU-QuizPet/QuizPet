@@ -26,6 +26,14 @@ public final class HomeDashboardTest {
       home.showPet("말랑이", "DUCK", 4, 30, 12, 8, 14, 13);
       assert home.getProgressCard(Category.SCIENCE).isRecommended();
       assert home.getProgressCard(Category.COMMON).isRecommended();
+      home.showPet("말랑이", "DUCK", 4, 30, 8, 8, 14, 13);
+      assert home.getProgressCard(Category.SCIENCE).isRecommended();
+      assert home.getProgressCard(Category.COMMON).isRecommended();
+      assert home.getProgressCard(Category.SPORTS).isRecommended();
+      assert !home.getProgressCard(Category.HISTORY).isRecommended();
+      assert !home.getProgressCard(Category.LANGUAGE).isRecommended();
+      assert home.getGrowthHintText().contains("체력(STR)");
+      assert home.getGrowthHintText().contains("지성(INT)");
       home.showPet("말랑이", "DUCK", 1, 0, 10, 10, 10, 10);
       for (Category category : Category.values()) {
         assert !home.getProgressCard(category).isRecommended();

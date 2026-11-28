@@ -27,6 +27,7 @@ public class AppControllerTest {
         topBarNavigation();
         battleStopsOnNavigation();
         homeReviewCounts();
+        unavailableCategoryProgress();
         rejectedSubmissionAllowsNavigation();
         partiallySavedSubmissionRetry();
       } catch (Exception e) {
@@ -260,19 +261,21 @@ public class AppControllerTest {
       throw new AssertionError("save failure ignored");
     } catch (IOException expected) { }
     try {
-      app.endQuiz();
+      app.endQuizSession();
       throw new AssertionError("quiz ended before pending answer was saved");
     } catch (IOException expected) { }
     assert !session.isFinished();
     assert session.getAnsweredCount() == 0;
     assert visible(app, QuizPanel.class);
     Files.delete(save.resolve("record.txt"));
-    app.endQuiz();
+    app.endQuizSession();
+    assert visible(app, QuizPanel.class) : "탭 이탈 준비 중 결과 화면이 표시됨";
     assert session.isFinished();
     assert session.getAnsweredCount() == 1;
     assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
     assert new PetRepository(save.resolve("pet.txt")).findByUserId(user.getUserId()).orElseThrow().getTotalXp() == 10;
     app.showHome();
+    assert !findVisible(app.getView(), HomePanel.class).getStatusPanel().getStage().isCelebrating();
     app.showStart();
     assert visible(app, StartPanel.class);
   }
@@ -384,6 +387,35 @@ public class AppControllerTest {
     assert home.getWrongCountText().contains("1개") : home.getWrongCountText();
     assert clickVisible(app.getView(), "틀린 문제 다시 보기") : "미분류 오답만 있어도 복습 버튼 표시";
     assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
+  }
+
+  private static void unavailableCategoryProgress() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-category-unavailable-");
+    AppController app = new AppController(save);
+    User user = app.createUser("분야집계");
+    app.createPet("집계펫", "DUCK");
+    var records = new RecordRepository(save.resolve("record.txt"));
+    var time = java.time.LocalDateTime.of(2026, 11, 28, 12, 0);
+    String science = new QuestionRepository().findByCategory(Category.SCIENCE).get(0).getQuestionId();
+    records.save(new LearningRecord("KNOWN", user.getUserId(), science, "S1", "O", true, 0, time));
+    app.showHome();
+    HomePanel home = findVisible(app.getView(), HomePanel.class);
+    assert home.getProgressCard(Category.SCIENCE).getCaptionText().equals("100% · 1문제");
+    assert home.getProgressCard(Category.SPORTS).getCaptionText().equals("아직 시작 전");
+    records.save(new LearningRecord("MISSING", user.getUserId(), "UNKNOWN", "S2", "X", false, 0, time));
+    app.showHome();
+    for (Category category : Category.values()) {
+      var card = home.getProgressCard(category);
+      assert card.getCaptionText().equals("분야 집계 불가") : card.getCaptionText();
+      assert !card.getBar().isVisible() : "집계 불가를 0% 막대로 표시함";
+    }
+    Files.writeString(save.resolve("record.txt"), "");
+    app.showHome();
+    for (Category category : Category.values()) {
+      var card = home.getProgressCard(category);
+      assert card.getCaptionText().equals("아직 시작 전");
+      assert card.getBar().isVisible();
+    }
   }
 
   private static void rejectedSubmissionAllowsNavigation() throws Exception {

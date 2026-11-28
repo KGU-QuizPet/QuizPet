@@ -153,7 +153,7 @@ public final class AppController {
     int answer = JOptionPane.showConfirmDialog(getView(), "진행 중인 퀴즈를 종료할까요?",
         "퀴즈 종료", JOptionPane.YES_NO_OPTION);
     if (answer != JOptionPane.YES_OPTION) return false;
-    endQuiz();
+    endQuizSession();
     return true;
   }
 
@@ -278,7 +278,7 @@ public final class AppController {
         .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
     for (Category category : Category.values()) {
       if (unresolved) {
-        home.showCategoryProgress(category, 0, 0);
+        home.showCategoryProgressUnavailable(category);
       } else {
         StatisticsService.Statistics stats = statistics.getCategoryStatistics(userId, category.getCategoryId());
         home.showCategoryProgress(category, stats.getTotalAttempts(), stats.getAccuracy());
@@ -436,10 +436,14 @@ public final class AppController {
   }
 
   public void endQuiz() throws IOException {
+    endQuizSession();
+    showResult();
+  }
+
+  void endQuizSession() throws IOException {
     requireSession();
     ready();
     quizzes.endSession(session);
-    showResult();
   }
 
   private void showResult() throws IOException {
