@@ -58,7 +58,7 @@ public final class PetStage extends JPanel {
   private int elapsedMs;
   private boolean ambientAnimation;
   private int ambientElapsedMs;
-  private final javax.swing.Timer ambientTimer = new javax.swing.Timer(FRAME_MS, e -> advanceAmbient(FRAME_MS));
+  private final javax.swing.Timer ambientTimer = new javax.swing.Timer(33, e -> advanceAmbient(33));
   private final javax.swing.Timer timer = new javax.swing.Timer(FRAME_MS, e -> advance(FRAME_MS));
 
   public PetStage() {

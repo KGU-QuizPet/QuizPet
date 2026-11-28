@@ -58,6 +58,7 @@ public class GrowthVisualTest {
       var field = PetStage.class.getDeclaredField("ambientTimer");
       field.setAccessible(true);
       javax.swing.Timer timer = (javax.swing.Timer) field.get(stage);
+      assert timer.getDelay() == 33 : "기본 동작은 약 30fps로 갱신해야 한다";
       assert !timer.isRunning();
       javax.swing.JPanel cards = new javax.swing.JPanel(new java.awt.CardLayout());
       cards.add(stage, "pet");
