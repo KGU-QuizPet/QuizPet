@@ -3,6 +3,7 @@ package main.java.com.quizpet.ui;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
+import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 import main.java.com.quizpet.model.Category;
@@ -48,8 +50,15 @@ public final class UiStyle {
 
   private static final Map<PetAppearance, Map<PetMood, Optional<BufferedImage>>> PET_IMAGES =
       new EnumMap<>(PetAppearance.class);
+  private static final Optional<BufferedImage> LOGO_IMAGE =
+      loadImage("/images/logo/quizpet-logo-square.png");
 
   private UiStyle() {}
+
+  public static ImageIcon logoIcon(int size) {
+    return LOGO_IMAGE.map(image -> new ImageIcon(
+        image.getScaledInstance(size, size, Image.SCALE_SMOOTH), "QuizPet")).orElse(null);
+  }
 
   /** 능력치 색은 해당 능력치를 올려 주는 분야 색과 같습니다(INT=과학, STR=스포츠, FOC=언어, WIS=역사). */
   public static Color statColor(String statType) {

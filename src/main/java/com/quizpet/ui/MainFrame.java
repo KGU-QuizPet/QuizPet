@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -20,6 +21,8 @@ public class MainFrame extends JFrame {
 
   public MainFrame() {
     super("QuizPet");
+    ImageIcon logo = UiStyle.logoIcon(256);
+    if (logo != null) setIconImage(logo.getImage());
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
     setMinimumSize(new Dimension(Math.min(1280, screen.width), Math.min(800, screen.height)));

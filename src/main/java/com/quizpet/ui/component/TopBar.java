@@ -105,8 +105,9 @@ public final class TopBar extends JPanel {
     JLabel logo = new JLabel("QuizPet");
     logo.setFont(LOGO_FONT);
     logo.setForeground(UiStyle.TEXT);
-    logo.setIcon(new PawIcon());
-    logo.setIconTextGap(10);
+    logo.setIcon(UiStyle.logoIcon(52));
+    if (logo.getIcon() != null) logo.setText("");
+    logo.getAccessibleContext().setAccessibleName("QuizPet");
     logo.setPreferredSize(new Dimension(272, HEIGHT));
     return logo;
   }
@@ -243,35 +244,6 @@ public final class TopBar extends JPanel {
         default -> { }
       }
       g.dispose();
-    }
-  }
-
-  private static final class PawIcon implements javax.swing.Icon {
-    @Override
-    public void paintIcon(java.awt.Component c, Graphics graphics, int x, int y) {
-      Graphics2D g = (Graphics2D) graphics.create();
-      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-      g.setColor(UiStyle.EXP_DARK);
-      g.fillRoundRect(x, y + 3, 36, 36, 12, 12);
-      g.setColor(UiStyle.BRAND);
-      g.fillRoundRect(x, y, 36, 36, 12, 12);
-      g.setColor(Color.WHITE);
-      g.fillOval(x + 11, y + 17, 14, 12);
-      g.fillOval(x + 7, y + 10, 6, 7);
-      g.fillOval(x + 13, y + 6, 6, 7);
-      g.fillOval(x + 19, y + 6, 6, 7);
-      g.fillOval(x + 24, y + 10, 6, 7);
-      g.dispose();
-    }
-
-    @Override
-    public int getIconWidth() {
-      return 36;
-    }
-
-    @Override
-    public int getIconHeight() {
-      return 39;
     }
   }
 
