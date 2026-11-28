@@ -1,35 +1,45 @@
 package main.java.com.quizpet.ui.screen;
 
 import main.java.com.quizpet.model.Category;
+import main.java.com.quizpet.model.LearningRecord;
+import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizResult;
 import main.java.com.quizpet.ui.component.StatComparisonPanel;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** UI-07 퀴즈 결과. */
+import static main.java.com.quizpet.ui.screen.RecordUi.*;
+
 public class QuizResultPanel extends JPanel {
     public static final String SCREEN_NAME = "QUIZ_RESULT";
 
-    /** 정답률과 answeredCount는 BE2 QuizResult처럼 제출한 문제 기준입니다. */
     public record QuizResultView(
             String categoryName,
             String statType,
@@ -56,165 +66,224 @@ public class QuizResultPanel extends JPanel {
         }
     }
 
+    public record QuestionResult(String prompt, boolean correct, int earnedXp) {
+        public static QuestionResult of(Question question, LearningRecord record) {
+            Objects.requireNonNull(record, "LearningRecord가 null입니다.");
+            String prompt = question == null ? "문제 정보 없음: " + record.getQuestionId() : question.getPrompt();
+            return new QuestionResult(prompt, record.isCorrect(), record.getEarnedXp());
+        }
+    }
+
     private static final int DEFAULT_XP_PER_LEVEL = 50;
+    private static final int RING_COLUMN_WIDTH = 280;
+    private static final int RING_DIAMETER = 168;
+    private static final int RING_THICKNESS = 19;
+    private static final double RING_OK_PERCENT = 60.0;
 
-    // FE1 UiStyle과 같은 값 (UiStyle이 main에 머지되면 UiStyle로 교체)
-    private static final Color BACKGROUND = new Color(0xFFF8EE);
-    private static final Color SURFACE = Color.WHITE;
-    private static final Color BORDER = new Color(0xDADCE3);
-    private static final Color TEXT = new Color(0x1F2330);
-    private static final Color TEXT_MUTED = new Color(0x6B7080);
-    private static final Color PRIMARY = new Color(0x6C8EBF);
-    private static final Color HIGHLIGHT = new Color(0xF08C00);
-    private static final Font TITLE = new Font(Font.DIALOG, Font.BOLD, 18);
-    private static final Font HEADLINE = new Font(Font.DIALOG, Font.BOLD, 28);
-    private static final Font SUBTITLE = new Font(Font.DIALOG, Font.BOLD, 15);
-    private static final Font BODY = new Font(Font.DIALOG, Font.PLAIN, 15);
-    private static final Font BODY_BOLD = new Font(Font.DIALOG, Font.BOLD, 15);
-    private static final Font SMALL = new Font(Font.DIALOG, Font.PLAIN, 13);
+    private final JLabel subtitleLabel = label(" ", BODY, INK_2);
+    private final Pill categoryChip = new Pill(" ", SUNKEN, INK_2, CAPTION.deriveFont(13f));
+    private final AccuracyRing ring = new AccuracyRing();
 
-    private final JLabel categoryLabel = centeredLabel(" ", BODY, TEXT_MUTED);
-    private final JLabel scoreLabel = centeredLabel(" ", HEADLINE, TEXT);
-    private final JLabel accuracyLabel = centeredLabel(" ", SUBTITLE, TEXT_MUTED);
+    private final CardLayout bannerPages = new CardLayout();
+    private final JPanel bannerArea = clear(bannerPages);
+    private final JLabel levelUpValue = label(" ", KPI.deriveFont(28f), Color.WHITE);
+    private final JLabel nextLevelValue = label(" ", H2, INK);
+    private final JLabel nextLevelMeta = label(" ", CAPTION, INK_2);
+    private final Bar nextLevelBar = new Bar(EXP, 14);
 
-    private final JLabel xpValue = label(" ", SUBTITLE, TEXT);
-    private final JLabel statValue = label(" ", SUBTITLE, TEXT);
-    private final JLabel levelValue = label(" ", SUBTITLE, TEXT);
-    private final JLabel levelUpBadge = label("LEVEL UP!", BODY_BOLD, HIGHLIGHT);
-    private final JProgressBar xpBar = new JProgressBar();
+    private final JLabel xpValue = label(" ", KPI, EXP_DARK);
+    private final JLabel statValue = label(" ", KPI, INK);
+    private final JLabel newCorrectValue = label(" ", KPI, INK);
+
+    private final Card questionCard = new Card(new BorderLayout(0, 10), 18);
+    private final JPanel rows = new RowsPanel();
     private final StatComparisonPanel statComparison = new StatComparisonPanel();
+    private final Card statCard = new Card(new BorderLayout(), 18);
 
-    private final JButton mainButton = button("메인으로");
-    private final JButton historyButton = button("학습 기록");
+    private final GameButton historyButton = new GameButton("학습 기록 보기", Variant.GHOST, 52);
+    private final GameButton retryButton = new GameButton("같은 분야 다시", Variant.GHOST, 52);
+    private final GameButton mainButton = new GameButton("메인으로", Variant.PRIMARY, 60);
 
     private Runnable onGoMain = () -> { };
     private Runnable onGoHistory = () -> { };
+    private Runnable onRetry = () -> { };
 
     public QuizResultPanel() {
-        setLayout(new BorderLayout());
-        setBackground(BACKGROUND);
+        setLayout(new BorderLayout(0, GAP));
+        setBackground(BG);
+        setBorder(BorderFactory.createEmptyBorder(PAD_Y, PAD_X, PAD_Y, PAD_X));
 
-        add(titleBar("퀴즈 결과"), BorderLayout.NORTH);
-        add(buildBody(), BorderLayout.CENTER);
+        add(buildHeader(), BorderLayout.NORTH);
+        JPanel center = clear(new BorderLayout(0, GAP));
+        center.add(buildSummaryRow(), BorderLayout.NORTH);
+        center.add(buildLowerRow(), BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
         add(buildButtons(), BorderLayout.SOUTH);
 
         mainButton.addActionListener(e -> onGoMain.run());
         historyButton.addActionListener(e -> onGoHistory.run());
+        retryButton.addActionListener(e -> onRetry.run());
+        retryButton.setVisible(false);
+        showQuestionResults(List.of());
     }
 
-    private JComponent buildBody() {
-        JPanel body = new JPanel();
-        body.setOpaque(false);
-        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
-        body.setBorder(BorderFactory.createEmptyBorder(24, 28, 12, 28));
+    private JComponent buildHeader() {
+        JPanel titles = clear(null);
+        titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
+        JLabel title = label("퀴즈 완료!", H1, INK);
+        titles.add(title);
+        titles.add(Box.createVerticalStrut(4));
+        titles.add(subtitleLabel);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        subtitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        for (JComponent c : new JComponent[]{categoryLabel, scoreLabel, accuracyLabel}) {
-            c.setAlignmentX(Component.CENTER_ALIGNMENT);
-            body.add(c);
-            body.add(Box.createVerticalStrut(6));
-        }
-        body.add(Box.createVerticalStrut(16));
+        JPanel chipBox = clear(new FlowLayout(FlowLayout.RIGHT, 0, 6));
+        chipBox.add(categoryChip);
 
-        JPanel rewardCard = card();
-        rewardCard.setLayout(new GridBagLayout());
-        addRow(rewardCard, 0, "획득 EXP", xpValue);
-        addRow(rewardCard, 1, "능력치 변화", statValue);
+        JPanel header = clear(new BorderLayout());
+        header.add(titles, BorderLayout.CENTER);
+        header.add(chipBox, BorderLayout.EAST);
+        return header;
+    }
 
-        JPanel levelRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        levelRow.setOpaque(false);
-        levelRow.add(levelValue);
-        levelRow.add(levelUpBadge);
-        addRow(rewardCard, 2, "레벨", levelRow);
+    private JComponent buildSummaryRow() {
+        Card ringCard = new Card(new BorderLayout(), 16);
+        ringCard.add(ring, BorderLayout.CENTER);
+        ringCard.setPreferredSize(new Dimension(RING_COLUMN_WIDTH, RING_DIAMETER + 2 * 16 + SHADOW_Y + 8));
 
-        xpBar.setStringPainted(true);
-        xpBar.setFont(SMALL);
-        xpBar.setForeground(PRIMARY);
-        xpBar.setPreferredSize(new Dimension(200, 20));
-        GridBagConstraints barGc = new GridBagConstraints();
-        barGc.gridx = 0;
-        barGc.gridy = 3;
-        barGc.gridwidth = 2;
-        barGc.fill = GridBagConstraints.HORIZONTAL;
-        barGc.weightx = 1;
-        barGc.insets = new Insets(12, 0, 0, 0);
-        rewardCard.add(xpBar, barGc);
+        bannerArea.add(buildLevelUpBanner(), "UP");
+        bannerArea.add(buildNextLevelCard(), "NEXT");
 
-        GridBagConstraints statGc = new GridBagConstraints();
-        statGc.gridx = 0;
-        statGc.gridy = 4;
-        statGc.gridwidth = 2;
-        statGc.fill = GridBagConstraints.HORIZONTAL;
-        statGc.weightx = 1;
-        statGc.insets = new Insets(18, 0, 0, 0);
+        JPanel kpis = clear(new GridLayout(1, 3, 14, 0));
+        kpis.add(kpiCard("획득 EXP", xpValue));
+        kpis.add(kpiCard("능력치 변화", statValue));
+        kpis.add(kpiCard("신규 정답", newCorrectValue));
+
+        JPanel right = clear(new BorderLayout(0, 16));
+        right.add(bannerArea, BorderLayout.NORTH);
+        right.add(kpis, BorderLayout.CENTER);
+
+        JPanel row = clear(new BorderLayout(GAP, 0));
+        row.add(ringCard, BorderLayout.WEST);
+        row.add(right, BorderLayout.CENTER);
+        return row;
+    }
+
+    private JComponent buildLevelUpBanner() {
+        Card banner = new Card(new BorderLayout(16, 0), 16, INK, null, DARK_LIP, RADIUS_CARD);
+        Card star = new Card(new BorderLayout(), 0, EXP, null, EXP_DARK, 16);
+        JLabel starText = new JLabel("★", SwingConstants.CENTER);
+        starText.setFont(KPI);
+        starText.setForeground(Color.WHITE);
+        star.add(starText);
+        star.setPreferredSize(new Dimension(58, 58 + SHADOW_Y));
+
+        JPanel texts = clear(null);
+        texts.setLayout(new BoxLayout(texts, BoxLayout.Y_AXIS));
+        texts.add(label("LEVEL UP", CAPTION.deriveFont(13f), EXP));
+        texts.add(levelUpValue);
+
+        JLabel note = label("한 단계 성장했어요!", SMALL, new Color(0xCFC8E0));
+        banner.add(star, BorderLayout.WEST);
+        banner.add(texts, BorderLayout.CENTER);
+        banner.add(note, BorderLayout.EAST);
+        return banner;
+    }
+
+    private JComponent buildNextLevelCard() {
+        Card card = new Card(new BorderLayout(0, 8), 16);
+        JPanel top = clear(new BorderLayout());
+        top.add(nextLevelValue, BorderLayout.WEST);
+        top.add(nextLevelMeta, BorderLayout.EAST);
+        card.add(top, BorderLayout.NORTH);
+        card.add(nextLevelBar, BorderLayout.CENTER);
+        return card;
+    }
+
+    private static JComponent kpiCard(String name, JLabel value) {
+        Card card = new Card(new BorderLayout(0, 2), 16);
+        card.add(label(name, SMALL.deriveFont(Font.BOLD), INK_2), BorderLayout.NORTH);
+        card.add(value, BorderLayout.CENTER);
+        return card;
+    }
+
+    private JComponent buildLowerRow() {
+        statCard.add(statComparison, BorderLayout.CENTER);
         statComparison.setVisible(false);
-        rewardCard.add(statComparison, statGc);
-
-        rewardCard.setAlignmentX(Component.CENTER_ALIGNMENT);
-        body.add(rewardCard);
-
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setOpaque(false);
-        wrapper.add(body, BorderLayout.NORTH);
-        return wrapper;
+        statCard.setVisible(false);
+        JPanel lower = clear(new GridBagLayout());
+        GridBagConstraints cell = new GridBagConstraints();
+        cell.fill = GridBagConstraints.BOTH;
+        cell.weighty = 1;
+        cell.weightx = 1.4;
+        cell.insets = new Insets(0, 0, 0, GAP);
+        lower.add(buildQuestionList(), cell);
+        cell.weightx = 1;
+        cell.insets = new Insets(0, 0, 0, 0);
+        lower.add(statCard, cell);
+        return lower;
     }
 
-    private static void addRow(JPanel card, int row, String name, JComponent value) {
-        GridBagConstraints left = new GridBagConstraints();
-        left.gridx = 0;
-        left.gridy = row;
-        left.anchor = GridBagConstraints.WEST;
-        left.insets = new Insets(6, 0, 6, 24);
-        card.add(label(name, BODY, TEXT_MUTED), left);
-
-        GridBagConstraints right = new GridBagConstraints();
-        right.gridx = 1;
-        right.gridy = row;
-        right.anchor = GridBagConstraints.WEST;
-        right.weightx = 1;
-        right.insets = new Insets(6, 0, 6, 0);
-        card.add(value, right);
+    private JComponent buildQuestionList() {
+        questionCard.add(label("문제별 결과", H2.deriveFont(18f), INK), BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(rows,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        questionCard.add(scroll, BorderLayout.CENTER);
+        return questionCard;
     }
 
     private JComponent buildButtons() {
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
-        buttons.setOpaque(false);
-        buttons.setBorder(BorderFactory.createEmptyBorder(0, 0, 24, 0));
-        buttons.add(mainButton);
-        buttons.add(historyButton);
-        return buttons;
+        JPanel left = clear(new GridBagLayout());
+        left.add(historyButton);
+        JPanel right = clear(new GridBagLayout());
+        GridBagConstraints gap = new GridBagConstraints();
+        gap.insets = new Insets(0, 14, 0, 0);
+        right.add(retryButton, gap);
+        right.add(mainButton, gap);
+        JPanel bar = clear(new BorderLayout());
+        bar.add(left, BorderLayout.WEST);
+        bar.add(right, BorderLayout.EAST);
+        return bar;
     }
 
     public void showResult(QuizResultView view) {
         Objects.requireNonNull(view, "QuizResultView가 null입니다. 세션 집계 결과를 먼저 받아오세요.");
 
-        categoryLabel.setText(orDash(view.categoryName()) + " 퀴즈");
         boolean stoppedEarly = view.answeredCount() < view.totalCount();
-        int base = view.answeredCount() > 0 ? view.answeredCount() : view.totalCount(); // 하나도 안 풀면 "0 / 5"
-        scoreLabel.setText(view.correctCount() + " / " + base + " 정답");
-        accuracyLabel.setText("정답률 " + percent(view.accuracyPercent(), view.answeredCount())
-                + (stoppedEarly ? "  ·  " + view.totalCount() + "문제 중 " + view.answeredCount() + "문제 풀이" : ""));
+        subtitleLabel.setText(orDash(view.categoryName()) + " · " + view.totalCount() + "문제"
+                + (stoppedEarly ? " 중 " + view.answeredCount() + "문제 풀이" : ""));
+        Color categoryColor = categoryColor(view.categoryName());
+        categoryChip.set(orDash(view.categoryName()) + " · " + orDash(view.statType()),
+                soft(categoryColor), categoryColor);
 
-        xpValue.setText(signed(view.gainedXp()));
-        statValue.setText(orDash(view.statType()) + " " + signed(view.statGain()));
-        boolean rewarded = view.gainedXp() > 0;
-        xpValue.setForeground(rewarded ? HIGHLIGHT : TEXT);
-        statValue.setForeground(rewarded ? HIGHLIGHT : TEXT);
-
-        if (view.leveledUp()) {
-            levelValue.setText("Lv." + view.levelBefore() + " → Lv." + view.levelAfter());
-        } else {
-            levelValue.setText("Lv." + view.levelAfter() + " (유지)");
-        }
-        levelUpBadge.setVisible(view.leveledUp());
+        int base = view.answeredCount() > 0 ? view.answeredCount() : view.totalCount();
+        ring.set(view.answeredCount() > 0 ? view.accuracyPercent() : 0,
+                percent(view.accuracyPercent(), view.answeredCount()),
+                view.correctCount() + " / " + base + " 정답");
 
         int perLevel = view.xpPerLevel() > 0 ? view.xpPerLevel() : DEFAULT_XP_PER_LEVEL;
         int inLevel = Math.max(0, Math.min(view.xpInLevel(), perLevel));
-        xpBar.setMaximum(perLevel);
-        xpBar.setValue(inLevel);
-        xpBar.setString("Lv." + view.levelAfter() + "  EXP " + inLevel + " / " + perLevel);
+        if (view.leveledUp()) {
+            levelUpValue.setText("Lv." + view.levelBefore() + " → Lv." + view.levelAfter());
+            bannerPages.show(bannerArea, "UP");
+        } else {
+            nextLevelValue.setText("다음 레벨까지 " + (perLevel - inLevel) + " EXP");
+            nextLevelMeta.setText("Lv." + view.levelAfter() + " · EXP " + inLevel + " / " + perLevel);
+            nextLevelBar.set((double) inLevel / perLevel, EXP);
+            bannerPages.show(bannerArea, "NEXT");
+        }
 
-        revalidate();
-        repaint();
+        xpValue.setText(signed(view.gainedXp()));
+        xpValue.setForeground(view.gainedXp() > 0 ? EXP_DARK : INK_3);
+        statValue.setText(orDash(view.statType()) + " " + signed(view.statGain()));
+        statValue.setForeground(view.statGain() > 0 ? statColor(view.statType()) : INK_3);
+        newCorrectValue.setText(view.statGain() + " / " + view.correctCount());
+
+        showQuestionResults(List.of());
     }
 
     public void showResult(Category category, QuizResult result, int gainedXp, int statGain,
@@ -227,19 +296,56 @@ public class QuizResultPanel extends JPanel {
                 result.getAnsweredCount()));
     }
 
-    /**
-     * 퀴즈 전·후 능력치를 비교해 보여 줍니다(키: STR·INT·FOC·WIS).
-     * 늘어난 능력치는 막대가 차오르며 강조되고, 가장 낮은 능력치에는 보충 안내가 붙습니다.
-     */
+    public void showQuestionResults(List<QuestionResult> results) {
+        Objects.requireNonNull(results, "문제별 결과 목록이 null입니다.");
+        rows.removeAll();
+        for (int i = 0; i < results.size(); i++) {
+            if (i > 0) {
+                rows.add(Box.createVerticalStrut(6));
+            }
+            rows.add(questionRow(i + 1, results.get(i)));
+        }
+        questionCard.setVisible(!results.isEmpty());
+        revalidate();
+        repaint();
+    }
+
+    private static JComponent questionRow(int number, QuestionResult result) {
+        Card row = new Card(new BorderLayout(12, 0), 0, SUNKEN, null, SUNKEN, 14);
+        row.setBorder(BorderFactory.createEmptyBorder(6, 12, 6 + SHADOW_Y, 14));
+
+        Pill badge = new Pill(result.correct() ? "O" : "X", result.correct() ? OK : ERR, Color.WHITE, BODY_BOLD);
+        badge.setPreferredSize(new Dimension(28, 28));
+        badge.setBorder(BorderFactory.createEmptyBorder());
+        JPanel left = clear(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        left.add(badge);
+        left.add(label("Q" + number, BODY_BOLD, INK_3));
+
+        JLabel prompt = label(orDash(result.prompt()), BODY, INK);
+        prompt.setToolTipText(result.prompt());
+        boolean rewarded = result.earnedXp() > 0;
+        JLabel xp = label(rewarded ? "+" + result.earnedXp() + " EXP" : "보상 없음",
+                CAPTION.deriveFont(13f), rewarded ? EXP_DARK : INK_3);
+
+        row.add(left, BorderLayout.WEST);
+        row.add(prompt, BorderLayout.CENTER);
+        row.add(xp, BorderLayout.EAST);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
+        return row;
+    }
+
     public void showStatComparison(Map<String, Integer> before, Map<String, Integer> after) {
         statComparison.showComparison(before, after, true);
         statComparison.setVisible(true);
+        statCard.setVisible(true);
         revalidate();
         repaint();
     }
 
     public void hideStatComparison() {
         statComparison.setVisible(false);
+        statCard.setVisible(false);
         revalidate();
     }
 
@@ -255,41 +361,10 @@ public class QuizResultPanel extends JPanel {
         this.onGoHistory = (action != null) ? action : () -> { };
     }
 
-    private static JLabel label(String text, Font font, Color color) {
-        JLabel label = new JLabel(text);
-        label.setFont(font);
-        label.setForeground(color);
-        return label;
-    }
-
-    private static JLabel centeredLabel(String text, Font font, Color color) {
-        JLabel label = label(text, font, color);
-        label.setHorizontalAlignment(SwingConstants.CENTER);
-        return label;
-    }
-
-    private static JLabel titleBar(String text) {
-        JLabel title = centeredLabel(text, TITLE, Color.WHITE);
-        title.setOpaque(true);
-        title.setBackground(PRIMARY);
-        title.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
-        return title;
-    }
-
-    private static JPanel card() {
-        JPanel panel = new JPanel();
-        panel.setBackground(SURFACE);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER),
-                BorderFactory.createEmptyBorder(14, 16, 14, 16)));
-        return panel;
-    }
-
-    private static JButton button(String text) {
-        JButton button = new JButton(text);
-        button.setFont(BODY);
-        button.setFocusPainted(false);
-        return button;
+    public void setOnRetry(Runnable action) {
+        this.onRetry = (action != null) ? action : () -> { };
+        retryButton.setVisible(action != null);
+        revalidate();
     }
 
     private static String percent(double percent, int submissions) {
@@ -305,5 +380,86 @@ public class QuizResultPanel extends JPanel {
 
     private static String orDash(String text) {
         return (text == null || text.isBlank()) ? "-" : text;
+    }
+
+    private static final class AccuracyRing extends JComponent {
+        private double percent;
+        private String main = " ";
+        private String sub = " ";
+
+        void set(double percent, String main, String sub) {
+            this.percent = Math.max(0, Math.min(100, percent));
+            this.main = main;
+            this.sub = sub;
+            repaint();
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(RING_DIAMETER, RING_DIAMETER);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = smooth(g);
+            int size = Math.min(RING_DIAMETER, Math.min(getWidth(), getHeight()) - 4);
+            if (size <= RING_THICKNESS * 2) {
+                g2.dispose();
+                return;
+            }
+            int x = (getWidth() - size) / 2;
+            int y = (getHeight() - size) / 2;
+            int inset = RING_THICKNESS / 2;
+            g2.setStroke(new BasicStroke(RING_THICKNESS, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
+            g2.setColor(TRACK);
+            g2.drawOval(x + inset, y + inset, size - 2 * inset, size - 2 * inset);
+            g2.setColor(percent >= RING_OK_PERCENT ? OK : BRAND);
+            g2.drawArc(x + inset, y + inset, size - 2 * inset, size - 2 * inset, 90,
+                    -(int) Math.round(360 * percent / 100));
+
+            Font mainFont = KPI.deriveFont(size >= RING_DIAMETER ? 34f : 26f);
+            g2.setFont(mainFont);
+            FontMetrics fm = g2.getFontMetrics();
+            int cy = y + size / 2;
+            g2.setColor(INK);
+            g2.drawString(main, x + (size - fm.stringWidth(main)) / 2, cy + fm.getAscent() / 2 - 8);
+            g2.setFont(CAPTION.deriveFont(13f));
+            FontMetrics small = g2.getFontMetrics();
+            g2.setColor(INK_2);
+            g2.drawString(sub, x + (size - small.stringWidth(sub)) / 2, cy + fm.getAscent() / 2 + small.getHeight());
+            g2.dispose();
+        }
+    }
+
+    private static final class RowsPanel extends JPanel implements Scrollable {
+        RowsPanel() {
+            setOpaque(false);
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return visible.height;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 }
