@@ -66,9 +66,9 @@ public final class PetStage extends JPanel {
     setPreferredSize(new Dimension(280, 270));
     setMinimumSize(new Dimension(200, 170));
     addHierarchyListener(e -> {
-      if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+      if (ambientAnimation && (e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
         if (isShowing()) {
-          if (ambientAnimation) ambientTimer.start();
+          ambientTimer.start();
         } else {
           ambientTimer.stop();
           ambientElapsedMs = 0;

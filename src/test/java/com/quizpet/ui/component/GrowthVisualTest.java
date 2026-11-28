@@ -22,6 +22,7 @@ public class GrowthVisualTest {
 
   private static void run() {
     ambientAnimations();
+    feedbackVisibilityPreservesReaction();
     petStageAnimations();
     feedbackReactions();
     gaugeGain();
@@ -85,6 +86,26 @@ public class GrowthVisualTest {
       assert !timer.isRunning() && !stage.isAnimating();
     } catch (ReflectiveOperationException e) {
       throw new AssertionError(e);
+    }
+  }
+
+  private static void feedbackVisibilityPreservesReaction() {
+    PetStage stage = new PetStage();
+    javax.swing.JPanel cards = new javax.swing.JPanel(new java.awt.CardLayout());
+    cards.add(stage, "feedback");
+    cards.add(new javax.swing.JPanel(), "other");
+    cards.addNotify();
+    List<PetStage.Effect> effects = List.of(new PetStage.Effect("+10 EXP", UiStyle.EXP_DARK));
+    try {
+      stage.celebrate(effects);
+      ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
+      assert stage.isCelebrating() && stage.getEffects().equals(effects)
+          : "사이드바 외의 화면은 숨김 시에도 기존 반응 종료 방식을 유지해야 한다";
+      stage.advance(stage.getDurationMs());
+      assert !stage.isAnimating() && stage.getEffects().isEmpty();
+    } finally {
+      stage.stopAnimation();
+      cards.removeNotify();
     }
   }
 
