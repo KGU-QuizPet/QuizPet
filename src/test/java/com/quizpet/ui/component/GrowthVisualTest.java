@@ -34,19 +34,24 @@ public class GrowthVisualTest {
     PetStage stage = new PetStatusPanel().getStage();
     stage.setSize(280, 270);
     stage.advanceAmbient(800);
-    assert stage.ambientLift() > 0 : "사이드바에서는 평소에도 위아래로 움직인다";
-    assert stage.ambientSway() != 0;
+    double breath = stage.ambientBreath();
+    assert breath > 0 && breath < 1;
+    stage.advanceAmbient(16);
+    assert Math.abs(stage.ambientBreath() - breath) < 0.02 : "프레임 사이 변화가 작고 연속적이어야 한다";
+    stage.advanceAmbient(4000 - 816);
+    assert Math.abs(stage.ambientBreath()) < 1e-9 : "주기 경계에서 처음 자세로 이어져야 한다";
+    stage.advanceAmbient(800);
     paint(stage);
     stage.celebrate(List.of());
-    assert stage.ambientLift() == 0 && stage.ambientSway() == 0 : "점프 중에는 평상시 움직임을 겹치지 않는다";
+    assert stage.ambientBreath() == 0 : "점프 중에는 평상시 움직임을 겹치지 않는다";
     stage.advance(PetStage.HOP_MS);
-    assert !stage.isAnimating() && stage.ambientLift() > 0 : "점프가 끝나면 평상시 움직임으로 돌아간다";
+    assert !stage.isAnimating() && stage.ambientBreath() > 0 : "점프가 끝나면 평상시 움직임으로 돌아간다";
     stage.shake();
-    assert stage.ambientSway() == 0;
+    assert stage.ambientBreath() == 0;
     stage.advance(PetStage.SHAKE_MS);
     PetStage feedbackStage = new PetStage();
     feedbackStage.advanceAmbient(800);
-    assert feedbackStage.ambientLift() == 0 && feedbackStage.ambientSway() == 0;
+    assert feedbackStage.ambientBreath() == 0;
     try {
       var field = PetStage.class.getDeclaredField("ambientTimer");
       field.setAccessible(true);
@@ -61,14 +66,14 @@ public class GrowthVisualTest {
         stage.celebrate(List.of());
         ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
         assert !timer.isRunning() && !stage.isAnimating() : "숨겨지면 모든 타이머를 멈춘다";
-        assert stage.ambientLift() == 0;
+        assert stage.ambientBreath() == 0;
         ((java.awt.CardLayout) cards.getLayout()).show(cards, "pet");
         assert timer.isRunning();
         for (var action : timer.getActionListeners()) action.actionPerformed(null);
         stage.advanceAmbient(800);
-        assert stage.ambientLift() > 0;
+        assert stage.ambientBreath() > 0;
         stage.setAmbientAnimation(false);
-        assert !timer.isRunning() && stage.ambientLift() == 0;
+        assert !timer.isRunning() && stage.ambientBreath() == 0;
         stage.setAmbientAnimation(true);
         assert timer.isRunning();
       } finally {

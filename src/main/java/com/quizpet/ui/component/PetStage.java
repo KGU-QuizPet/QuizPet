@@ -58,7 +58,7 @@ public final class PetStage extends JPanel {
   private int elapsedMs;
   private boolean ambientAnimation;
   private int ambientElapsedMs;
-  private final javax.swing.Timer ambientTimer = new javax.swing.Timer(40, e -> advanceAmbient(40));
+  private final javax.swing.Timer ambientTimer = new javax.swing.Timer(FRAME_MS, e -> advanceAmbient(FRAME_MS));
   private final javax.swing.Timer timer = new javax.swing.Timer(FRAME_MS, e -> advance(FRAME_MS));
 
   public PetStage() {
@@ -88,19 +88,13 @@ public final class PetStage extends JPanel {
   }
 
   void advanceAmbient(int ms) {
-    ambientElapsedMs = (ambientElapsedMs + ms) % 3200;
+    ambientElapsedMs = (ambientElapsedMs + ms) % 4000;
     repaint();
   }
 
-  int ambientLift() {
+  double ambientBreath() {
     if (!ambientAnimation || motion != Motion.NONE) return 0;
-    int amplitude = mood == PetMood.FOCUS || mood == PetMood.SAD ? 1 : 2;
-    return (int) Math.round(amplitude * (1 - Math.cos(2 * Math.PI * ambientElapsedMs / 3200)));
-  }
-
-  int ambientSway() {
-    if (!ambientAnimation || motion != Motion.NONE) return 0;
-    return (int) Math.round(2 * Math.sin(2 * Math.PI * ambientElapsedMs / 3200));
+    return (1 - Math.cos(2 * Math.PI * ambientElapsedMs / 4000)) / 2;
   }
 
   /** 정답 반응입니다. 캐릭터가 통통 뛰고 effects 문구가 차례로 떠올랐다가 사라집니다. */
@@ -237,8 +231,8 @@ public final class PetStage extends JPanel {
     g.fillRect(0, floorY, w, h - floorY);
 
     int size = Math.max(40, Math.min(w - 40, floorY - 30));
-    int lift = hopOffset(size) + ambientLift();
-    int x = (w - size) / 2 + shakeOffset(size) + ambientSway();
+    int lift = hopOffset(size);
+    int x = (w - size) / 2 + shakeOffset(size);
     int y = floorY - size + size / 12 - lift;
     // 뛰어오르면 그림자가 작고 옅어집니다.
     double shadowScale = 1 - Math.min(0.35, lift / (double) size);
@@ -247,11 +241,18 @@ public final class PetStage extends JPanel {
     g.fillOval(w / 2 - shadowW / 2, floorY + size / 20, shadowW, Math.max(8, size / 9));
 
     BufferedImage image = UiStyle.petImage(spriteKey, mood);
+    Graphics2D body = (Graphics2D) g.create();
+    double breath = ambientBreath();
+    // 발밑을 기준으로 미세하게 숨 쉬도록 하여 몸 전체가 바닥에서 미끄러지지 않게 합니다.
+    body.translate(x + size / 2.0, y + size);
+    body.scale(1 + breath * 0.004, 1 - breath * 0.012);
+    body.translate(-size / 2.0, -size);
     if (image != null) {
-      g.drawImage(image, x, y, size, size, null);
+      body.drawImage(image, 0, 0, size, size, null);
     } else {
-      paintFallback(g, x + size / 8, y + size / 8, size * 3 / 4);
+      paintFallback(body, size / 8, size / 8, size * 3 / 4);
     }
+    body.dispose();
     if (motion == Motion.HOP && elapsedMs < HOP_MS) {
       paintSparkles(g, x, y, size);
     }
