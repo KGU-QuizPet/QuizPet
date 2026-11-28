@@ -51,8 +51,8 @@ public final class BossBattlePanel extends JPanel {
 
   private final BattleService service = new BattleService();
   private final JLabel bossBadge = createBossBadge();
-  private final JLabel bossImage = new JLabel("", SwingConstants.CENTER);
-  private final JLabel petImage = new JLabel("", SwingConstants.CENTER);
+  private final JLabel bossImage = new SpriteLabel("보스");
+  private final JLabel petImage = new SpriteLabel("내 펫");
   private final JLabel bossName = UiStyle.label("보스", UiStyle.SUBTITLE_FONT.deriveFont(16f));
   private final JLabel petName = UiStyle.label("펫", UiStyle.SUBTITLE_FONT.deriveFont(16f));
   private final JLabel message = UiStyle.label("전투 시작을 누르면 자동으로 진행됩니다.", UiStyle.BODY_FONT);
@@ -63,6 +63,7 @@ public final class BossBattlePanel extends JPanel {
   private final StyledButton start = new StyledButton("전투 시작", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
   private final StyledButton speedToggle = new StyledButton("배속 1x", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
   private final StyledButton exit = new StyledButton("나가기", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
+  private final JLabel turnPill = UiStyle.label("READY", UiStyle.SUBTITLE_FONT);
   private final Arena arena = new Arena();
   private final Timer timer = new Timer(NORMAL_TURN_DELAY_MS, event -> nextTurn());
   private final Timer effectTimer = new Timer(EFFECT_TICK_MS, event -> tickEffects());
@@ -75,10 +76,9 @@ public final class BossBattlePanel extends JPanel {
   private IntSupplier bossIndexPicker = () -> (int) (Math.random() * BattleService.BOSSES.size());
 
   public BossBattlePanel() {
-    setLayout(new BorderLayout(0, 12));
+    setLayout(new BorderLayout());
     setBackground(UiStyle.BACKGROUND);
-    setBorder(BorderFactory.createEmptyBorder(14, 20, 16, 20));
-    add(buildHeader(), BorderLayout.NORTH);
+
     add(arena, BorderLayout.CENTER);
     add(buildBottom(), BorderLayout.SOUTH);
 
@@ -134,27 +134,6 @@ public final class BossBattlePanel extends JPanel {
         : "전투 시작을 누르면 1초마다 자동으로 진행됩니다.";
   }
 
-  private JPanel buildHeader() {
-    JPanel header = new JPanel(new BorderLayout(12, 0));
-    header.setOpaque(false);
-
-    JLabel title = UiStyle.label("보스 잡기", UiStyle.TITLE_FONT);
-    title.setForeground(UiStyle.TEXT);
-    header.add(title, BorderLayout.CENTER);
-
-    JPanel leftSpacer = new JPanel();
-    leftSpacer.setOpaque(false);
-    leftSpacer.setPreferredSize(new Dimension(210, 32));
-    header.add(leftSpacer, BorderLayout.WEST);
-
-    JPanel badgeWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 4));
-    badgeWrap.setOpaque(false);
-    badgeWrap.setPreferredSize(new Dimension(210, 36));
-    badgeWrap.add(bossBadge);
-    header.add(badgeWrap, BorderLayout.EAST);
-    return header;
-  }
-
   private JPanel buildBottom() {
     JPanel bottom = new JPanel(new BorderLayout(0, 8));
     bottom.setOpaque(false);
@@ -194,7 +173,6 @@ public final class BossBattlePanel extends JPanel {
     if (currentPet == null) return;
     Boss boss = selectedBoss();
     arena.resetEffects();
-    arena.background = load(boss.backgroundPath());
     bossBadge.setText("등장 보스 · " + boss.name() + " " + difficultyStars(selectedBossIndex));
     bossImage.setIcon(icon(boss.imagePath(), 330, 285));
     // 현재 펫의 외형과 기본 표정(IDLE) 이미지를 적용.
@@ -208,6 +186,7 @@ public final class BossBattlePanel extends JPanel {
     start.setText("전투 시작");
     start.setEnabled(true);
     turn.setText("전투 준비 · 내 펫 선공");
+    turnPill.setText("READY");
     message.setText(readyMessage());
     battleLog.setText("[준비] " + currentPet.getName() + "이(가) " + boss.name() + "과 마주했습니다.\n");
     arena.repaint();
@@ -264,6 +243,7 @@ public final class BossBattlePanel extends JPanel {
     bossHp.setTargetHp(battle.getBossHp(), battle.getBoss().maxHp());
     petHp.setTargetHp(battle.getPlayerHp(), battle.getMaxPlayerHp());
     turn.setText(formatTurnStatus(battle));
+    turnPill.setText("TURN " + battle.getTurn());
     message.setText(battle.getMessage());
     start.setText(battle.getState() == BattleSession.State.WON || battle.getState() == BattleSession.State.LOST
         ? "재도전" : "전투 중");
@@ -305,7 +285,7 @@ public final class BossBattlePanel extends JPanel {
     if (currentPet == null) return;
     currentPetMood = mood == null ? PetMood.IDLE : mood;
     String path = UiStyle.appearanceOf(currentPet.getSpriteKey()).getImagePath(currentPetMood);
-    petImage.setIcon(icon(path, 215, 215));
+    petImage.setIcon(icon(path, 236, 236));
     arena.revalidate();
     arena.repaint();
   }
@@ -424,31 +404,23 @@ public final class BossBattlePanel extends JPanel {
       int h = getHeight();
       int arc = 12;
 
-      g2.setColor(new Color(15, 23, 42, 200));
-      g2.fillRoundRect(0, 0, w, h, arc, arc);
+      g2.setColor(UiStyle.BACKGROUND);
+      g2.fillRoundRect(0, 0, w, 16, arc, arc);
 
       double ratio = Math.max(0.0, Math.min(1.0, displayedHp / maxHp));
       int fillW = (int) Math.round(w * ratio);
       if (fillW > 0) {
         Color fill = ratio <= 0.3 ? HP_DANGER : ratio <= 0.6 ? HP_WARN : healthyColor;
         g2.setColor(fill);
-        g2.fillRoundRect(0, 0, fillW, h, arc, arc);
+        g2.fillRoundRect(0, 0, fillW, 16, arc, arc);
         g2.setColor(new Color(255, 255, 255, 45));
-        g2.fillRoundRect(2, 2, Math.max(0, fillW - 4), Math.max(1, (h - 4) / 2), arc - 2, arc - 2);
+        g2.fillRoundRect(2, 2, Math.max(0, fillW - 4), 5, arc - 2, arc - 2);
       }
 
-      g2.setColor(new Color(255, 255, 255, 70));
-      g2.drawRoundRect(0, 0, w - 1, h - 1, arc, arc);
-
       String text = "HP " + targetHp + " / " + maxHp;
-      g2.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 13f));
-      FontMetrics fm = g2.getFontMetrics();
-      int tx = (w - fm.stringWidth(text)) / 2;
-      int ty = (h - fm.getHeight()) / 2 + fm.getAscent();
-      g2.setColor(new Color(0, 0, 0, 150));
-      g2.drawString(text, tx + 1, ty + 1);
-      g2.setColor(Color.WHITE);
-      g2.drawString(text, tx, ty);
+      g2.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 12f));
+      g2.setColor(UiStyle.MUTED);
+      g2.drawString(text, 0, 34);
       g2.dispose();
     }
   }
@@ -499,6 +471,28 @@ public final class BossBattlePanel extends JPanel {
     }
   }
 
+  private static final class SpriteLabel extends JLabel {
+    SpriteLabel(String fallback) {
+      super(fallback, SwingConstants.CENTER);
+      setFont(UiStyle.SUBTITLE_FONT);
+      setForeground(Color.WHITE);
+    }
+
+    @Override protected void paintComponent(Graphics g) {
+      if (getIcon() instanceof ImageIcon icon) {
+        double scale = Math.min(getWidth() / (double) icon.getIconWidth(), getHeight() / (double) icon.getIconHeight());
+        int w = (int) (icon.getIconWidth() * scale);
+        int h = (int) (icon.getIconHeight() * scale);
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.drawImage(icon.getImage(), (getWidth() - w) / 2, (getHeight() - h) / 2, w, h, this);
+        g2.dispose();
+      } else {
+        super.paintComponent(g);
+      }
+    }
+  }
+
   private static final class FloatingDamage {
     final String text;
     final int baseX;
@@ -515,7 +509,6 @@ public final class BossBattlePanel extends JPanel {
   }
 
   private final class Arena extends JPanel {
-    private Image background;
     private int petOffsetX;
     private int bossOffsetX;
     private int animTicks;
@@ -526,13 +519,19 @@ public final class BossBattlePanel extends JPanel {
 
     private int petGroupX;
     private int bossGroupX;
-    private int groupY;
+    private int petY;
+    private int bossY;
+    private int hudWidth;
 
     Arena() {
       setLayout(null);
       setOpaque(false);
-      bossName.setForeground(Color.WHITE);
-      petName.setForeground(Color.WHITE);
+      bossName.setForeground(UiStyle.TEXT);
+      petName.setForeground(UiStyle.TEXT);
+      bossName.setHorizontalAlignment(SwingConstants.LEFT);
+      petName.setHorizontalAlignment(SwingConstants.LEFT);
+      turnPill.setForeground(Color.WHITE);
+      add(turnPill);
       add(bossName);
       add(bossImage);
       add(bossHp);
@@ -563,7 +562,7 @@ public final class BossBattlePanel extends JPanel {
       lastPlayerAttacked = playerAttacked;
       animTicks = 8;
       int dmgX = playerAttacked ? bossGroupX + 170 : petGroupX + 155;
-      int dmgY = groupY + 110;
+      int dmgY = playerAttacked ? bossY + 90 : petY + 75;
       Color dmgColor = playerAttacked ? new Color(0xFDE047) : new Color(0xFF6B6B);
       damages.add(new FloatingDamage("-" + damage, dmgX, dmgY, dmgColor));
       applyCharacterBounds();
@@ -614,69 +613,67 @@ public final class BossBattlePanel extends JPanel {
     @Override public void doLayout() {
       int w = getWidth();
       int h = getHeight();
-      groupY = Math.max(18, (h - 360) / 2);
-      petGroupX = Math.max(20, (int) (w * 0.28) - 160);
-      bossGroupX = Math.min(w - 380, (int) (w * 0.72) - 180);
-
-      petName.setBounds(petGroupX + 12, groupY + 10, 296, 26);
-      petHp.setBounds(petGroupX + 12, groupY + 42, 296, 28);
-      bossName.setBounds(bossGroupX + 12, groupY + 10, 336, 26);
-      bossHp.setBounds(bossGroupX + 12, groupY + 42, 336, 28);
+      hudWidth = Math.min(380, w / 3);
+      petGroupX = (int) (w * 0.10);
+      bossGroupX = (int) (w * 0.64);
+      petY = Math.max(128, h - 280);
+      bossY = 58;
+      bossName.setBounds(50, 40, hudWidth - 36, 26);
+      bossHp.setBounds(50, 78, hudWidth - 36, 40);
+      int petHudX = w - hudWidth - 32;
+      int petHudY = h - 134;
+      petName.setBounds(petHudX + 18, petHudY + 14, hudWidth - 36, 26);
+      petHp.setBounds(petHudX + 18, petHudY + 52, hudWidth - 36, 40);
+      turnPill.setBounds((w - 110) / 2, 26, 110, 36);
       applyCharacterBounds();
     }
 
     private void applyCharacterBounds() {
-      petImage.setBounds(petGroupX + 35 + petOffsetX, groupY + 96, 250, 240);
-      bossImage.setBounds(bossGroupX + 10 + bossOffsetX, groupY + 90, 340, 250);
+      int petSize = Math.min(236, getHeight() - petY - 20);
+      int bossSize = Math.min(300, getHeight() - bossY - 130);
+      petImage.setBounds(petGroupX + 40 + petOffsetX, petY, petSize, petSize);
+      bossImage.setBounds(bossGroupX + bossOffsetX, bossY, bossSize, bossSize);
     }
 
     @Override protected void paintComponent(Graphics g) {
       super.paintComponent(g);
       Graphics2D g2 = (Graphics2D) g.create();
       g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-      g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-
       int w = getWidth();
       int h = getHeight();
-      if (background != null) {
-        g2.drawImage(background, 0, 0, w, h, this);
-      } else {
-        g2.setColor(new Color(0x263447));
-        g2.fillRect(0, 0, w, h);
+      g2.setPaint(new GradientPaint(0, 0, new Color(0x3B2F6B), 0, h, new Color(0x6A57B0)));
+      g2.fillRect(0, 0, w, h);
+      g2.setColor(new Color(255, 255, 255, 178));
+      for (int i = 0; i < 12; i++) {
+        int x = (int) (w * ((i * 0.173 + 0.07) % 1));
+        int y = 30 + (int) ((h - 180) * ((i * 0.271) % 1));
+        g2.fillOval(x, y, 3, 3);
       }
-
-      // 상단·하단 은은한 비네팅으로 HUD와 캐릭터 시인성 확보.
-      g2.setPaint(new GradientPaint(0, 0, new Color(15, 23, 42, 130), 0, 120, new Color(15, 23, 42, 0)));
-      g2.fillRect(0, 0, w, 120);
-      g2.setPaint(new GradientPaint(0, h - 100, new Color(15, 23, 42, 0), 0, h, new Color(15, 23, 42, 125)));
-      g2.fillRect(0, h - 100, w, 100);
-
-      // 펫·보스 HUD 반투명 다크 카드.
-      paintHudCard(g2, petGroupX, groupY, 320, 82);
-      paintHudCard(g2, bossGroupX, groupY, 360, 82);
-
-      // 캐릭터 바닥 그림자.
-      g2.setColor(new Color(0, 0, 0, 95));
-      g2.fillOval(petGroupX + 85 + petOffsetX, groupY + 312, 150, 24);
-      g2.fillOval(bossGroupX + 80 + bossOffsetX, groupY + 318, 200, 28);
-
-      // 중앙 VS 원형 배지.
-      int vsSize = 56;
-      int vsX = (w - vsSize) / 2;
-      int vsY = groupY + 175;
-      g2.setColor(new Color(15, 23, 42, 195));
-      g2.fillOval(vsX, vsY, vsSize, vsSize);
-      g2.setStroke(new BasicStroke(2.5f));
-      g2.setColor(UiStyle.BRAND);
-      g2.drawOval(vsX + 1, vsY + 1, vsSize - 2, vsSize - 2);
-      g2.setFont(UiStyle.SUBTITLE_FONT.deriveFont(Font.BOLD, 20f));
-      FontMetrics vsFm = g2.getFontMetrics();
-      int vsTx = vsX + (vsSize - vsFm.stringWidth("VS")) / 2;
-      int vsTy = vsY + (vsSize - vsFm.getHeight()) / 2 + vsFm.getAscent();
-      g2.setColor(Color.WHITE);
-      g2.drawString("VS", vsTx, vsTy);
-
+      int moonX = (int) (w * 0.62);
+      g2.setColor(new Color(255, 241, 193, 35));
+      g2.fillOval(moonX - 10, 24, 88, 88);
+      g2.setColor(new Color(0xFFF1C1));
+      g2.fillOval(moonX + 2, 36, 64, 64);
+      g2.setColor(new Color(0x4A3C86));
+      g2.fillRect(0, h - 120, w, 120);
+      g2.setColor(new Color(0x5E4FA0));
+      g2.fillRect(0, h - 120, w, 3);
+      paintPlatform(g2, petGroupX, petY + petImage.getHeight() - 22, 310, 58);
+      paintPlatform(g2, bossGroupX - 20, bossY + bossImage.getHeight() - 22, 340, 66);
+      paintHudCard(g2, 32, 26, hudWidth, 110);
+      paintHudCard(g2, w - hudWidth - 32, h - 134, hudWidth, 110);
+      g2.setColor(new Color(255, 255, 255, 28));
+      g2.fillRoundRect((w - 110) / 2, 26, 110, 36, 36, 36);
+      g2.setColor(new Color(255, 255, 255, 75));
+      g2.drawRoundRect((w - 110) / 2, 26, 110, 36, 36, 36);
       g2.dispose();
+    }
+
+    private void paintPlatform(Graphics2D g, int x, int y, int w, int h) {
+      g.setColor(new Color(0x54458F));
+      g.fillOval(x, y + 8, w, h);
+      g.setColor(new Color(0x7D6BC4));
+      g.fillOval(x, y, w, h);
     }
 
     @Override protected void paintChildren(Graphics g) {
@@ -714,11 +711,13 @@ public final class BossBattlePanel extends JPanel {
     }
 
     private void paintHudCard(Graphics2D g2, int x, int y, int w, int h) {
-      g2.setColor(new Color(15, 23, 42, 180));
-      g2.fillRoundRect(x, y, w, h, 16, 16);
-      g2.setStroke(new BasicStroke(1.2f));
-      g2.setColor(new Color(255, 255, 255, 65));
-      g2.drawRoundRect(x, y, w - 1, h - 1, 16, 16);
+      g2.setColor(new Color(0x54458F));
+      g2.fillRoundRect(x, y + 5, w, h, 22, 22);
+      g2.setColor(UiStyle.SURFACE);
+      g2.fillRoundRect(x, y, w, h, 22, 22);
+      g2.setStroke(new BasicStroke(2));
+      g2.setColor(UiStyle.BORDER);
+      g2.drawRoundRect(x, y, w, h, 22, 22);
     }
 
     private void paintResultOverlay(Graphics2D g2, boolean won) {
