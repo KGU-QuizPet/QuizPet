@@ -95,6 +95,7 @@ public class QuizPanel extends JPanel {
   public void showSession(QuizSession session) {
     this.session = Objects.requireNonNull(session, "session은 필수입니다.");
     Question question = session.getCurrentQuestion();
+    String categoryName = (session.isReview() ? "복습 · " : "") + question.getCategory().getName();
     questionContainer.removeAll();
     oxQuestionPanel = null;
     multipleChoicePanel = null;
@@ -102,15 +103,15 @@ public class QuizPanel extends JPanel {
     if (question instanceof MultipleChoiceQuestion multipleChoice) {
       multipleChoicePanel = new MultipleChoicePanel(question.getPrompt(), multipleChoice.getOptions());
       questionContainer.add(multipleChoicePanel, BorderLayout.CENTER);
-      questionTypeLabel.setText(session.getCategory().getName() + " · 4지선다");
+      questionTypeLabel.setText(categoryName + " · 4지선다");
     } else if (question instanceof ShortAnswerQuestion) {
       shortAnswerPanel = new ShortAnswerPanel(question.getPrompt());
       questionContainer.add(shortAnswerPanel, BorderLayout.CENTER);
-      questionTypeLabel.setText(session.getCategory().getName() + " · 단답형");
+      questionTypeLabel.setText(categoryName + " · 단답형");
     } else {
       oxQuestionPanel = new OXQuestionPanel(question.getPrompt());
       questionContainer.add(oxQuestionPanel, BorderLayout.CENTER);
-      questionTypeLabel.setText(session.getCategory().getName() + " · OX");
+      questionTypeLabel.setText(categoryName + " · OX");
     }
     progressBar.showSession(session);
     progressLabel.setText((session.getCurrentIndex() + 1) + " / " + session.getTotalCount());
