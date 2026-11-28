@@ -28,6 +28,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.OverlayLayout;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
@@ -40,7 +41,7 @@ import main.java.com.quizpet.service.BattleService;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.ui.component.RoundCard;
 
-// 보스 이미지·배경·펫 외형별 표정 이미지와 전투 연출을 제공하는 자동 전투 화면.
+// UI-09 무대와 승패 결과를 표시하는 자동 전투 화면.
 public final class BossBattlePanel extends JPanel {
   private static final int NORMAL_TURN_DELAY_MS = 1000;
   private static final int FAST_TURN_DELAY_MS = 500;
@@ -68,6 +69,17 @@ public final class BossBattlePanel extends JPanel {
   private final JLabel[] statValues = new JLabel[4];
   private final JLabel turnPill = UiStyle.label("READY", UiStyle.SUBTITLE_FONT);
   private final Arena arena = new Arena();
+  private final JLabel resultTitle = UiStyle.label("승리!", UiStyle.TITLE_FONT);
+  private final JLabel resultSummary = UiStyle.label("", UiStyle.TITLE_FONT.deriveFont(25f));
+  private final JLabel resultHint = UiStyle.label("", UiStyle.BODY_FONT);
+  private final JLabel resultTurns = UiStyle.label("", UiStyle.TITLE_FONT.deriveFont(24f));
+  private final JLabel resultDamage = UiStyle.label("", UiStyle.TITLE_FONT.deriveFont(24f));
+  private final JLabel resultHp = UiStyle.label("", UiStyle.TITLE_FONT.deriveFont(24f));
+  private final JLabel resultPet = new SpriteLabel("내 펫");
+  private final JLabel resultBoss = new SpriteLabel("보스");
+  private final StyledButton resultRetry = new StyledButton("다시 도전", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
+  private final StyledButton resultExit = new StyledButton("홈으로", Color.WHITE, UiStyle.TEXT, UiStyle.BACKGROUND);
+  private final ResultOverlay resultOverlay = new ResultOverlay();
   private final Timer timer = new Timer(NORMAL_TURN_DELAY_MS, event -> nextTurn());
   private final Timer effectTimer = new Timer(EFFECT_TICK_MS, event -> tickEffects());
   private BattleSession battle;
@@ -79,11 +91,13 @@ public final class BossBattlePanel extends JPanel {
   private IntSupplier bossIndexPicker = () -> (int) (Math.random() * BattleService.BOSSES.size());
 
   public BossBattlePanel() {
-    setLayout(new BorderLayout());
+    setLayout(new OverlayLayout(this));
     setBackground(UiStyle.BACKGROUND);
-
-    add(arena, BorderLayout.CENTER);
-    add(buildBottom(), BorderLayout.SOUTH);
+    JPanel content = new JPanel(new BorderLayout());
+    content.add(arena, BorderLayout.CENTER);
+    content.add(buildBottom(), BorderLayout.SOUTH);
+    add(resultOverlay);
+    add(content);
 
     start.setEnabled(false);
     start.setPreferredSize(new Dimension(140, 40));
@@ -93,15 +107,19 @@ public final class BossBattlePanel extends JPanel {
     start.addActionListener(event -> startBattle());
     speedToggle.addActionListener(event -> toggleSpeed());
     exit.addActionListener(event -> { stopBattle(); onExit.run(); });
+    resultRetry.addActionListener(event -> startBattle());
+    resultExit.addActionListener(event -> { stopBattle(); onExit.run(); });
   }
 
   public void setOnExit(Runnable action) { onExit = Objects.requireNonNull(action, "onExit는 필수입니다."); }
+
+  @Override public boolean isOptimizedDrawingEnabled() { return false; }
 
   public void showBattle(Pet pet) {
     stopBattle();
     battle = null;
     currentPet = Objects.requireNonNull(pet, "pet은 필수입니다.");
-    // 전투에 들어갈 때마다 보스와 배경을 함께 랜덤 선택.
+    // 전투에 들어갈 때마다 보스를 랜덤 선택.
     selectRandomBoss();
   }
 
@@ -207,6 +225,9 @@ public final class BossBattlePanel extends JPanel {
 
   private void updatePreview() {
     if (currentPet == null) return;
+    resultOverlay.setVisible(false);
+    speedToggle.setEnabled(true);
+    exit.setEnabled(true);
     Boss boss = selectedBoss();
     arena.resetEffects();
     bossBadge.setText("전투 기록 · " + boss.name() + " " + difficultyStars(selectedBossIndex));
@@ -253,7 +274,8 @@ public final class BossBattlePanel extends JPanel {
   private void nextTurn() {
     if (battle == null || !battle.isRunning()) { timer.stop(); return; }
     boolean playerAttacked = battle.getState() == BattleSession.State.PLAYER_TURN;
-    int damage = playerAttacked ? battle.getAttack() : battle.getBoss().attack();
+    int damage = playerAttacked ? Math.min(battle.getAttack(), battle.getBossHp())
+        : Math.min(battle.getBoss().attack(), battle.getPlayerHp());
     battle.advanceTurn();
     if (battle.getState() == BattleSession.State.WON) {
       setBossImageState("defeated");
@@ -275,7 +297,34 @@ public final class BossBattlePanel extends JPanel {
         ? new Color(0x2BB673) : playerAttacked ? new Color(0xF59E0B) : new Color(0xEF4444));
     updateBattleView();
     ensureEffectTimerRunning();
-    if (!battle.isRunning()) timer.stop();
+    if (!battle.isRunning()) {
+      timer.stop();
+      showResult();
+    }
+  }
+
+  private void showResult() {
+    boolean won = battle.getState() == BattleSession.State.WON;
+    resultTitle.setText(won ? "승리!" : "패배");
+    resultTitle.setBackground(won ? UiStyle.CORRECT : UiStyle.TEXT);
+    resultSummary.setText(won ? battle.getBoss().name() + "을 물리쳤어요!" : "조금 더 성장해서 다시 도전해요");
+    resultHint.setText(won ? "학습으로 키운 능력치가 빛났어요!" : battle.getBoss().name() + " HP " + battle.getBossHp() + " 남음");
+    resultTurns.setText(battle.getTurn() + "턴");
+    resultDamage.setText(String.valueOf(battle.getBoss().maxHp() - battle.getBossHp()));
+    resultHp.setText(String.valueOf(battle.getPlayerHp()));
+    resultHp.setToolTipText("HP " + battle.getPlayerHp() + " / " + battle.getMaxPlayerHp());
+    resultHp.setForeground(won ? UiStyle.CORRECT : UiStyle.WRONG);
+    resultPet.setIcon(icon(UiStyle.appearanceOf(currentPet.getSpriteKey())
+        .getImagePath(won ? PetMood.LEVEL_UP : PetMood.SAD), 170, 170));
+    resultBoss.setIcon(icon(battle.getBoss().imagePath()
+        .replace("_idle.png", won ? "_defeated.png" : "_attack.png"), 150, 150));
+    start.setEnabled(false);
+    speedToggle.setEnabled(false);
+    exit.setEnabled(false);
+    resultOverlay.setVisible(true);
+    resultOverlay.revalidate();
+    resultRetry.requestFocusInWindow();
+    repaint();
   }
 
   private void updateBattleView() {
@@ -503,6 +552,77 @@ public final class BossBattlePanel extends JPanel {
     }
   }
 
+  private final class ResultOverlay extends JPanel {
+    private final RoundCard card = new RoundCard(new BorderLayout(0, 14));
+
+    ResultOverlay() {
+      setLayout(null);
+      setOpaque(false);
+      setVisible(false);
+      // 오버레이 뒤의 전투 버튼으로 마우스 입력이 전달되지 않게 합니다.
+      addMouseListener(new java.awt.event.MouseAdapter() { });
+      resultTitle.setOpaque(true);
+      resultTitle.setForeground(Color.WHITE);
+      resultTitle.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
+      JPanel ribbon = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+      ribbon.setOpaque(false);
+      ribbon.add(resultTitle);
+      card.add(ribbon, BorderLayout.NORTH);
+
+      JPanel details = new JPanel(new BorderLayout(0, 10));
+      details.setOpaque(false);
+      JPanel portraits = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+      portraits.setOpaque(false);
+      resultPet.setPreferredSize(new Dimension(170, 140));
+      resultBoss.setPreferredSize(new Dimension(150, 140));
+      portraits.add(resultPet);
+      portraits.add(resultBoss);
+      details.add(portraits, BorderLayout.NORTH);
+      JPanel copy = new JPanel(new GridLayout(2, 1, 0, 5));
+      copy.setOpaque(false);
+      resultSummary.setForeground(UiStyle.TEXT);
+      resultHint.setForeground(UiStyle.MUTED);
+      copy.add(resultSummary);
+      copy.add(resultHint);
+      details.add(copy, BorderLayout.CENTER);
+      JPanel kpis = new JPanel(new GridLayout(1, 3, 10, 0));
+      kpis.setOpaque(false);
+      String[] labels = {"진행 턴", "준 피해", "남은 HP"};
+      JLabel[] values = {resultTurns, resultDamage, resultHp};
+      for (int i = 0; i < labels.length; i++) {
+        RoundCard kpi = new RoundCard(new BorderLayout(0, 6));
+        kpi.setBorder(BorderFactory.createEmptyBorder(10, 8, 14, 8));
+        JLabel label = UiStyle.label(labels[i], UiStyle.BODY_FONT.deriveFont(13f));
+        label.setForeground(UiStyle.MUTED);
+        values[i].setForeground(UiStyle.TEXT);
+        kpi.add(label, BorderLayout.NORTH);
+        kpi.add(values[i], BorderLayout.CENTER);
+        kpis.add(kpi);
+      }
+      kpis.setPreferredSize(new Dimension(0, 84));
+      details.add(kpis, BorderLayout.SOUTH);
+      card.add(details, BorderLayout.CENTER);
+      JPanel buttons = new JPanel(new GridLayout(1, 2, 16, 0));
+      buttons.setOpaque(false);
+      buttons.setPreferredSize(new Dimension(0, 48));
+      buttons.add(resultExit);
+      buttons.add(resultRetry);
+      card.add(buttons, BorderLayout.SOUTH);
+      add(card);
+    }
+
+    @Override public void doLayout() {
+      int w = Math.min(600, getWidth() - 48);
+      int h = Math.min(480, getHeight() - 40);
+      card.setBounds((getWidth() - w) / 2, (getHeight() - h) / 2, w, h);
+    }
+
+    @Override protected void paintComponent(Graphics g) {
+      g.setColor(new Color(32, 26, 52, 158));
+      g.fillRect(0, 0, getWidth(), getHeight());
+    }
+  }
+
   private static final class SpriteLabel extends JLabel {
     SpriteLabel(String fallback) {
       super(fallback, SwingConstants.CENTER);
@@ -586,7 +706,7 @@ public final class BossBattlePanel extends JPanel {
 
     void triggerFlash(Color color) {
       flashColor = color;
-      flashAlpha = 0.85f;
+      flashAlpha = 0.14f;
       repaint();
     }
 
@@ -624,7 +744,7 @@ public final class BossBattlePanel extends JPanel {
       }
 
       if (flashAlpha > 0f) {
-        flashAlpha = Math.max(0f, flashAlpha - 0.12f);
+        flashAlpha = Math.max(0f, flashAlpha - 0.035f);
         active = true;
       }
 
@@ -632,7 +752,7 @@ public final class BossBattlePanel extends JPanel {
         Iterator<FloatingDamage> it = damages.iterator();
         while (it.hasNext()) {
           FloatingDamage d = it.next();
-          d.progress += 0.055f;
+          d.progress += EFFECT_TICK_MS / 800f;
           if (d.progress >= 1.0f) it.remove();
         }
         active = true;
@@ -717,26 +837,23 @@ public final class BossBattlePanel extends JPanel {
       for (FloatingDamage d : damages) {
         int alpha = Math.max(0, Math.min(255, (int) ((1.0f - d.progress) * 255)));
         int y = d.baseY - (int) (d.progress * 44);
-        g2.setFont(UiStyle.TITLE_FONT.deriveFont(Font.BOLD, 26f));
+        g2.setFont(UiStyle.TITLE_FONT.deriveFont(Font.BOLD, Math.min(64f, getHeight() / 6f)));
         FontMetrics fm = g2.getFontMetrics();
         int x = d.baseX - fm.stringWidth(d.text) / 2;
-        g2.setColor(new Color(0, 0, 0, Math.min(alpha, 200)));
-        g2.drawString(d.text, x + 2, y + 2);
         g2.setColor(new Color(d.color.getRed(), d.color.getGreen(), d.color.getBlue(), alpha));
-        g2.drawString(d.text, x, y);
+        java.awt.font.TextLayout text = new java.awt.font.TextLayout(d.text, g2.getFont(), g2.getFontRenderContext());
+        java.awt.Shape outline = text.getOutline(java.awt.geom.AffineTransform.getTranslateInstance(x, y));
+        g2.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.draw(outline);
+        g2.setColor(new Color(255, 255, 255, alpha));
+        g2.fill(outline);
       }
 
-      // 공격 시 외곽 플래시 효과.
+      // 피격 순간 무대 전체에 짧은 플래시를 표시합니다.
       if (flashColor != null && flashAlpha > 0f) {
-        int alpha = Math.max(0, Math.min(255, (int) (flashAlpha * 220)));
-        g2.setStroke(new BasicStroke(6f));
+        int alpha = Math.max(0, Math.min(255, (int) (flashAlpha * 255)));
         g2.setColor(new Color(flashColor.getRed(), flashColor.getGreen(), flashColor.getBlue(), alpha));
-        g2.drawRect(3, 3, getWidth() - 6, getHeight() - 6);
-      }
-
-      // 승리/패배 결과 오버레이 배너.
-      if (battle != null && (battle.getState() == BattleSession.State.WON || battle.getState() == BattleSession.State.LOST)) {
-        paintResultOverlay(g2, battle.getState() == BattleSession.State.WON);
+        g2.fillRect(0, 0, getWidth(), getHeight());
       }
 
       g2.dispose();
@@ -750,45 +867,6 @@ public final class BossBattlePanel extends JPanel {
       g2.setStroke(new BasicStroke(2));
       g2.setColor(UiStyle.BORDER);
       g2.drawRoundRect(x, y, w, h, 22, 22);
-    }
-
-    private void paintResultOverlay(Graphics2D g2, boolean won) {
-      int w = getWidth();
-      int h = getHeight();
-      g2.setColor(new Color(15, 23, 42, 115));
-      g2.fillRect(0, 0, w, h);
-
-      int cardW = 390;
-      int cardH = 136;
-      int cx = (w - cardW) / 2;
-      int cy = (h - cardH) / 2;
-      Color accent = won ? new Color(0x34D399) : new Color(0xF87171);
-
-      g2.setColor(new Color(15, 23, 42, 230));
-      g2.fillRoundRect(cx, cy, cardW, cardH, 20, 20);
-      g2.setStroke(new BasicStroke(2.5f));
-      g2.setColor(accent);
-      g2.drawRoundRect(cx + 1, cy + 1, cardW - 2, cardH - 2, 20, 20);
-
-      String heading = won ? "승리!" : "패배...";
-      g2.setFont(UiStyle.TITLE_FONT.deriveFont(Font.BOLD, 30f));
-      FontMetrics hFm = g2.getFontMetrics();
-      g2.setColor(accent);
-      g2.drawString(heading, cx + (cardW - hFm.stringWidth(heading)) / 2, cy + 48);
-
-      String summary = won
-          ? battle.getBoss().name() + " 격파 · 총 " + battle.getTurn() + "턴 · 남은 HP " + battle.getPlayerHp() + "/" + battle.getMaxPlayerHp()
-          : battle.getBoss().name() + "에게 패배 · 총 " + battle.getTurn() + "턴";
-      g2.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 14f));
-      FontMetrics sFm = g2.getFontMetrics();
-      g2.setColor(Color.WHITE);
-      g2.drawString(summary, cx + (cardW - sFm.stringWidth(summary)) / 2, cy + 82);
-
-      String hint = "아래 [재도전] 버튼으로 새 보스에 도전할 수 있습니다.";
-      g2.setFont(UiStyle.BODY_FONT.deriveFont(Font.PLAIN, 12f));
-      FontMetrics hintFm = g2.getFontMetrics();
-      g2.setColor(new Color(203, 213, 225));
-      g2.drawString(hint, cx + (cardW - hintFm.stringWidth(hint)) / 2, cy + 110);
     }
   }
 }

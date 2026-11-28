@@ -4,13 +4,17 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.function.IntSupplier;
 import javax.imageio.ImageIO;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import main.java.com.quizpet.model.BattleSession;
 import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetAppearance;
+import main.java.com.quizpet.model.PetStats;
 
 public final class BossBattleLayoutTest {
   public static void main(String[] args) throws Exception {
@@ -38,12 +42,60 @@ public final class BossBattleLayoutTest {
           graphics.dispose();
           if (args.length > 0) ImageIO.write(rendered, "png", Path.of(args[0], "battle-" + size[0] + ".png").toFile());
         }
+        Pet[] pets = {
+            new Pet("P1", "U1", "말랑이", PetAppearance.DUCK),
+            new Pet("P1", "U1", "말랑이", PetAppearance.DUCK),
+            new Pet("P2", "U1", "튼튼이", PetAppearance.TURTLE, Integer.MAX_VALUE,
+                new PetStats(Integer.MAX_VALUE, 0, 0, 0))};
+        for (int scenario = 0; scenario < pets.length; scenario++) {
+          int bossIndex = scenario == 1 ? 2 : 0;
+          Field picker = BossBattlePanel.class.getDeclaredField("bossIndexPicker");
+          picker.setAccessible(true);
+          picker.set(panel, (IntSupplier) () -> bossIndex);
+          panel.showBattle(pets[scenario]);
+          Method start = BossBattlePanel.class.getDeclaredMethod("startBattle");
+          Method next = BossBattlePanel.class.getDeclaredMethod("nextTurn");
+          start.setAccessible(true);
+          next.setAccessible(true);
+          start.invoke(panel);
+          BattleSession battle = (BattleSession) field(panel, "battle");
+          while (battle.isRunning()) next.invoke(panel);
+          JPanel overlay = (JPanel) field(panel, "resultOverlay");
+          assert overlay.isVisible();
+          for (int[] size : new int[][] {{1280, 736}, {1024, 616}, {1920, 1016}}) {
+            panel.setSize(size[0], size[1]);
+            layout(panel);
+            assert overlay.getSize().equals(panel.getSize()) : "결과 배경은 화면 전체를 덮어야 합니다.";
+            assertContained(overlay);
+            BufferedImage rendered = new BufferedImage(size[0], size[1], BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D graphics = rendered.createGraphics();
+            panel.printAll(graphics);
+            graphics.dispose();
+            if (args.length > 0) ImageIO.write(rendered, "png", Path.of(args[0],
+                "battle-" + battle.getState() + "-" + scenario + "-" + size[0] + ".png").toFile());
+          }
+        }
         panel.stopBattle();
       } catch (Exception e) {
         throw new AssertionError(e);
       }
     });
     System.out.println("Boss battle layout checks passed");
+  }
+
+  private static void assertContained(Container root) {
+    for (Component child : root.getComponents()) {
+      if (!child.isVisible()) continue;
+      assert child.getX() >= 0 && child.getY() >= 0 : child.getBounds();
+      assert child.getX() + child.getWidth() <= root.getWidth() : child.getBounds();
+      assert child.getY() + child.getHeight() <= root.getHeight() : child.getBounds();
+      if (child instanceof JLabel label && !label.getText().isEmpty() && label.getIcon() == null) {
+        assert label.getFontMetrics(label.getFont()).stringWidth(label.getText())
+            <= label.getWidth() - label.getInsets().left - label.getInsets().right
+            : "결과 문구가 잘립니다: " + label.getText();
+      }
+      if (child instanceof Container container) assertContained(container);
+    }
   }
 
   private static Object field(Object target, String name) throws Exception {

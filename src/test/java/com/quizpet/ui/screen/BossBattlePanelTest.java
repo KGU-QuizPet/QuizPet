@@ -40,6 +40,8 @@ public final class BossBattlePanelTest {
         assert petName.getText().contains("Lv.1") : "펫 레벨이 표시되어야 합니다.";
         assert petName.getText().contains("ATK 40") : "펫 공격력이 표시되어야 합니다.";
 
+        javax.swing.JPanel overlay = (javax.swing.JPanel) field(panel, "resultOverlay");
+        assert !overlay.isVisible() : "대기 화면에는 결과 카드가 표시되지 않아야 합니다.";
         Timer timer = (Timer) field(panel, "timer");
         Timer effectTimer = (Timer) field(panel, "effectTimer");
         assert timer.getDelay() == 1000;
@@ -85,11 +87,15 @@ public final class BossBattlePanelTest {
         assert !timer.isRunning();
         assert field(panel, "currentPetMood") == PetMood.HAPPY : "전투 승리 시 HAPPY 표정이어야 합니다.";
         assert "재도전".equals(start.getText());
-        assert start.isEnabled();
+        assert !start.isEnabled() : "오버레이 뒤의 버튼은 비활성화해야 합니다.";
+        assert overlay.isVisible() : "승리 시 결과 오버레이를 표시해야 합니다.";
+        assert ((JLabel) field(panel, "resultTitle")).getText().equals("승리!");
+        assert ((JLabel) field(panel, "resultDamage")).getText().equals("180") : "실제 보스 HP만큼만 준 피해로 집계합니다.";
         JLabel turn = (JLabel) field(panel, "turn");
         assert !turn.getText().contains("WON") && !turn.getText().contains("LOST") : "턴 상태는 한글로 표시되어야 합니다.";
 
-        start.doClick();
+        ((JButton) field(panel, "resultRetry")).doClick();
+        assert !overlay.isVisible() : "재도전 시 결과 카드를 닫아야 합니다.";
         assert field(panel, "currentPetMood") == PetMood.IDLE : "재도전 시작 시 펫 표정은 IDLE로 초기화되어야 합니다.";
         assert (int) field(panel, "selectedBossIndex") == 2 : "재도전 시 보스를 다시 추첨해야 합니다.";
         BattleSession retryBattle = (BattleSession) field(panel, "battle");
@@ -106,6 +112,21 @@ public final class BossBattlePanelTest {
         assert !timer.isRunning();
         assert !effectTimer.isRunning();
         assert retryBattle.getState() == BattleSession.State.ABANDONED;
+
+        setField(panel, "bossIndexPicker", (IntSupplier) () -> 2);
+        panel.showBattle(pet);
+        button(panel, "전투 시작").doClick();
+        BattleSession lost = (BattleSession) field(panel, "battle");
+        while (lost.isRunning()) nextTurn.invoke(panel);
+        assert lost.getState() == BattleSession.State.LOST;
+        assert overlay.isVisible() : "패배 시에도 결과 카드를 표시해야 합니다.";
+        assert ((JLabel) field(panel, "resultTitle")).getText().equals("패배");
+        assert ((JLabel) field(panel, "resultHp")).getText().equals("0");
+        AtomicInteger resultExits = new AtomicInteger();
+        panel.setOnExit(resultExits::incrementAndGet);
+        ((JButton) field(panel, "resultExit")).doClick();
+        assert resultExits.get() == 1;
+        assert !effectTimer.isRunning() && !timer.isRunning();
 
         AtomicInteger exits = new AtomicInteger();
         panel.setOnExit(exits::incrementAndGet);
