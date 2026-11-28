@@ -8,9 +8,10 @@ import main.java.com.quizpet.model.Pet;
 // 캐릭터 능력치로 자동 보스전을 준비.
 public final class BattleService {
   public static final List<Boss> BOSSES = List.of(
-      new Boss("슬라임", 180, 20, "images/bosses/slime_idle.png", "images/backgrounds/background1.jpg"),
-      new Boss("골렘", 220, 25, "images/bosses/golem_idle.png", "images/backgrounds/background2.png"),
-      new Boss("드래곤", 260, 30, "images/bosses/dragon_idle.png", "images/backgrounds/background3.png"));
+      new Boss("졸음 슬라임", 180, 20, "images/bosses/slime_idle.png", "images/backgrounds/background1.jpg", 1),
+      new Boss("까먹귀신", 200, 22, "images/bosses/ghost_idle.png", "images/backgrounds/background1.jpg", 3),
+      new Boss("헷갈골렘", 220, 25, "images/bosses/golem_idle.png", "images/backgrounds/background2.png", 5),
+      new Boss("망각의 용", 260, 30, "images/bosses/dragon_idle.png", "images/backgrounds/background3.png", 8));
 
   public BattleSession createBattle(Pet pet, int bossIndex) {
     if (bossIndex < 0 || bossIndex >= BOSSES.size()) throw new IllegalArgumentException("보스를 선택해 주세요.");
@@ -37,6 +38,9 @@ public final class BattleService {
   // 테스트·확장 보스용 생성 경로.
   public BattleSession createBattle(Pet pet, Boss boss) {
     if (boss == null) throw new IllegalArgumentException("보스를 선택해 주세요.");
+    if (pet.getLevel() < boss.requiredLevel()) {
+      throw new IllegalArgumentException("Lv." + boss.requiredLevel() + " 이상부터 도전할 수 있습니다.");
+    }
     return new BattleSession(pet, boss, calculateAttack(pet), calculateMaxHp(pet));
   }
 }
