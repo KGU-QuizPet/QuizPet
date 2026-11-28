@@ -13,12 +13,30 @@ public final class WrongNoteLayoutTest {
   public static void main(String[] args) throws Exception {
     boolean enabled = false; assert enabled = true;
     if (!enabled) throw new AssertionError("Run with -ea");
-    SwingUtilities.invokeAndWait(WrongNoteLayoutTest::check);
+    SwingUtilities.invokeAndWait(() -> check(args));
     System.out.println("Wrong-note layout checks passed");
   }
 
-  private static void check() {
+  private static void check(String[] args) {
     HistoryPanel panel = new HistoryPanel();
+    panel.showWrongNote(new WrongNoteView(null, 0, 0, List.of(), true, false));
+    List<JToggleButton> tabs = find(panel, JToggleButton.class).stream()
+        .filter(b -> !(b instanceof JCheckBox)).toList();
+    assert tabs.size() == 7 : "전체·5개 분야·미분류 탭을 표시합니다.";
+    assert find(panel, JComboBox.class).isEmpty() : "분야 선택은 드롭다운 대신 탭을 사용합니다.";
+    java.util.concurrent.atomic.AtomicInteger changes = new java.util.concurrent.atomic.AtomicInteger();
+    panel.setOnWrongNoteCategoryChanged(id -> changes.incrementAndGet());
+    panel.setWrongCategoryId("HISTORY");
+    panel.setCategories(HistoryPanel.CategoryOption.defaults());
+    assert panel.getWrongCategoryId().equals("HISTORY");
+    assert changes.get() == 0 : "코드로 선택 상태를 반영할 때 조회 이벤트를 발생시키지 않습니다.";
+    panel.setWrongNeedsReviewOnly(true);
+    find(panel, JToggleButton.class).stream().filter(b -> b.getText().equals("미분류")).findFirst().orElseThrow().doClick();
+    assert panel.getWrongCategoryId().equals("UNCLASSIFIED") && panel.isNeedsReviewOnly();
+    assert changes.get() == 1;
+    panel.clearWrongNote();
+    assert panel.getWrongCategoryId() == null && !panel.isNeedsReviewOnly();
+    assert changes.get() == 1;
     String raw = "  SA MiXeD answer  ";
     String detail = "과거 문제 / COMMON / SA / 상태 확인 필요\n" + (raw + " 긴 제출 이력\n").repeat(150);
     var item = new WrongNoteView.WrongItem("legacy-id", "상식", "문제 원문 ".repeat(40), raw,
@@ -56,6 +74,11 @@ public final class WrongNoteLayoutTest {
       split.setDividerLocation(0.4); layout(panel);
       BufferedImage image = new BufferedImage(size[0], size[1], BufferedImage.TYPE_INT_ARGB);
       Graphics2D g = image.createGraphics(); panel.paint(g); g.dispose();
+      if (args.length > 0) {
+        try {
+          javax.imageio.ImageIO.write(image, "png", java.nio.file.Path.of(args[0], "wrong-note-" + size[0] + ".png").toFile());
+        } catch (java.io.IOException e) { throw new AssertionError(e); }
+      }
     }
     panel.showWrongNoteError("조회 실패");
     assert find(panel, JTextArea.class).stream().noneMatch(t -> t.getText().contains(raw));

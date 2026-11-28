@@ -11,7 +11,6 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -195,7 +194,7 @@ public class HistoryPanel extends JPanel {
     private final GameButton wrongNoteButton = new GameButton("오답노트", Variant.GHOST, 52);
     private List<HistoryView.RecordRow> recordRows = List.of();
 
-    private final JComboBox<CategoryOption> wrongCategoryBox = new JComboBox<>();
+    private final Segment wrongCategorySegment = new Segment();
     private final JLabel wrongAccuracyLabel = label(" ", BODY, INK_2);
     private final WrongNoteTableModel wrongModel = new WrongNoteTableModel();
     private final JTable wrongTable = new WideTable(wrongModel);
@@ -211,7 +210,7 @@ public class HistoryPanel extends JPanel {
     private Runnable onWrongBack = this::showRecordPage;
     private List<WrongNoteView.WrongItem> wrongItems = List.of();
 
-    private boolean updatingCombo = false;
+    private boolean updatingFilters = false;
 
     private Runnable onGoMain = () -> { };
     private Consumer<String> onCategoryChanged = id -> { };
@@ -419,27 +418,19 @@ public class HistoryPanel extends JPanel {
         titles.add(Box.createVerticalStrut(4));
         titles.add(wrongAccuracyLabel);
 
-        wrongCategoryBox.setFont(BODY);
-        wrongCategoryBox.setBackground(SURFACE);
-        wrongCategoryBox.setPreferredSize(new Dimension(130, 36));
-        wrongCategoryBox.addActionListener(e -> {
-            if (!updatingCombo) {
-                onWrongNoteCategoryChanged.accept(selectedId(wrongCategoryBox));
-            }
-        });
+        wrongCategorySegment.setOnChange(id -> onWrongNoteCategoryChanged.accept(id));
         needsReviewOnly.setOpaque(false);
         needsReviewOnly.setFont(SMALL.deriveFont(Font.BOLD));
         needsReviewOnly.setForeground(INK_2);
         needsReviewOnly.setFocusPainted(false);
         needsReviewOnly.addActionListener(e -> {
-            if (!updatingCombo) {
+            if (!updatingFilters) {
                 onWrongRefresh.run();
             }
         });
         GameButton refresh = new GameButton("다시 조회", Variant.GHOST, 40);
         refresh.addActionListener(e -> onWrongRefresh.run());
         JPanel filters = clear(new FlowLayout(FlowLayout.RIGHT, 12, 0));
-        filters.add(wrongCategoryBox);
         filters.add(needsReviewOnly);
         filters.add(refresh);
 
@@ -448,6 +439,20 @@ public class HistoryPanel extends JPanel {
         JPanel filterBox = clear(new GridBagLayout());
         filterBox.add(filters);
         header.add(filterBox, BorderLayout.EAST);
+        JPanel categoryRow = clear(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        categoryRow.add(wrongCategorySegment);
+        JScrollPane categoryTabs = new JScrollPane(categoryRow,
+                JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED) {
+            @Override
+            public Dimension getPreferredSize() {
+                return new Dimension(0, wrongCategorySegment.getPreferredSize().height
+                        + getHorizontalScrollBar().getPreferredSize().height);
+            }
+        };
+        categoryTabs.setBorder(BorderFactory.createEmptyBorder());
+        categoryTabs.setOpaque(false);
+        categoryTabs.getViewport().setOpaque(false);
+        header.add(categoryTabs, BorderLayout.SOUTH);
         page.add(header, BorderLayout.NORTH);
 
         styleTable(wrongTable);
@@ -550,7 +555,7 @@ public class HistoryPanel extends JPanel {
     public void showWrongNote(WrongNoteView view) {
         Objects.requireNonNull(view, "WrongNoteView가 null입니다. 오답 목록을 먼저 받아오세요.");
 
-        selectCategory(wrongCategoryBox, view.selectedCategoryId());
+        wrongCategorySegment.select(view.selectedCategoryId());
         wrongAccuracyLabel.setText(view.queryView()
                 ? "오답 문제 " + view.items().size() + "개 / 전체 " + view.submissions() + "개"
                 : "정답률 " + percent(view.accuracyPercent(), view.submissions()));
@@ -614,24 +619,17 @@ public class HistoryPanel extends JPanel {
     public void setCategories(List<CategoryOption> categories) {
         Objects.requireNonNull(categories, "분야 목록이 null입니다.");
         recordSegment.setOptions(categories);
-        updatingCombo = true;
-        try {
-            wrongCategoryBox.removeAllItems();
-            for (CategoryOption option : categories) {
-                wrongCategoryBox.addItem(option);
-            }
-            wrongCategoryBox.addItem(new CategoryOption("UNCLASSIFIED", "미분류"));
-        } finally {
-            updatingCombo = false;
-        }
+        List<CategoryOption> wrongCategories = new ArrayList<>(categories);
+        wrongCategories.add(new CategoryOption("UNCLASSIFIED", "미분류"));
+        wrongCategorySegment.setOptions(wrongCategories);
     }
 
     public void setWrongNeedsReviewOnly(boolean selected) {
-        updatingCombo = true;
+        updatingFilters = true;
         try {
             needsReviewOnly.setSelected(selected);
         } finally {
-            updatingCombo = false;
+            updatingFilters = false;
         }
     }
 
@@ -640,11 +638,11 @@ public class HistoryPanel extends JPanel {
     }
 
     public String getWrongCategoryId() {
-        return selectedId(wrongCategoryBox);
+        return wrongCategorySegment.selectedId();
     }
 
     public void setWrongCategoryId(String categoryId) {
-        selectCategory(wrongCategoryBox, categoryId);
+        wrongCategorySegment.select(categoryId);
     }
 
     public void setOnWrongNoteRefresh(Runnable action) {
@@ -661,12 +659,12 @@ public class HistoryPanel extends JPanel {
     }
 
     public void clearWrongNote() {
-        updatingCombo = true;
+        updatingFilters = true;
         try {
             needsReviewOnly.setSelected(false);
-            wrongCategoryBox.setSelectedIndex(0);
+            wrongCategorySegment.select(null);
         } finally {
-            updatingCombo = false;
+            updatingFilters = false;
         }
         wrongItems = List.of();
         wrongModel.setItems(wrongItems);
@@ -718,28 +716,6 @@ public class HistoryPanel extends JPanel {
 
     public void setOnReview(Consumer<List<String>> action) {
         this.onReview = (action != null) ? action : ids -> { };
-    }
-
-    private void selectCategory(JComboBox<CategoryOption> box, String categoryId) {
-        updatingCombo = true;
-        try {
-            for (int i = 0; i < box.getItemCount(); i++) {
-                if (Objects.equals(box.getItemAt(i).id(), categoryId)) {
-                    box.setSelectedIndex(i);
-                    return;
-                }
-            }
-            if (box.getItemCount() > 0) {
-                box.setSelectedIndex(0);
-            }
-        } finally {
-            updatingCombo = false;
-        }
-    }
-
-    private static String selectedId(JComboBox<CategoryOption> box) {
-        Object selected = box.getSelectedItem();
-        return (selected instanceof CategoryOption option) ? option.id() : null;
     }
 
     private static JPanel page() {
