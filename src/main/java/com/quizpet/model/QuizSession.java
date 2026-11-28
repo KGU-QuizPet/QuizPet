@@ -10,6 +10,7 @@ public final class QuizSession {
   private final String sessionId;
   private final String userId;
   private final Category category;
+  private final boolean review;
   private final List<Question> questions;
   private final Map<String, String> answers = new LinkedHashMap<>();
   private int currentIndex;
@@ -18,10 +19,20 @@ public final class QuizSession {
 
   public QuizSession(String sessionId, String userId, Category category,
       List<? extends Question> questionPool) {
+    this(sessionId, userId, category, questionPool, false);
+  }
+
+  /** 복습은 선택 순서를 보존하며 분야 필터·무작위 추출·5문제 제한을 적용하지 않습니다. */
+  public static QuizSession review(String sessionId, String userId, List<? extends Question> questions) {
+    return new QuizSession(sessionId, userId, null, questions, true);
+  }
+
+  private QuizSession(String sessionId, String userId, Category category,
+      List<? extends Question> questionPool, boolean review) {
     if (sessionId == null || sessionId.isBlank() || userId == null || userId.isBlank()) {
       throw new IllegalArgumentException("sessionId와 userId는 필수입니다.");
     }
-    if (category == null || questionPool == null) {
+    if ((!review && category == null) || questionPool == null) {
       throw new IllegalArgumentException("category와 questionPool은 필수입니다.");
     }
     Map<String, Question> uniqueQuestions = new LinkedHashMap<>();
@@ -29,7 +40,7 @@ public final class QuizSession {
       if (question == null) {
         throw new IllegalArgumentException("문제 목록에 null이 포함될 수 없습니다.");
       }
-      if (question.getCategory() == category) {
+      if (review || question.getCategory() == category) {
         uniqueQuestions.putIfAbsent(question.getQuestionId(), question);
       }
     }
@@ -37,11 +48,13 @@ public final class QuizSession {
       throw new IllegalArgumentException("선택한 분야에 출제 가능한 문제가 없습니다.");
     }
     List<Question> candidates = new ArrayList<>(uniqueQuestions.values());
-    Collections.shuffle(candidates);
-    this.questions = List.copyOf(candidates.subList(0, Math.min(5, candidates.size())));
+    if (!review) Collections.shuffle(candidates);
+    this.questions = List.copyOf(review ? candidates : candidates.subList(0, Math.min(5, candidates.size())));
     this.sessionId = sessionId;
     this.userId = userId;
-    this.category = category;
+    Category first = candidates.get(0).getCategory();
+    this.category = review ? (candidates.stream().allMatch(q -> q.getCategory() == first) ? first : null) : category;
+    this.review = review;
   }
 
   public boolean submitAnswer(String selectedAnswer) {
@@ -87,12 +100,16 @@ public final class QuizSession {
     return userId;
   }
 
+  /** 혼합 분야 복습에는 대표 분야가 없습니다. 문제별 분야는 getCurrentQuestion()에서 조회합니다. */
   public Category getCategory() {
+    if (category == null) throw new IllegalStateException("혼합 분야 복습에는 단일 분야가 없습니다.");
     return category;
   }
 
+  public boolean isReview() { return review; }
+
   public String getCategoryId() {
-    return category.getCategoryId();
+    return getCategory().getCategoryId();
   }
 
   public List<Question> getQuestions() {
