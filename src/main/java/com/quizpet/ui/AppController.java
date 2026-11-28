@@ -1,8 +1,10 @@
 package main.java.com.quizpet.ui;
 
+import java.awt.BorderLayout;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import javax.swing.JOptionPane;
@@ -18,6 +20,7 @@ import main.java.com.quizpet.model.User;
 import main.java.com.quizpet.repository.*;
 import main.java.com.quizpet.service.*;
 import main.java.com.quizpet.ui.component.AnswerFeedbackPanel;
+import main.java.com.quizpet.ui.component.TopBar;
 import main.java.com.quizpet.ui.screen.*;
 import main.java.com.quizpet.ui.screen.HistoryPanel.HistoryView;
 
@@ -46,6 +49,8 @@ public final class AppController {
   private final HistoryPanel history = new HistoryPanel();
   private final BattleService battles = new BattleService();
   private final BossBattlePanel bossBattle = new BossBattlePanel();
+  private final TopBar topBar = new TopBar();
+  private final JPanel window = new JPanel(new BorderLayout());
   private User currentUser;
   private Category currentCategory;
   private QuizSession session;
@@ -55,6 +60,7 @@ public final class AppController {
   /** 결과 화면을 본 뒤 홈에서 한 번 보여 줄 성장 정보입니다(없으면 null). */
   private Growth pendingGrowth;
   private boolean feedbackCard;
+  private boolean viewingWrongNote;
   private String pendingAnswer;
 
   public AppController(Path saveDirectory) throws IOException {
@@ -78,11 +84,77 @@ public final class AppController {
     submissions = new SubmissionService(saveDirectory);
     registerScreens();
     connectActions();
+    connectTopBar();
     showStart();
   }
 
   public JPanel getView() {
     return screens.getContainer();
+  }
+
+  public JPanel getWindowContent() {
+    return window;
+  }
+
+  public TopBar getTopBar() {
+    return topBar;
+  }
+
+  private void connectTopBar() {
+    window.add(topBar, BorderLayout.NORTH);
+    window.add(screens.getContainer(), BorderLayout.CENTER);
+    topBar.setOnChangeUser(() -> {
+      run(() -> { if (confirmLeaveQuiz()) showStart(); });
+    });
+    topBar.setOnTab(tab -> {
+      run(() -> {
+        if (!confirmLeaveQuiz()) return;
+        switch (tab) {
+          case TopBar.TAB_HOME -> showHome();
+          case TopBar.TAB_LEARN -> showCategories();
+          case TopBar.TAB_HISTORY -> showHistory(null);
+          case TopBar.TAB_WRONG_NOTE -> showWrongNote(null, false);
+          case TopBar.TAB_BATTLE -> showBossBattle();
+          default -> { }
+        }
+      });
+      selectCurrentTab();
+    });
+    screens.setOnShow(name -> {
+      if (!ScreenManager.BOSS_BATTLE.equals(name)) bossBattle.stopBattle();
+      topBar.setVisible(!ScreenManager.START.equals(name) && !ScreenManager.PET_CREATE.equals(name));
+      selectCurrentTab();
+    });
+  }
+
+  private void selectCurrentTab() {
+    topBar.select(ScreenManager.HISTORY.equals(screens.getCurrent()) && viewingWrongNote
+        ? TopBar.TAB_WRONG_NOTE : tabOf(screens.getCurrent()));
+  }
+
+  static String tabOf(String screen) {
+    if (screen == null) return null;
+    return switch (screen) {
+      case ScreenManager.HOME -> TopBar.TAB_HOME;
+      case ScreenManager.CATEGORY, ScreenManager.LEARNING, ScreenManager.QUIZ,
+          ScreenManager.ANSWER_FEEDBACK, ScreenManager.QUIZ_RESULT -> TopBar.TAB_LEARN;
+      case ScreenManager.HISTORY -> TopBar.TAB_HISTORY;
+      case ScreenManager.BOSS_BATTLE -> TopBar.TAB_BATTLE;
+      default -> null;
+    };
+  }
+
+  private boolean confirmLeaveQuiz() throws IOException {
+    String current = screens.getCurrent();
+    boolean inQuiz = session != null && !session.isFinished()
+        && (ScreenManager.QUIZ.equals(current) || ScreenManager.ANSWER_FEEDBACK.equals(current)
+            || feedbackCard);
+    if (!inQuiz) return true;
+    int answer = JOptionPane.showConfirmDialog(getView(), "진행 중인 퀴즈를 종료할까요?",
+        "퀴즈 종료", JOptionPane.YES_NO_OPTION);
+    if (answer != JOptionPane.YES_OPTION) return false;
+    endQuizSession();
+    return true;
   }
 
   private void registerScreens() {
@@ -105,8 +177,8 @@ public final class AppController {
     petCreate.setOnCreate((name, appearance) -> run(() -> createPet(name, appearance)));
     home.setOnLearn(() -> run(this::showCategories));
     home.setOnHistory(() -> run(() -> showHistory(null)));
-    home.setOnChangeUser(() -> run(this::showStart));
-    home.setOnBossBattle(() -> run(this::showBossBattle));
+    home.setOnCategory(id -> run(() -> selectCategory(id)));
+    home.setOnWrongNote(() -> run(() -> showWrongNote(null, true)));
     bossBattle.setOnExit(() -> run(this::showHome));
     categories.setOnSelect(id -> run(() -> selectCategory(id)));
     cards.setOnQuiz(() -> run(this::startQuiz));
@@ -186,16 +258,53 @@ public final class AppController {
 
   private void displayHome(Pet pet) throws IOException {
     home.setGreeting(currentUser == null ? null : currentUser.getNickname());
+    topBar.setUser(currentUser == null ? null : currentUser.getNickname(), pet.getSpriteKey());
     StatisticsService.Statistics overall = statistics.getOverallStatistics(pet.getUserId());
     home.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
     home.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
         pet.getStats().getStrength(), pet.getStats().getIntelligence(),
         pet.getStats().getFocus(), pet.getStats().getWisdom());
+    showHomeRecords(pet.getUserId());
     if (pendingGrowth != null && pendingGrowth.userId().equals(pet.getUserId())) {
       home.showGrowth(pendingGrowth.statsBefore(), pendingGrowth.gainedXp(), pendingGrowth.leveledUp());
     }
     pendingGrowth = null;
     screens.show(ScreenManager.HOME);
+  }
+
+  private void showHomeRecords(String userId) throws IOException {
+    List<LearningRecord> all = records.getRecords(userId);
+    boolean unresolved = all.stream()
+        .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
+    for (Category category : Category.values()) {
+      if (unresolved) {
+        home.showCategoryProgressUnavailable(category);
+      } else {
+        StatisticsService.Statistics stats = statistics.getCategoryStatistics(userId, category.getCategoryId());
+        home.showCategoryProgress(category, stats.getTotalAttempts(), stats.getAccuracy());
+      }
+    }
+
+    List<HomePanel.RecentItem> recent = new ArrayList<>();
+    for (LearningRecord record : records.getRecentRecords(userId, HomePanel.RECENT_MAX)) {
+      Question question = recordQuestions.findById(record.getQuestionId()).orElse(null);
+      recent.add(new HomePanel.RecentItem(question == null ? null : question.getCategory(),
+          question == null ? "문제 정보 없음" : question.getPrompt(),
+          record.isCorrect(), record.getEarnedXp()));
+    }
+    home.showRecent(recent);
+
+    Map<Category, Integer> wrongCounts = new EnumMap<>(Category.class);
+    int unclassified = 0;
+    for (var wrong : wrongAnswers.getWrongAnswers(userId, null,
+        WrongAnswerService.ListPolicy.NEEDS_REVIEW_ONLY)) {
+      if (wrong.category().isPresent()) {
+        wrongCounts.merge(wrong.category().get(), 1, Integer::sum);
+      } else {
+        unclassified++;
+      }
+    }
+    home.showWrongCounts(wrongCounts, unclassified);
   }
 
   private static Map<String, Integer> statMap(PetStats stats) {
@@ -327,10 +436,14 @@ public final class AppController {
   }
 
   public void endQuiz() throws IOException {
+    endQuizSession();
+    showResult();
+  }
+
+  void endQuizSession() throws IOException {
     requireSession();
     ready();
     quizzes.endSession(session);
-    showResult();
   }
 
   private void showResult() throws IOException {
@@ -355,6 +468,7 @@ public final class AppController {
 
   public void showHistory(String categoryId) throws IOException {
     requireUser();
+    viewingWrongNote = false;
     history.showRecordPage();
     history.showHistoryError("기록을 불러오는 중입니다.");
     screens.show(ScreenManager.HISTORY);
@@ -385,7 +499,13 @@ public final class AppController {
       }
       var selected = categoryId == null ? statistics.getOverallStatistics(currentUser.getUserId())
           : statistics.getCategoryStatistics(currentUser.getUserId(), categoryId);
-      history.showHistory(HistoryView.of(selected, rates, rows));
+      Integer wrongCount = null;
+      try {
+        wrongCount = wrongAnswers.getWrongAnswers(currentUser.getUserId()).size();
+      } catch (IOException | RuntimeException unavailable) {
+        // Keep valid statistics and records visible even when this independent query fails.
+      }
+      history.showHistory(HistoryView.of(selected, rates, rows), wrongCount);
     } catch (IOException | RuntimeException e) {
       history.showHistoryError("기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
@@ -394,6 +514,7 @@ public final class AppController {
 
   public void showWrongNote(String categoryId, boolean needsReviewOnly) throws IOException {
     requireUser();
+    viewingWrongNote = true;
     history.setWrongCategoryId(categoryId);
     history.setWrongNeedsReviewOnly(needsReviewOnly);
     history.showWrongNoteError("오답 기록을 불러오는 중입니다.");

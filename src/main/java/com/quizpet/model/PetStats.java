@@ -39,22 +39,30 @@ public final class PetStats {
     }
   }
 
+  /** int 최대값을 넘으면 값을 바꾸지 않고 IllegalArgumentException을 던집니다. */
   void increase(String statType, int amount) {
     if (amount < 0) {
       throw new IllegalArgumentException("능력치 증가량은 음수가 될 수 없습니다.");
     }
-    switch (requireStatType(statType)) {
+    String type = requireStatType(statType);
+    int increased;
+    try {
+      increased = Math.addExact(get(type), amount);
+    } catch (ArithmeticException e) {
+      throw new IllegalArgumentException("능력치가 최대값을 넘어 증가시킬 수 없습니다: " + type, e);
+    }
+    switch (type) {
       case "STR":
-        strength += amount;
+        strength = increased;
         break;
       case "INT":
-        intelligence += amount;
+        intelligence = increased;
         break;
       case "FOC":
-        focus += amount;
+        focus = increased;
         break;
       default:
-        wisdom += amount;
+        wisdom = increased;
     }
   }
 
