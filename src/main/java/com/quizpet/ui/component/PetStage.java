@@ -245,7 +245,7 @@ public final class PetStage extends JPanel {
     double breath = ambientBreath();
     // 발밑을 기준으로 미세하게 숨 쉬도록 하여 몸 전체가 바닥에서 미끄러지지 않게 합니다.
     body.translate(x + size / 2.0, y + size);
-    body.scale(1 + breath * 0.004, 1 - breath * 0.012);
+    body.scale(1 + breath * 0.012, 1 - breath * 0.04);
     body.translate(-size / 2.0, -size);
     if (image != null) {
       body.drawImage(image, 0, 0, size, size, null);
