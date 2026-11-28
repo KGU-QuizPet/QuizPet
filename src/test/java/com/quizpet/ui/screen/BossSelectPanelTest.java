@@ -56,8 +56,21 @@ public final class BossSelectPanelTest {
           }
         }
         panel.showPet(new Pet("P1", "U1", "말랑이", PetAppearance.DUCK), Set.of(0));
+        java.lang.reflect.Field cardsField = BossSelectPanel.class.getDeclaredField("cards");
+        cardsField.setAccessible(true);
+        Object card = ((Object[]) cardsField.get(panel))[0];
+        java.lang.reflect.Field imageField = card.getClass().getDeclaredField("image");
+        imageField.setAccessible(true);
+        Object defeatedImage = imageField.get(card);
+        assert defeatedImage != null;
         assert buttons.get(0).getText().equals("다시 도전");
         panel.showPet(new Pet("P2", "U2", "다른펫", PetAppearance.DUCK), Set.of());
+        Object idleImage = imageField.get(card);
+        assert idleImage != null && idleImage != defeatedImage;
+        panel.showPet(new Pet("P1", "U1", "말랑이", PetAppearance.DUCK), Set.of(0));
+        assert imageField.get(card) == defeatedImage : "클리어 이미지를 다시 읽지 않고 재사용해야 합니다.";
+        panel.showPet(new Pet("P2", "U2", "다른펫", PetAppearance.DUCK), Set.of());
+        assert imageField.get(card) == idleImage : "대기 이미지를 다시 읽지 않고 재사용해야 합니다.";
         assert buttons.get(0).getText().equals("도전하기");
       } catch (Exception e) {
         throw new AssertionError(e);

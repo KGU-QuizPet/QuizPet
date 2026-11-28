@@ -22,6 +22,12 @@ public final class BossBattlePanelTest {
     SwingUtilities.invokeAndWait(() -> {
       try {
         BossBattlePanel panel = new BossBattlePanel();
+        Method stars = BossBattlePanel.class.getDeclaredMethod("difficultyStars", int.class);
+        stars.setAccessible(true);
+        for (int i = 0; i < BattleService.BOSSES.size(); i++) {
+          assert stars.invoke(null, i).equals("★".repeat(i + 1) + "☆".repeat(3 - i))
+              : "네 보스의 난이도는 별 1~4개로 구분해야 합니다.";
+        }
         Pet pet = new Pet("P1", "U1", "화면펫", PetAppearance.TURTLE);
         panel.showBattle(pet);
 

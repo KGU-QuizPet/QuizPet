@@ -12,6 +12,9 @@ import java.awt.GridLayout;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.IntConsumer;
 import javax.imageio.ImageIO;
@@ -100,6 +103,7 @@ public final class BossSelectPanel extends JPanel {
     private boolean locked;
     private boolean cleared;
     private int remainingLevels;
+    private final Map<String, Optional<BufferedImage>> images = new HashMap<>();
     private BufferedImage image;
 
     BossCard(int index) {
@@ -111,13 +115,16 @@ public final class BossSelectPanel extends JPanel {
         @Override protected void paintComponent(Graphics graphics) {
           Graphics2D g = (Graphics2D) graphics.create();
           g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-          int[] colors = {0xB8EBDC, 0xD3C6F7, 0xCDD2DA, 0xD7C4F8};
-          g.setPaint(new GradientPaint(0, 0, Color.WHITE, 0, getHeight(), new Color(colors[index])));
+          g.setPaint(new GradientPaint(0, 0, Color.WHITE, 0, getHeight(), new Color(boss.backgroundColor())));
           g.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
           if (image != null) {
             int size = Math.min(getWidth() - 14, getHeight() - 14);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             g.drawImage(image, (getWidth() - size) / 2, (getHeight() - size) / 2, size, size, this);
+          }
+          if (image == null) {
+            g.setColor(UiStyle.MUTED);
+            drawCentered(g, "이미지 없음", getHeight() / 2, 12);
           }
           if (cleared) {
             g.rotate(-0.12, getWidth() - 50, 30);
@@ -142,9 +149,7 @@ public final class BossSelectPanel extends JPanel {
       JLabel level = UiStyle.label("Lv." + boss.requiredLevel() + "+", UiStyle.BODY_FONT.deriveFont(Font.BOLD));
       level.setForeground(UiStyle.MUTED);
       text.add(level);
-      String[] descriptions = {"공부만 하면 졸음이<br>쏟아지게 만든다", "외운 내용을<br>슬쩍 지워 버린다",
-          "비슷한 보기로<br>머리를 헷갈리게 한다", "모든 기억을 불태우는<br>최종 보스"};
-      JLabel description = UiStyle.label("<html><center>" + descriptions[index] + "</center></html>",
+      JLabel description = UiStyle.label("<html><center>" + boss.description() + "</center></html>",
           UiStyle.BODY_FONT.deriveFont(12f));
       description.setForeground(UiStyle.MUTED);
       text.add(description);
@@ -165,12 +170,20 @@ public final class BossSelectPanel extends JPanel {
       challenge.getAccessibleContext().setAccessibleName(boss.name() + " " + challenge.getText());
       setBorderColor(locked || cleared ? UiStyle.BORDER : UiStyle.BRAND);
       String path = cleared ? boss.imagePath().replace("_idle.png", "_defeated.png") : boss.imagePath();
-      java.net.URL resource = UiStyle.resource("/" + path);
-      image = null;
-      if (resource != null) {
-        try { image = ImageIO.read(resource); } catch (IOException ignored) { }
-      }
+      image = images.computeIfAbsent(path, this::loadImage).orElse(null);
       art.repaint();
+    }
+
+    private Optional<BufferedImage> loadImage(String path) {
+      java.net.URL resource = UiStyle.resource("/" + path);
+      try {
+        BufferedImage loaded = resource == null ? null : ImageIO.read(resource);
+        if (loaded != null) return Optional.of(loaded);
+        System.err.println("보스 이미지를 읽을 수 없습니다: " + path);
+      } catch (IOException e) {
+        System.err.println("보스 이미지를 읽을 수 없습니다: " + path + " (" + e.getMessage() + ")");
+      }
+      return Optional.empty();
     }
 
     @Override public void doLayout() {

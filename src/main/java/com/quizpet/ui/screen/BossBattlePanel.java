@@ -382,11 +382,8 @@ public final class BossBattlePanel extends JPanel {
   }
 
   private static String difficultyStars(int index) {
-    return switch (index) {
-      case 0 -> "★☆☆";
-      case 1 -> "★★☆";
-      default -> "★★★";
-    };
+    int total = BattleService.BOSSES.size();
+    return "★".repeat(index + 1) + "☆".repeat(total - index - 1);
   }
 
   private void setBossImageState(String state) {

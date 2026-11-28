@@ -59,7 +59,7 @@ public final class BattleServiceTest {
     assert grown.getAttack() == 45;
     assert grown.getMaxPlayerHp() == 120;
 
-    BattleSession oneHit = service.createBattle(pet, new Boss("약한 보스", 1, 999, null, null));
+    BattleSession oneHit = service.createBattle(pet, new Boss("약한 보스", 1, 999, null, "테스트 보스", 0xFFFFFF, 1));
     oneHit.start();
     oneHit.advanceTurn();
     assert oneHit.getState() == BattleSession.State.WON;

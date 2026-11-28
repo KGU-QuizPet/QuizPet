@@ -8,10 +8,10 @@ import main.java.com.quizpet.model.Pet;
 // 캐릭터 능력치로 자동 보스전을 준비.
 public final class BattleService {
   public static final List<Boss> BOSSES = List.of(
-      new Boss("졸음 슬라임", 180, 20, "images/bosses/slime_idle.png", "images/backgrounds/background1.jpg", 1),
-      new Boss("까먹귀신", 200, 22, "images/bosses/ghost_idle.png", "images/backgrounds/background1.jpg", 3),
-      new Boss("헷갈골렘", 220, 25, "images/bosses/golem_idle.png", "images/backgrounds/background2.png", 5),
-      new Boss("망각의 용", 260, 30, "images/bosses/dragon_idle.png", "images/backgrounds/background3.png", 8));
+      new Boss("졸음 슬라임", 180, 20, "images/bosses/slime_idle.png", "공부만 하면 졸음이<br>쏟아지게 만든다", 0xB8EBDC, 1),
+      new Boss("까먹귀신", 200, 22, "images/bosses/ghost_idle.png", "외운 내용을<br>슬쩍 지워 버린다", 0xD3C6F7, 3),
+      new Boss("헷갈골렘", 220, 25, "images/bosses/golem_idle.png", "비슷한 보기로<br>머리를 헷갈리게 한다", 0xCDD2DA, 5),
+      new Boss("망각의 용", 260, 30, "images/bosses/dragon_idle.png", "모든 기억을 불태우는<br>최종 보스", 0xD7C4F8, 8));
 
   public BattleSession createBattle(Pet pet, int bossIndex) {
     if (bossIndex < 0 || bossIndex >= BOSSES.size()) throw new IllegalArgumentException("보스를 선택해 주세요.");
