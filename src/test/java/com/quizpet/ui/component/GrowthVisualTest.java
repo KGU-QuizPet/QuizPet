@@ -33,14 +33,14 @@ public class GrowthVisualTest {
   private static void ambientAnimations() {
     PetStage stage = new PetStatusPanel().getStage();
     stage.setSize(280, 270);
-    stage.advanceAmbient(1000);
+    stage.advanceAmbient(800);
     double tilt = stage.ambientTilt();
     assert Math.abs(tilt - Math.toRadians(3)) < 1e-9 : "오른쪽으로 3도 기울어야 한다";
-    stage.advanceAmbient(2000);
+    stage.advanceAmbient(1600);
     assert Math.abs(stage.ambientTilt() + tilt) < 1e-9 : "왼쪽으로 같은 폭만큼 기울어야 한다";
     stage.advanceAmbient(16);
     assert Math.abs(stage.ambientTilt() + tilt) < 0.002 : "프레임 사이 변화가 작고 연속적이어야 한다";
-    stage.advanceAmbient(4000 - 3016);
+    stage.advanceAmbient(3200 - 2416);
     assert Math.abs(stage.ambientTilt()) < 1e-9 : "주기 경계에서 처음 자세로 이어져야 한다";
     stage.advanceAmbient(800);
     paint(stage);

@@ -88,13 +88,13 @@ public final class PetStage extends JPanel {
   }
 
   void advanceAmbient(int ms) {
-    ambientElapsedMs = (ambientElapsedMs + ms) % 4000;
+    ambientElapsedMs = (ambientElapsedMs + ms) % 3200;
     repaint();
   }
 
   double ambientTilt() {
     if (!ambientAnimation || motion != Motion.NONE) return 0;
-    return Math.toRadians(3) * Math.sin(2 * Math.PI * ambientElapsedMs / 4000);
+    return Math.toRadians(3) * Math.sin(2 * Math.PI * ambientElapsedMs / 3200);
   }
 
   /** 정답 반응입니다. 캐릭터가 통통 뛰고 effects 문구가 차례로 떠올랐다가 사라집니다. */
