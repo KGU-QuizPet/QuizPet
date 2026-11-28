@@ -143,11 +143,7 @@ public class StartPanel extends JPanel {
   private static AuthHero createHero() {
     JPanel header = new JPanel();
     header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
-    JLabel logo = AuthHero.text("QuizPet", new Font(Font.DIALOG, Font.BOLD, 72), Color.WHITE);
-    logo.setIcon(UiStyle.logoIcon(200));
-    if (logo.getIcon() != null) logo.setText("");
-    logo.getAccessibleContext().setAccessibleName("QuizPet");
-    header.add(logo);
+    header.add(AuthHero.text("QuizPet", new Font(Font.DIALOG, Font.BOLD, 72), Color.WHITE));
     header.add(Box.createVerticalStrut(8));
     header.add(AuthHero.text("퀴즈로 성장하는 나만의 캐릭터",
         UiStyle.BODY_FONT.deriveFont(Font.BOLD, 18f), Color.WHITE));
