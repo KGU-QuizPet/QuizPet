@@ -50,8 +50,8 @@ public class WrongNoteUiIntegrationTest {
   }
   JButton review=find(app.getView(),JButton.class).stream().filter(x->x.getText().contains("복습 기능 준비 중")).findFirst().orElseThrow();assert !review.isEnabled();
   JCheckBox needed=find(app.getView(),JCheckBox.class).get(0);needed.doClick();assert table(app.getView()).getRowCount()==5;
-  JComboBox<?> categories=find(app.getView(),JComboBox.class).get(0);select(categories,"상식");assert table(app.getView()).getRowCount()==1;
-  select(categories,"미분류");assert table(app.getView()).getRowCount()==1&&cells(table(app.getView())).contains("UNKNOWN");
+  select(app.getView(),"상식");assert table(app.getView()).getRowCount()==1;
+  select(app.getView(),"미분류");assert table(app.getView()).getRowCount()==1&&cells(table(app.getView())).contains("UNKNOWN");
   click(app.getView(),"이전");assert find(app.getView(),JButton.class).stream().anyMatch(x->x.getText().equals("오답노트"));
   app.showWrongNote("LANGUAGE",true);
   assert text(app.getView()).contains("해당 조건의 오답 기록이 없습니다.");
@@ -77,7 +77,7 @@ public class WrongNoteUiIntegrationTest {
  static String details(Component c){return find(c,JTextArea.class).stream().map(JTextArea::getText).reduce("",String::concat);}
  static String text(Component c){return find(c,JLabel.class).stream().map(JLabel::getText).reduce("",String::concat);}
  static void click(Component c,String name){find(c,JButton.class).stream().filter(b->b.getText().equals(name)).findFirst().orElseThrow().doClick();}
- static void select(JComboBox<?> box,String name){for(int i=0;i<box.getItemCount();i++)if(box.getItemAt(i).toString().equals(name)){box.setSelectedIndex(i);return;}throw new AssertionError(name);}
+ static void select(Component root,String name){find(root,JToggleButton.class).stream().filter(b->!(b instanceof JCheckBox)&&b.getText().equals(name)).findFirst().orElseThrow(()->new AssertionError("분야 탭 없음: "+name)).doClick();}
  static void layout(Container c){c.doLayout();for(Component x:c.getComponents())if(x instanceof Container p)layout(p);}
  static <T> List<T> find(Component c,Class<T> type){List<T> out=new ArrayList<>();if(!c.isVisible())return out;if(type.isInstance(c))out.add(type.cast(c));if(c instanceof Container p)for(Component x:p.getComponents())out.addAll(find(x,type));return out;}
 }
