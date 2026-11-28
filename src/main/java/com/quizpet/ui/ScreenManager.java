@@ -3,6 +3,7 @@ package main.java.com.quizpet.ui;
 import java.awt.CardLayout;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
@@ -16,10 +17,13 @@ public class ScreenManager {
   public static final String ANSWER_FEEDBACK = "ANSWER_FEEDBACK";
   public static final String QUIZ_RESULT = "QUIZ_RESULT";
   public static final String HISTORY = "HISTORY";
+  public static final String BOSS_BATTLE = "BOSS_BATTLE";
 
   private final CardLayout cardLayout = new CardLayout();
   private final JPanel container = new JPanel(cardLayout);
   private final Set<String> registeredScreens = new HashSet<>();
+  private Consumer<String> onShow = name -> { };
+  private String current;
 
   public JPanel getContainer() {
     return container;
@@ -36,5 +40,15 @@ public class ScreenManager {
       return;
     }
     cardLayout.show(container, name);
+    current = name;
+    onShow.accept(name);
+  }
+
+  public void setOnShow(Consumer<String> action) {
+    onShow = action;
+  }
+
+  public String getCurrent() {
+    return current;
   }
 }

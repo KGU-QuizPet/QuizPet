@@ -44,7 +44,7 @@ public class MainFrame extends JFrame {
     try {
       Path directory = Path.of("data/save");
       if (saveLock == null) saveLock = new SaveDirectoryLock(directory);
-      setContentPane(new AppController(directory).getView());
+      setContentPane(new AppController(directory).getWindowContent());
     } catch (IOException | IllegalArgumentException | IllegalStateException e) {
       JPanel error = new JPanel(new BorderLayout(0, 20));
       error.setBorder(BorderFactory.createEmptyBorder(30, 25, 30, 25));

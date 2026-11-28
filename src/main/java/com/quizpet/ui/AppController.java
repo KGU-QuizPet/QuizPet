@@ -1,25 +1,32 @@
 package main.java.com.quizpet.ui;
 
+import java.awt.BorderLayout;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.LearningContent;
 import main.java.com.quizpet.model.LearningRecord;
 import main.java.com.quizpet.model.Pet;
+import main.java.com.quizpet.model.PetStats;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.model.User;
 import main.java.com.quizpet.repository.*;
 import main.java.com.quizpet.service.*;
 import main.java.com.quizpet.ui.component.AnswerFeedbackPanel;
+import main.java.com.quizpet.ui.component.TopBar;
 import main.java.com.quizpet.ui.screen.*;
 import main.java.com.quizpet.ui.screen.HistoryPanel.HistoryView;
 
-/** 화면의 사용자·분야·세션 상태와 서비스 호출을 연결합니다. */
+// 화면의 사용자·분야·세션 상태와 서비스 호출을 연결.
 public final class AppController {
   private final ScreenManager screens = new ScreenManager();
   private final UserService users;
@@ -31,6 +38,7 @@ public final class AppController {
   private final RecordService records;
   private final StatisticsService statistics;
   private final RecordQuestionLookup recordQuestions;
+  private final WrongAnswerService wrongAnswers;
   private final SubmissionService submissions;
   private final StartPanel start = new StartPanel(screens);
   private final PetCreatePanel petCreate = new PetCreatePanel(screens);
@@ -41,11 +49,20 @@ public final class AppController {
   private final AnswerFeedbackPanel feedback = new AnswerFeedbackPanel();
   private final QuizResultPanel result = new QuizResultPanel();
   private final HistoryPanel history = new HistoryPanel();
+  private final BattleService battles = new BattleService();
+  private final BossBattlePanel bossBattle = new BossBattlePanel();
+  private final TopBar topBar = new TopBar();
+  private final JPanel window = new JPanel(new BorderLayout());
   private User currentUser;
   private Category currentCategory;
   private QuizSession session;
   private int levelBefore;
+  /** 퀴즈 시작 시점의 능력치입니다. 결과 화면 비교와 홈 성장 강조에 씁니다. */
+  private Map<String, Integer> statsBefore;
+  /** 결과 화면을 본 뒤 홈에서 한 번 보여 줄 성장 정보입니다(없으면 null). */
+  private Growth pendingGrowth;
   private boolean feedbackCard;
+  private boolean viewingWrongNote;
   private String pendingAnswer;
 
   public AppController(Path saveDirectory) throws IOException {
@@ -65,14 +82,80 @@ public final class AppController {
     records = new RecordService(new RecordRepository(saveDirectory.resolve("record.txt")));
     recordQuestions = new RecordQuestionLookup(questions, contentDirectory.resolve("question-legacy.txt"));
     statistics = new StatisticsService(records, id -> recordQuestions.findById(id).map(Question::getCategory));
+    wrongAnswers = new WrongAnswerService(records, recordQuestions);
     submissions = new SubmissionService(saveDirectory);
     registerScreens();
     connectActions();
+    connectTopBar();
     showStart();
   }
 
   public JPanel getView() {
     return screens.getContainer();
+  }
+
+  public JPanel getWindowContent() {
+    return window;
+  }
+
+  public TopBar getTopBar() {
+    return topBar;
+  }
+
+  private void connectTopBar() {
+    window.add(topBar, BorderLayout.NORTH);
+    window.add(screens.getContainer(), BorderLayout.CENTER);
+    topBar.setOnChangeUser(() -> {
+      run(() -> { if (confirmLeaveQuiz()) showStart(); });
+    });
+    topBar.setOnTab(tab -> {
+      run(() -> {
+        if (!confirmLeaveQuiz()) return;
+        switch (tab) {
+          case TopBar.TAB_HOME -> showHome();
+          case TopBar.TAB_LEARN -> showCategories();
+          case TopBar.TAB_HISTORY -> showHistory(null);
+          case TopBar.TAB_WRONG_NOTE -> showWrongNote(null, false);
+          case TopBar.TAB_BATTLE -> showBossBattle();
+          default -> { }
+        }
+      });
+      selectCurrentTab();
+    });
+    screens.setOnShow(name -> {
+      topBar.setVisible(!ScreenManager.START.equals(name) && !ScreenManager.PET_CREATE.equals(name));
+      selectCurrentTab();
+    });
+  }
+
+  private void selectCurrentTab() {
+    topBar.select(ScreenManager.HISTORY.equals(screens.getCurrent()) && viewingWrongNote
+        ? TopBar.TAB_WRONG_NOTE : tabOf(screens.getCurrent()));
+  }
+
+  static String tabOf(String screen) {
+    if (screen == null) return null;
+    return switch (screen) {
+      case ScreenManager.HOME -> TopBar.TAB_HOME;
+      case ScreenManager.CATEGORY, ScreenManager.LEARNING, ScreenManager.QUIZ,
+          ScreenManager.ANSWER_FEEDBACK, ScreenManager.QUIZ_RESULT -> TopBar.TAB_LEARN;
+      case ScreenManager.HISTORY -> TopBar.TAB_HISTORY;
+      case ScreenManager.BOSS_BATTLE -> TopBar.TAB_BATTLE;
+      default -> null;
+    };
+  }
+
+  private boolean confirmLeaveQuiz() throws IOException {
+    String current = screens.getCurrent();
+    boolean inQuiz = session != null && !session.isFinished()
+        && (ScreenManager.QUIZ.equals(current) || ScreenManager.ANSWER_FEEDBACK.equals(current)
+            || feedbackCard);
+    if (!inQuiz) return true;
+    int answer = JOptionPane.showConfirmDialog(getView(), "진행 중인 퀴즈를 종료할까요?",
+        "퀴즈 종료", JOptionPane.YES_NO_OPTION);
+    if (answer != JOptionPane.YES_OPTION) return false;
+    endQuiz();
+    return true;
   }
 
   private void registerScreens() {
@@ -85,6 +168,7 @@ public final class AppController {
     screens.addScreen(ScreenManager.ANSWER_FEEDBACK, feedback);
     screens.addScreen(ScreenManager.QUIZ_RESULT, result);
     screens.addScreen(ScreenManager.HISTORY, history);
+    screens.addScreen(ScreenManager.BOSS_BATTLE, bossBattle);
   }
 
   private void connectActions() {
@@ -94,7 +178,9 @@ public final class AppController {
     petCreate.setOnCreate((name, appearance) -> run(() -> createPet(name, appearance)));
     home.setOnLearn(() -> run(this::showCategories));
     home.setOnHistory(() -> run(() -> showHistory(null)));
-    home.setOnChangeUser(() -> run(this::showStart));
+    home.setOnCategory(id -> run(() -> selectCategory(id)));
+    home.setOnWrongNote(() -> run(() -> showWrongNote(null, true)));
+    bossBattle.setOnExit(() -> run(this::showHome));
     categories.setOnSelect(id -> run(() -> selectCategory(id)));
     cards.setOnQuiz(() -> run(this::startQuiz));
     cards.setOnBack(this::backFromLearning);
@@ -106,12 +192,19 @@ public final class AppController {
     result.setOnGoHistory(() -> run(() -> showHistory(null)));
     history.setOnGoMain(() -> run(this::showHome));
     history.setOnCategoryChanged(id -> run(() -> showHistory(id)));
-    history.setWrongNoteEnabled(false);
+    history.setWrongNoteEnabled(true);
+    history.setReviewEnabled(false);
+    history.setOnOpenWrongNote(id -> run(() -> showWrongNote(id, false)));
+    history.setOnWrongNoteCategoryChanged(id -> run(() -> showWrongNote(id, history.isNeedsReviewOnly())));
+    history.setOnWrongNoteRefresh(
+        () -> run(() -> showWrongNote(history.getWrongCategoryId(), history.isNeedsReviewOnly())));
+    history.setOnWrongNoteBack(() -> run(() -> showHistory(null)));
   }
 
   public void showStart() throws IOException {
     ready();
     start.showProfiles(profiles.getProfiles());
+    history.clearWrongNote();
     currentUser = null;
     currentCategory = null;
     session = null;
@@ -130,6 +223,7 @@ public final class AppController {
     ready();
     User selected = users.getUser(userId);
     Pet pet = pets.findPetByUserId(userId).orElse(null);
+    history.clearWrongNote();
     currentUser = selected;
     currentCategory = null;
     session = null;
@@ -156,14 +250,72 @@ public final class AppController {
     displayHome(currentPet());
   }
 
+  public void showBossBattle() throws IOException {
+    requireUser();
+    ready();
+    bossBattle.showBattle(currentPet());
+    screens.show(ScreenManager.BOSS_BATTLE);
+  }
+
   private void displayHome(Pet pet) throws IOException {
     home.setGreeting(currentUser == null ? null : currentUser.getNickname());
+    topBar.setUser(currentUser == null ? null : currentUser.getNickname(), pet.getSpriteKey());
     StatisticsService.Statistics overall = statistics.getOverallStatistics(pet.getUserId());
     home.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
     home.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
         pet.getStats().getStrength(), pet.getStats().getIntelligence(),
         pet.getStats().getFocus(), pet.getStats().getWisdom());
+    showHomeRecords(pet.getUserId());
+    if (pendingGrowth != null && pendingGrowth.userId().equals(pet.getUserId())) {
+      home.showGrowth(pendingGrowth.statsBefore(), pendingGrowth.gainedXp(), pendingGrowth.leveledUp());
+    }
+    pendingGrowth = null;
     screens.show(ScreenManager.HOME);
+  }
+
+  private void showHomeRecords(String userId) throws IOException {
+    List<LearningRecord> all = records.getRecords(userId);
+    boolean unresolved = all.stream()
+        .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
+    for (Category category : Category.values()) {
+      if (unresolved) {
+        home.showCategoryProgress(category, 0, 0);
+      } else {
+        StatisticsService.Statistics stats = statistics.getCategoryStatistics(userId, category.getCategoryId());
+        home.showCategoryProgress(category, stats.getTotalAttempts(), stats.getAccuracy());
+      }
+    }
+
+    List<HomePanel.RecentItem> recent = new ArrayList<>();
+    for (LearningRecord record : records.getRecentRecords(userId, HomePanel.RECENT_MAX)) {
+      Question question = recordQuestions.findById(record.getQuestionId()).orElse(null);
+      recent.add(new HomePanel.RecentItem(question == null ? null : question.getCategory(),
+          question == null ? "문제 정보 없음" : question.getPrompt(),
+          record.isCorrect(), record.getEarnedXp()));
+    }
+    home.showRecent(recent);
+
+    Set<String> solved = new HashSet<>();
+    for (LearningRecord record : all) {
+      if (record.isCorrect()) solved.add(record.getQuestionId());
+    }
+    Set<String> counted = new HashSet<>();
+    Map<Category, Integer> wrongCounts = new EnumMap<>(Category.class);
+    for (LearningRecord record : all) {
+      String id = record.getQuestionId();
+      if (record.isCorrect() || solved.contains(id) || !counted.add(id)) continue;
+      recordQuestions.findById(id).ifPresent(
+          question -> wrongCounts.merge(question.getCategory(), 1, Integer::sum));
+    }
+    home.showWrongCounts(wrongCounts);
+  }
+
+  private static Map<String, Integer> statMap(PetStats stats) {
+    return Map.of("STR", stats.getStrength(), "INT", stats.getIntelligence(),
+        "FOC", stats.getFocus(), "WIS", stats.getWisdom());
+  }
+
+  private record Growth(String userId, Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) {
   }
 
   public void showCategories() throws IOException {
@@ -201,6 +353,8 @@ public final class AppController {
     Pet pet = currentPet();
     QuizSession created = quizzes.startSession(currentUser.getUserId(), currentCategory.getCategoryId());
     levelBefore = pet.getLevel();
+    statsBefore = statMap(pet.getStats());
+    pendingGrowth = null;
     session = created;
     quiz.showSession(session);
     screens.show(ScreenManager.QUIZ);
@@ -228,7 +382,9 @@ public final class AppController {
 
   private void showFeedback(LearningRecord record) throws IOException {
     Question question = session.getCurrentQuestion();
-    feedback.setPet(currentPet().getSpriteKey());
+    Pet pet = currentPet();
+    feedback.setPet(pet.getSpriteKey());
+    feedback.setPetStatus(pet.getLevel(), pet.getXpInLevel(), Pet.XP_PER_LEVEL, statMap(pet.getStats()));
     feedback.showSession(session);
     feedback.showFeedback(question, record.getSelectedAnswer(), record.isCorrect(),
         record.getEarnedXp() > 0 ? 1 : 0, record.getEarnedXp(),
@@ -250,9 +406,11 @@ public final class AppController {
     String contentId = session.getCurrentQuestion().getContentId();
     int index = -1;
     for (int i = 0; i < selectedCards.size(); i++) {
-      if (selectedCards.get(i).getContentId().equals(contentId)) index = i;
+      if (selectedCards.get(i).getContentId().equals(contentId))
+        index = i;
     }
-    if (index < 0) throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
+    if (index < 0)
+      throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
     feedbackCard = true;
     cards.setQuizEnabled(false);
     cards.showContents(session.getCategory(), selectedCards, index);
@@ -294,11 +452,22 @@ public final class AppController {
     int statGain = (int) saved.stream().filter(record -> record.getEarnedXp() > 0).count();
     result.showResult(session.getCategory(), session.getResult(), gainedXp, statGain,
         levelBefore, pet.getLevel(), pet.getXpInLevel());
+    Map<String, Integer> statsAfter = statMap(pet.getStats());
+    if (statsBefore != null) {
+      result.showStatComparison(statsBefore, statsAfter);
+      pendingGrowth = gainedXp > 0
+          ? new Growth(pet.getUserId(), statsBefore, gainedXp, pet.getLevel() > levelBefore)
+          : null;
+    } else {
+      result.hideStatComparison();
+      pendingGrowth = null;
+    }
     screens.show(ScreenManager.QUIZ_RESULT);
   }
 
   public void showHistory(String categoryId) throws IOException {
     requireUser();
+    viewingWrongNote = false;
     history.showRecordPage();
     history.showHistoryError("기록을 불러오는 중입니다.");
     screens.show(ScreenManager.HISTORY);
@@ -306,8 +475,9 @@ public final class AppController {
       ready();
       boolean unresolved = records.getRecords(currentUser.getUserId()).stream()
           .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
-      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지합니다.
-      if (unresolved) categoryId = null;
+      // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지.
+      if (unresolved)
+        categoryId = null;
       List<HistoryView.CategoryRate> rates = new ArrayList<>();
       for (Category category : unresolved ? List.<Category>of() : learning.getCategories()) {
         rates.add(HistoryView.CategoryRate.of(category,
@@ -322,7 +492,8 @@ public final class AppController {
                   "문제 정보 없음: " + record.getQuestionId(), record.getSelectedAnswer(),
                   record.isCorrect(), record.getEarnedXp())
               : HistoryView.RecordRow.of(question, record));
-          if (rows.size() == 20) break;
+          if (rows.size() == 20)
+            break;
         }
       }
       var selected = categoryId == null ? statistics.getOverallStatistics(currentUser.getUserId())
@@ -330,6 +501,32 @@ public final class AppController {
       history.showHistory(HistoryView.of(selected, rates, rows));
     } catch (IOException | RuntimeException e) {
       history.showHistoryError("기록을 불러오지 못했습니다: " + e.getMessage());
+      throw e;
+    }
+  }
+
+  public void showWrongNote(String categoryId, boolean needsReviewOnly) throws IOException {
+    requireUser();
+    viewingWrongNote = true;
+    history.setWrongCategoryId(categoryId);
+    history.setWrongNeedsReviewOnly(needsReviewOnly);
+    history.showWrongNoteError("오답 기록을 불러오는 중입니다.");
+    screens.show(ScreenManager.HISTORY);
+    try {
+      ready();
+      Category selectedCategory = categoryId == null || categoryId.equals("UNCLASSIFIED")
+          ? null
+          : Category.valueOf(categoryId);
+      var all = wrongAnswers.getWrongAnswers(currentUser.getUserId());
+      var selected = all.stream()
+          .filter(item -> categoryId == null || (categoryId.equals("UNCLASSIFIED") ? item.category().isEmpty()
+              : item.category().filter(selectedCategory::equals).isPresent()))
+          .filter(item -> !needsReviewOnly || item.reviewStatus() != WrongAnswerService.ReviewStatus.COMPLETED)
+          .toList();
+      history.showWrongNote(WrongNotePresenter.toView(categoryId, all.size(), selected,
+          categoryId != null || needsReviewOnly));
+    } catch (IOException | RuntimeException e) {
+      history.showWrongNoteError("오답 기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }
   }
@@ -353,12 +550,14 @@ public final class AppController {
   }
 
   private void requireUser() {
-    if (currentUser == null) throw new IllegalStateException("사용자를 먼저 선택해 주세요.");
+    if (currentUser == null)
+      throw new IllegalStateException("사용자를 먼저 선택해 주세요.");
   }
 
   private void requireSession() {
     requireUser();
-    if (session == null) throw new IllegalStateException("퀴즈를 먼저 시작해 주세요.");
+    if (session == null)
+      throw new IllegalStateException("퀴즈를 먼저 시작해 주세요.");
   }
 
   private void run(Action action) {
@@ -370,5 +569,7 @@ public final class AppController {
   }
 
   @FunctionalInterface
-  private interface Action { void run() throws IOException; }
+  private interface Action {
+    void run() throws IOException;
+  }
 }

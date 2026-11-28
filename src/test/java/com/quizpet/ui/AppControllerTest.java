@@ -19,9 +19,12 @@ public class AppControllerTest {
       try {
         creationBackRefresh();
         fullFlow();
+        growthFlow();
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
+        failedSubmissionExitRetry();
+        topBarNavigation();
         rejectedSubmissionAllowsNavigation();
         partiallySavedSubmissionRetry();
       } catch (Exception e) {
@@ -34,13 +37,13 @@ public class AppControllerTest {
   private static void creationBackRefresh() throws Exception {
     AppController app = new AppController(Files.createTempDirectory("quizpet-creation-back-"));
     User created = app.createUser("돌아가기");
-    clickVisible(app.getView(), "사용자 선택으로");
+    assert clickVisible(app.getView(), "이전");
     assert visible(app, StartPanel.class);
     javax.swing.JList<?> list = findVisible(app.getView(), javax.swing.JList.class);
     assert list.getModel().getSize() == 1 : "created user missing after returning to start";
     assert ((Profile) list.getModel().getElementAt(0)).getUser().getUserId().equals(created.getUserId());
     list.setSelectedIndex(0);
-    clickVisible(app.getView(), "시작");
+    list.getActionMap().get(StartPanel.ENTER_ACTION).actionPerformed(null);
     assert visible(app, PetCreatePanel.class);
   }
 
@@ -153,6 +156,43 @@ public class AppControllerTest {
     }
   }
 
+  /** 정답으로 성장하면 결과 화면에 능력치 전후 비교가, 홈에 증가량과 성장 반응이 한 번 표시됩니다. */
+  private static void growthFlow() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-growth-"));
+    app.createUser("성장확인");
+    app.createPet("쑥쑥이", "DUCK");
+    app.selectCategory("SCIENCE");
+    QuizSession session = app.startQuiz();
+    int correct = 0;
+    while (true) {
+      app.submitAnswer(session.getCurrentQuestion().getAnswer());
+      correct++;
+      if (session.isFinished()) break;
+      app.nextQuestion();
+    }
+    app.nextQuestion();
+    assert visible(app, QuizResultPanel.class);
+    main.java.com.quizpet.ui.component.StatComparisonPanel comparison =
+        findVisible(app.getView(), main.java.com.quizpet.ui.component.StatComparisonPanel.class);
+    assert comparison != null : "결과 화면에 능력치 비교가 없음";
+    int after = 10 + correct;
+    assert comparison.getChangeText("INT").equals("10 → " + after + "  (+" + correct + ")")
+        : comparison.getChangeText("INT");
+    assert comparison.getChangeText("STR").equals("10");
+
+    app.showHome();
+    main.java.com.quizpet.ui.component.PetStatusPanel status =
+        findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class);
+    assert status.getStatDeltaText("INT").equals("+" + correct) : status.getStatDeltaText("INT");
+    assert status.getStage().isCelebrating();
+    assert status.isStatMarkedWeak("STR") : "INT만 올랐으므로 나머지가 약점으로 표시돼야 함";
+    status.getStage().stopAnimation();
+
+    // 성장 강조는 한 번만 보여 준다.
+    app.showHome();
+    assert status.getStatDeltaText("INT").isEmpty();
+  }
+
   private static void unavailableContent() throws Exception {
     Path root = Files.createTempDirectory("quizpet-unavailable-");
     Path content = root.resolve("content");
@@ -202,6 +242,65 @@ public class AppControllerTest {
     assert session.getAnsweredCount() == 1;
     assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
     assert new PetRepository(save.resolve("pet.txt")).findByUserId(user.getUserId()).orElseThrow().getTotalXp() == 10;
+  }
+
+  private static void failedSubmissionExitRetry() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-exit-retry-");
+    AppController app = new AppController(save);
+    User user = app.createUser("종료재시도");
+    app.createPet("재시도펫", "DUCK");
+    app.selectCategory("SCIENCE");
+    QuizSession session = app.startQuiz();
+    String answer = session.getCurrentQuestion().getAnswer();
+    Files.createDirectory(save.resolve("record.txt"));
+    try {
+      app.submitAnswer(answer);
+      throw new AssertionError("save failure ignored");
+    } catch (IOException expected) { }
+    try {
+      app.endQuiz();
+      throw new AssertionError("quiz ended before pending answer was saved");
+    } catch (IOException expected) { }
+    assert !session.isFinished();
+    assert session.getAnsweredCount() == 0;
+    assert visible(app, QuizPanel.class);
+    Files.delete(save.resolve("record.txt"));
+    app.endQuiz();
+    assert session.isFinished();
+    assert session.getAnsweredCount() == 1;
+    assert new RecordRepository(save.resolve("record.txt")).findByUserId(user.getUserId()).size() == 1;
+    assert new PetRepository(save.resolve("pet.txt")).findByUserId(user.getUserId()).orElseThrow().getTotalXp() == 10;
+    app.showHome();
+    app.showStart();
+    assert visible(app, StartPanel.class);
+  }
+
+  private static void topBarNavigation() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-topbar-"));
+    var bar = app.getTopBar();
+    assert !bar.isVisible();
+    app.createUser("탭사용자");
+    assert !bar.isVisible();
+    app.createPet("탭펫", "DUCK");
+    assert bar.isVisible();
+    assert javax.swing.SwingUtilities.isDescendingFrom(bar, app.getWindowContent());
+    assert bar.getSelectedTab().equals("HOME");
+    bar.getTab("LEARN").doClick();
+    assert visible(app, CategoryPanel.class);
+    app.selectCategory("SCIENCE");
+    assert bar.getSelectedTab().equals("LEARN");
+    bar.getTab("WRONG_NOTE").doClick();
+    assert visible(app, HistoryPanel.class);
+    assert bar.getSelectedTab().equals("WRONG_NOTE");
+    bar.getTab("HISTORY").doClick();
+    assert bar.getSelectedTab().equals("HISTORY");
+    bar.getTab("BATTLE").doClick();
+    assert visible(app, BossBattlePanel.class);
+    assert bar.getSelectedTab().equals("BATTLE");
+    app.showHome();
+    assert bar.getSelectedTab().equals("HOME");
+    app.showStart();
+    assert !bar.isVisible();
   }
 
   private static void rejectedSubmissionAllowsNavigation() throws Exception {
