@@ -3,6 +3,17 @@ package main.java.com.quizpet.ui.screen;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Dimension;
+import java.awt.Font;
+import javax.swing.SwingConstants;
+import main.java.com.quizpet.ui.component.Badge;
+import main.java.com.quizpet.ui.component.CategoryIcon;
+import main.java.com.quizpet.ui.component.ImageButton;
+import main.java.com.quizpet.ui.component.LearningProgressBar;
+import main.java.com.quizpet.ui.component.RoundCard;
+import main.java.com.quizpet.ui.component.WrapPanel;
 import java.util.Objects;
 import java.util.List;
 import main.java.com.quizpet.model.Category;
@@ -21,22 +32,23 @@ public class LearningPanel extends JPanel {
   private Runnable onQuiz = () -> { };
   private Runnable onBack = () -> { };
   private final JLabel categoryLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
-  private final JButton quizButton = UiStyle.button("퀴즈 시작");
+  private final JButton quizButton = new ImageButton("퀴즈 시작");
   private boolean quizEnabled = true;
   private final JLabel progressLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel cardTitleLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
-  private final JLabel difficultyLabel = UiStyle.label("", UiStyle.BODY_FONT);
   private final JTextArea descriptionArea = new JTextArea();
-  private final JLabel keywordsLabel = UiStyle.label("", UiStyle.BODY_FONT);
-  private final JButton previousButton = UiStyle.button("이전");
-  private final JButton nextButton = UiStyle.button("다음");
+  private final WrapPanel keywords = new WrapPanel();
+  private final LearningProgressBar progressBar = new LearningProgressBar();
+  private Category category;
+  private final JButton previousButton = new ImageButton("이전");
+  private final JButton nextButton = new ImageButton("다음");
   private int currentCardIndex;
 
   public LearningPanel(ScreenManager screens) {
     Objects.requireNonNull(screens, "screens는 필수입니다.");
     setLayout(new BorderLayout(0, 20));
     setBackground(UiStyle.BACKGROUND);
-    setBorder(BorderFactory.createEmptyBorder(30, 24, 30, 24));
+    setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
 
     add(createHeader(), BorderLayout.NORTH);
     add(createLearningCard(), BorderLayout.CENTER);
@@ -53,7 +65,10 @@ public class LearningPanel extends JPanel {
     if (startingIndex < 0 || (!contents.isEmpty() && startingIndex >= contents.size())) {
       throw new IllegalArgumentException("학습 카드 위치가 범위를 벗어났습니다.");
     }
-    categoryLabel.setText(category.getName());
+    this.category = category;
+    categoryLabel.setText(category.getName() + " · " + category.getStatType());
+    categoryLabel.setIcon(new CategoryIcon(category, 28));
+    categoryLabel.setForeground(UiStyle.categoryColor(category));
     currentCardIndex = startingIndex;
     showCurrentCard();
   }
@@ -74,58 +89,88 @@ public class LearningPanel extends JPanel {
   private JPanel createHeader() {
     JPanel header = new JPanel(new BorderLayout(0, 14));
     header.setOpaque(false);
-    header.add(UiStyle.label("학습 카드", UiStyle.TITLE_FONT), BorderLayout.NORTH);
-
-    JPanel information = new JPanel(new BorderLayout());
+    JPanel information = new JPanel(new BorderLayout(20, 0));
     information.setOpaque(false);
+    categoryLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    progressLabel.setHorizontalAlignment(SwingConstants.RIGHT);
     information.add(categoryLabel, BorderLayout.WEST);
+    information.add(UiStyle.label("학습 카드", UiStyle.SUBTITLE_FONT), BorderLayout.CENTER);
     information.add(progressLabel, BorderLayout.EAST);
-    header.add(information, BorderLayout.SOUTH);
+    header.add(information, BorderLayout.NORTH);
+    header.add(progressBar, BorderLayout.SOUTH);
     return header;
   }
 
   private JPanel createLearningCard() {
-    JPanel card = new JPanel(new BorderLayout(0, 20));
-    card.setOpaque(false);
-    card.setBorder(BorderFactory.createCompoundBorder(
-        BorderFactory.createLineBorder(Color.LIGHT_GRAY, 2),
-        BorderFactory.createEmptyBorder(20, 16, 20, 16)));
-
-    JPanel heading = new JPanel(new BorderLayout(0, 10));
+    RoundCard card = new RoundCard(new BorderLayout(0, 20)) {
+      @Override protected void paintComponent(Graphics graphics) {
+        super.paintComponent(graphics);
+        if (category == null) return;
+        Graphics2D g = (Graphics2D) graphics.create();
+        g.setColor(UiStyle.categoryColor(category));
+        g.fillRoundRect(3, 14, 8, Math.max(0, getHeight() - 32), 8, 8);
+        g.dispose();
+      }
+    };
+    card.setBorder(BorderFactory.createEmptyBorder(24, 32, 28, 32));
+    JPanel heading = new JPanel(new BorderLayout(0, 14));
     heading.setOpaque(false);
-    heading.add(cardTitleLabel, BorderLayout.NORTH);
-    heading.add(difficultyLabel, BorderLayout.SOUTH);
+    heading.add(keywords, BorderLayout.NORTH);
+    cardTitleLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    cardTitleLabel.setForeground(UiStyle.TEXT);
+    cardTitleLabel.setFont(UiStyle.TITLE_FONT.deriveFont(40f));
+    heading.add(cardTitleLabel, BorderLayout.CENTER);
     card.add(heading, BorderLayout.NORTH);
-
     configureTextArea(descriptionArea);
+    descriptionArea.setFont(UiStyle.BODY_FONT.deriveFont(21f));
+    descriptionArea.setForeground(UiStyle.TEXT);
     JScrollPane descriptionScroll = new JScrollPane(descriptionArea);
     descriptionScroll.setBorder(BorderFactory.createEmptyBorder());
     descriptionScroll.setOpaque(false);
     descriptionScroll.getViewport().setOpaque(false);
     descriptionScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    descriptionScroll.getVerticalScrollBar().setUnitIncrement(24);
     card.add(descriptionScroll, BorderLayout.CENTER);
-
-    card.add(keywordsLabel, BorderLayout.SOUTH);
+    JTextArea hint = new JTextArea("이 카드와 연결된 문제가 출제될 수 있어요.");
+    configureTextArea(hint);
+    hint.setOpaque(true);
+    hint.setBackground(UiStyle.SUNKEN);
+    hint.setForeground(UiStyle.MUTED);
+    hint.setRows(2);
+    hint.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+    card.add(hint, BorderLayout.SOUTH);
     return card;
   }
 
   private JPanel createFooter() {
-    JPanel footer = new JPanel(new BorderLayout(0, 12));
+    JPanel footer = new JPanel(new GridLayout(1, 4, 12, 12)) {
+      @Override public void setBounds(int x, int y, int width, int height) {
+        GridLayout grid = (GridLayout) getLayout();
+        int columns = width < 520 ? 2 : 4;
+        if (grid.getColumns() != columns) { grid.setRows(0); grid.setColumns(columns); revalidate(); }
+        super.setBounds(x, y, width, height);
+      }
+      @Override public Dimension getPreferredSize() {
+        Dimension size = super.getPreferredSize();
+        if (LearningPanel.this.getWidth() > 0 && LearningPanel.this.getWidth() < 584) size.height = 116;
+        return size;
+      }
+    };
     footer.setOpaque(false);
-
-    JPanel navigation = new JPanel(new GridLayout(1, 2, 16, 0));
-    navigation.setOpaque(false);
+    previousButton.setBackground(UiStyle.SURFACE);
+    nextButton.setBackground(UiStyle.SURFACE);
     previousButton.addActionListener(e -> moveCard(-1));
     nextButton.addActionListener(e -> moveCard(1));
-    navigation.add(previousButton);
-    navigation.add(nextButton);
-    footer.add(navigation, BorderLayout.NORTH);
-
-    quizButton.addActionListener(e -> onQuiz.run());
-    footer.add(quizButton, BorderLayout.CENTER);
-    JButton backButton = UiStyle.button("뒤로");
+    footer.add(previousButton);
+    footer.add(nextButton);
+    JButton backButton = new ImageButton("뒤로");
+    backButton.setToolTipText("분야 선택 또는 정답 피드백으로 돌아가기");
+    backButton.setBackground(UiStyle.SURFACE);
     backButton.addActionListener(e -> onBack.run());
-    footer.add(backButton, BorderLayout.SOUTH);
+    footer.add(backButton);
+    quizButton.setForeground(UiStyle.SURFACE);
+    quizButton.addActionListener(e -> onQuiz.run());
+    footer.add(quizButton);
     return footer;
   }
 
@@ -146,17 +191,27 @@ public class LearningPanel extends JPanel {
     if (empty) {
       cardTitleLabel.setText("학습 카드가 없습니다.");
       descriptionArea.setText("");
-      difficultyLabel.setText("");
-      keywordsLabel.setText("");
+      keywords.removeAll();
+      progressBar.showProgress(0, 0);
       progressLabel.setText("0 / 0");
       return;
     }
     LearningContent card = contents.get(currentCardIndex);
     cardTitleLabel.setText(card.getTitle());
+    cardTitleLabel.setToolTipText(card.getTitle());
     descriptionArea.setText(card.getDescription());
     descriptionArea.setCaretPosition(0);
-    difficultyLabel.setText("난이도 " + card.getDifficulty());
-    keywordsLabel.setText("키워드: " + String.join(", ", card.getTags()));
+    keywords.removeAll();
+    Color color = UiStyle.categoryColor(card.getCategory());
+    for (String tag : card.getTags()) keywords.add(new Badge("#" + tag,
+        CategoryIcon.soft(color, 0.15), color, UiStyle.BODY_FONT.deriveFont(Font.BOLD, 13f), 0));
+    keywords.add(new Badge("난이도 " + (card.getDifficulty() <= 3
+        ? "★".repeat(card.getDifficulty()) + "☆".repeat(3 - card.getDifficulty())
+        : String.valueOf(card.getDifficulty())), UiStyle.SUNKEN, UiStyle.MUTED,
+        UiStyle.BODY_FONT.deriveFont(Font.BOLD, 13f), 0));
+    progressBar.showProgress(currentCardIndex, contents.size());
+    keywords.revalidate();
+    keywords.repaint();
     progressLabel.setText((currentCardIndex + 1) + " / " + contents.size());
   }
 

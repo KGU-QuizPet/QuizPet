@@ -20,6 +20,7 @@ import main.java.com.quizpet.ui.UiStyle;
 
 public class MultipleChoicePanel extends JPanel {
   private final JTextArea questionArea = new JTextArea();
+  private final QuestionCard questionCard = new QuestionCard(questionArea);
   private final ButtonGroup answerGroup = new ButtonGroup();
   private final JPanel optionsPanel = new OptionsGrid();
   private final ArrayList<OptionButton> buttons = new ArrayList<>();
@@ -28,16 +29,8 @@ public class MultipleChoicePanel extends JPanel {
   public MultipleChoicePanel(String question, List<String> options) {
     setLayout(new GridBagLayout());
     setBackground(UiStyle.BACKGROUND);
-    setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+    setBorder(BorderFactory.createEmptyBorder());
 
-    questionArea.setFont(UiStyle.SUBTITLE_FONT);
-    questionArea.setEditable(false);
-    questionArea.setFocusable(false);
-    questionArea.setLineWrap(true);
-    questionArea.setWrapStyleWord(true);
-    questionArea.setOpaque(false);
-    JScrollPane questionScroll = createScrollPane(questionArea);
-    questionArea.setRows(3);
     GridBagConstraints cell = new GridBagConstraints();
     cell.gridx = 0;
     cell.gridy = 0;
@@ -45,7 +38,7 @@ public class MultipleChoicePanel extends JPanel {
     cell.weighty = 0.3;
     cell.fill = GridBagConstraints.BOTH;
     cell.insets = new Insets(0, 0, 20, 0);
-    add(questionScroll, cell);
+    add(questionCard, cell);
 
     optionsPanel.setOpaque(false);
     cell.gridy++;
@@ -55,6 +48,8 @@ public class MultipleChoicePanel extends JPanel {
     cell.weighty = 0;
     cell.insets = new Insets(0, 0, 0, 0);
     add(selectionLabel, cell);
+    selectionLabel.setHorizontalAlignment(JLabel.LEFT);
+    selectionLabel.setForeground(UiStyle.MUTED);
     setQuestion(question, options);
   }
 
@@ -72,12 +67,18 @@ public class MultipleChoicePanel extends JPanel {
     }
     questionArea.setText(question);
     questionArea.setCaretPosition(0);
+    questionCard.setCompact(false);
+    setSpacing(20);
     for (OptionButton button : buttons) answerGroup.remove(button);
     buttons.clear();
     optionsPanel.removeAll();
     for (int i = 0; i < options.size(); i++) {
       OptionButton button = new OptionButton((i + 1) + ". " + options.get(i), String.valueOf(i + 1));
-      button.addActionListener(e -> selectionLabel.setText("선택한 답안: " + getSelectedAnswer() + "번"));
+      String optionText = options.get(i);
+      button.addActionListener(e -> {
+        selectionLabel.setText("선택한 답안: " + getSelectedAnswer() + "번 · " + optionText);
+        selectionLabel.setToolTipText(selectionLabel.getText());
+      });
       answerGroup.add(button);
       buttons.add(button);
       optionsPanel.add(button);
@@ -92,11 +93,24 @@ public class MultipleChoicePanel extends JPanel {
   }
 
   public void showResult(String selectedAnswer, String correctAnswer) {
+    questionCard.setCompact(true);
+    // 284px FE3 미리보기에서도 짧은 보기 두 행의 선호 높이를 보존합니다.
+    setSpacing(4);
     selectionLabel.setText("내가 고른 답안: " + selectedAnswer + "번 · 정답: " + correctAnswer + "번");
     for (OptionButton button : buttons) {
       button.showResult(button.getActionCommand().equals(correctAnswer),
           button.getActionCommand().equals(selectedAnswer));
     }
+  }
+
+  private void setSpacing(int gap) {
+    GridBagLayout layout = (GridBagLayout) getLayout();
+    for (Component child : getComponents()) {
+      GridBagConstraints constraints = layout.getConstraints(child);
+      constraints.insets = new Insets(0, 0, constraints.gridy < 2 ? gap : 0, 0);
+      layout.setConstraints(child, constraints);
+    }
+    revalidate();
   }
 
   private static JScrollPane createScrollPane(Component content) {
@@ -110,7 +124,7 @@ public class MultipleChoicePanel extends JPanel {
   }
 
   private static final class OptionsGrid extends JPanel implements Scrollable {
-    OptionsGrid() { super(new GridLayout(2, 2, 12, 12)); }
+    OptionsGrid() { super(new GridLayout(2, 2, 16, 16)); }
     public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
     public int getScrollableUnitIncrement(Rectangle r, int orientation, int direction) { return 16; }
     public int getScrollableBlockIncrement(Rectangle r, int orientation, int direction) { return r.height; }
