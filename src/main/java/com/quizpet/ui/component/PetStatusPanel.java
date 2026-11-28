@@ -28,6 +28,23 @@ public final class PetStatusPanel extends JPanel {
   public static final int SIDEBAR_WIDTH = 320;
   public static final String DEFAULT_MESSAGE = "오늘은 어떤 분야를 공부할까요?";
 
+  public enum Situation {
+    HOME(PetMood.IDLE, DEFAULT_MESSAGE, "오늘도 함께 배워 봐요!", "작은 배움이 나를 키워요."),
+    GROWTH(PetMood.HAPPY, "함께 공부해서 더 강해졌어요!", "조금씩 자라는 중이에요!", "다음 퀴즈도 함께 풀어요!"),
+    LEVEL_UP(PetMood.LEVEL_UP, "레벨 업! 함께 해냈어요!", "한 단계 더 성장했어요!", "새로운 도전이 기대돼요!"),
+    BOSS_SELECT(PetMood.FOCUS, "어떤 보스에게 도전할까요?", "배운 실력을 보여 줘요!", "준비됐어요. 함께 도전해요!"),
+    HISTORY(PetMood.HAPPY, "우리가 쌓은 기록을 살펴봐요!", "꾸준히 배운 흔적이 보여요!", "어떤 분야를 많이 풀었나요?"),
+    WRONG_NOTE(PetMood.FOCUS, "틀린 문제도 다시 도전해요!", "천천히 복습하면 괜찮아요.", "함께 하나씩 익혀 봐요!");
+
+    private final PetMood mood;
+    private final String[] messages;
+
+    Situation(PetMood mood, String... messages) {
+      this.mood = mood;
+      this.messages = messages;
+    }
+  }
+
   private static final Font NAME_FONT = new Font(Font.DIALOG, Font.BOLD, 22);
   private static final Font CAPTION_FONT = new Font(Font.DIALOG, Font.BOLD, 12);
   private static final Font SMALL_FONT = new Font(Font.DIALOG, Font.PLAIN, 12);
@@ -56,6 +73,11 @@ public final class PetStatusPanel extends JPanel {
   private final JLabel solvedLabel = new JLabel("-", SwingConstants.RIGHT);
 
   private String spriteKey = "DUCK";
+  private Situation situation;
+  private int messageIndex;
+  private final javax.swing.Timer messageTimer = new javax.swing.Timer(6000, e -> {
+    if (isShowing() && situation != null) showSituation(situation);
+  });
 
   public PetStatusPanel() {
     setLayout(new BorderLayout(0, 16));
@@ -68,7 +90,13 @@ public final class PetStatusPanel extends JPanel {
 
     add(stage, BorderLayout.CENTER);
     add(createInfo(), BorderLayout.SOUTH);
-    stage.showPet(spriteKey, PetMood.IDLE, DEFAULT_MESSAGE);
+    showSituation(Situation.HOME);
+    addHierarchyListener(e -> {
+      if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+        if (isShowing() && situation != null) messageTimer.restart();
+        else messageTimer.stop();
+      }
+    });
     summary.setVisible(false);
   }
 
@@ -185,7 +213,24 @@ public final class PetStatusPanel extends JPanel {
 
   /** 표정과 말풍선 문구를 바꿉니다. message가 비어 있으면 말풍선을 숨깁니다. */
   public void setMood(PetMood mood, String message) {
+    situation = null;
+    messageTimer.stop();
     stage.showPet(spriteKey, mood, message);
+  }
+
+  /** 현재 화면에 맞는 문구를 순환합니다. 숨겨진 동안에는 타이머를 멈춥니다. */
+  public void showSituation(Situation next) {
+    java.util.Objects.requireNonNull(next, "상황은 필수입니다.");
+    messageIndex = situation == next ? (messageIndex + 1) % next.messages.length : 0;
+    situation = next;
+    stage.showPet(spriteKey, next.mood, next.messages[messageIndex]);
+    if (isShowing()) messageTimer.restart();
+  }
+
+  @Override
+  public void removeNotify() {
+    messageTimer.stop();
+    super.removeNotify();
   }
 
   /** 아래쪽 누적 정답률·푼 문제 요약을 표시합니다(accuracy는 0~100 퍼센트). */

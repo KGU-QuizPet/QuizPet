@@ -25,7 +25,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import main.java.com.quizpet.model.Boss;
 import main.java.com.quizpet.model.Pet;
-import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.service.BattleService;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.ui.component.PetStatusPanel;
@@ -81,7 +80,7 @@ public final class BossSelectPanel extends JPanel {
   public void showPet(Pet pet, Set<Integer> cleared) {
     sidebar.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(), Pet.XP_PER_LEVEL,
         pet.getStats().getStrength(), pet.getStats().getIntelligence(), pet.getStats().getFocus(), pet.getStats().getWisdom());
-    sidebar.setMood(PetMood.FOCUS, "어떤 보스에게 도전할까?");
+    sidebar.showSituation(PetStatusPanel.Situation.BOSS_SELECT);
     for (BossCard card : cards) card.update(pet.getLevel(), cleared.contains(card.index));
     revalidate();
     repaint();

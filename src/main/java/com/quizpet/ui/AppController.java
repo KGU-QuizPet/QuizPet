@@ -623,6 +623,8 @@ public final class AppController {
           Pet.XP_PER_LEVEL, pet.getStats().getStrength(), pet.getStats().getIntelligence(),
           pet.getStats().getFocus(), pet.getStats().getWisdom());
       recordStatus.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
+      recordStatus.showSituation(viewingWrongNote
+          ? PetStatusPanel.Situation.WRONG_NOTE : PetStatusPanel.Situation.HISTORY);
       recordStatus.setVisible(true);
     } catch (IOException | RuntimeException unavailable) {
       recordStatus.setVisible(false);

@@ -206,11 +206,16 @@ public class AppControllerTest {
     Pet pet = app.createPet("기록펫", "DUCK");
     app.showHistory(null);
     assertRecordSidebar(app, "기록펫", "Lv.1", "EXP 0 / 50");
+    var stage = findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class).getStage();
+    assert stage.getMood() == PetMood.HAPPY;
+    String historyMessage = stage.getMessage();
 
     pet.applyReward(60, "INT", 6);
     new PetRepository(save.resolve("pet.txt")).save(pet);
     app.showWrongNote(null, false);
     assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+    assert stage.getMood() == PetMood.FOCUS;
+    assert !stage.getMessage().equals(historyMessage);
     app.showHistory("SCIENCE");
     assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
 

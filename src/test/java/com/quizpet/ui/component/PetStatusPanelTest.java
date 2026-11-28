@@ -15,7 +15,58 @@ public class PetStatusPanelTest {
     System.out.println("PetStatusPanelTest passed");
   }
 
+  private static void situations() {
+    PetStatusPanel panel = new PetStatusPanel();
+    java.util.Set<String> messages = new java.util.HashSet<>();
+    for (PetStatusPanel.Situation situation : PetStatusPanel.Situation.values()) {
+      panel.showSituation(situation);
+      String first = panel.getStage().getMessage();
+      assert !first.isBlank();
+      for (int i = 0; i < 3; i++) {
+        assert messages.add(panel.getStage().getMessage()) : "문구가 중복됨: " + situation;
+        panel.showSituation(situation);
+      }
+      assert panel.getStage().getMessage().equals(first) : "세 문구가 순환해야 한다";
+    }
+    panel.showSituation(PetStatusPanel.Situation.LEVEL_UP);
+    assert panel.getStage().getMood() == PetMood.LEVEL_UP;
+    panel.showSituation(PetStatusPanel.Situation.WRONG_NOTE);
+    assert panel.getStage().getMood() == PetMood.FOCUS;
+    panel.showSituation(PetStatusPanel.Situation.HISTORY);
+    assert panel.getStage().getMood() == PetMood.HAPPY;
+    panel.showSituation(PetStatusPanel.Situation.HOME);
+    assert panel.getStage().getMood() == PetMood.IDLE;
+    try {
+      var field = PetStatusPanel.class.getDeclaredField("messageTimer");
+      field.setAccessible(true);
+      javax.swing.Timer timer = (javax.swing.Timer) field.get(panel);
+      assert !timer.isRunning() : "표시 전에는 순환하지 않는다";
+      javax.swing.JPanel cards = new javax.swing.JPanel(new java.awt.CardLayout());
+      cards.add(panel, "pet");
+      cards.add(new javax.swing.JPanel(), "other");
+      cards.addNotify();
+      try {
+        assert timer.isRunning();
+        String before = panel.getStage().getMessage();
+        for (var action : timer.getActionListeners()) action.actionPerformed(null);
+        assert !panel.getStage().getMessage().equals(before) : "타이머가 문구를 바꿔야 한다";
+        ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
+        assert !timer.isRunning() : "숨겨진 화면의 타이머는 멈춰야 한다";
+        ((java.awt.CardLayout) cards.getLayout()).show(cards, "pet");
+        assert timer.isRunning() : "재진입하면 순환해야 한다";
+        panel.setMood(PetMood.SAD, "직접 지정");
+        assert !timer.isRunning() : "직접 지정한 문구는 덮어쓰지 않는다";
+      } finally {
+        cards.removeNotify();
+      }
+      assert !timer.isRunning();
+    } catch (ReflectiveOperationException e) {
+      throw new AssertionError(e);
+    }
+  }
+
   private static void run() {
+    situations();
     // 실제 Pet 값(누적 XP 180 → Lv.4, 30/50)이 그대로 표시된다.
     Pet pet = new Pet("P0001", "U0001", "말랑이", PetAppearance.DUCK, 180, new PetStats(12, 18, 14, 13));
     PetStatusPanel panel = new PetStatusPanel();
