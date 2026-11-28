@@ -14,6 +14,7 @@ import main.java.com.quizpet.model.LearningContent;
 import main.java.com.quizpet.model.LearningRecord;
 import main.java.com.quizpet.model.Pet;
 import main.java.com.quizpet.model.PetStats;
+import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.model.Question;
 import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.model.User;
@@ -50,6 +51,8 @@ public final class AppController {
   private final QuizResultPanel result = new QuizResultPanel();
   private final HistoryPanel history = new HistoryPanel();
   private final PetStatusPanel recordStatus = new PetStatusPanel();
+  private final PetStatusPanel learningStatus = new PetStatusPanel();
+  private String learningStatusUserId;
   private final BattleService battles = new BattleService();
   private final BossBattlePanel bossBattle = new BossBattlePanel();
   private final TopBar topBar = new TopBar();
@@ -109,6 +112,8 @@ public final class AppController {
 
   private void connectTopBar() {
     window.add(topBar, BorderLayout.NORTH);
+    learningStatus.setVisible(false);
+    window.add(learningStatus, BorderLayout.WEST);
     window.add(screens.getContainer(), BorderLayout.CENTER);
     topBar.setOnChangeUser(() -> {
       run(() -> { if (confirmLeaveQuiz()) showStart(); });
@@ -130,8 +135,42 @@ public final class AppController {
     screens.setOnShow(name -> {
       if (!ScreenManager.BOSS_BATTLE.equals(name)) bossBattle.stopBattle();
       topBar.setVisible(!ScreenManager.START.equals(name) && !ScreenManager.PET_CREATE.equals(name));
+      if (ScreenManager.CATEGORY.equals(name) || ScreenManager.LEARNING.equals(name)
+          || ScreenManager.QUIZ.equals(name)) refreshLearningStatus(name);
+      else learningStatus.setVisible(false);
       selectCurrentTab();
     });
+  }
+
+  /** FE2 전환에서도 같은 사이드바를 유지합니다. 조회 실패 시 이전 사용자 상태는 숨깁니다. */
+  private void refreshLearningStatus(String screen) {
+    try {
+      requireUser();
+      Pet pet = currentPet();
+      if (!currentUser.getUserId().equals(learningStatusUserId)) {
+        learningStatus.setMood(PetMood.IDLE, null);
+        learningStatusUserId = currentUser.getUserId();
+      }
+      learningStatus.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
+          Pet.XP_PER_LEVEL, pet.getStats().getStrength(), pet.getStats().getIntelligence(),
+          pet.getStats().getFocus(), pet.getStats().getWisdom());
+      if (ScreenManager.QUIZ.equals(screen) && session != null) learningStatus.showSessionSummary(session);
+      else {
+        try {
+          var overall = statistics.getOverallStatistics(currentUser.getUserId());
+          learningStatus.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
+        } catch (IOException | RuntimeException unavailable) {
+          learningStatus.hideSummary();
+        }
+      }
+      learningStatus.showSituation(ScreenManager.CATEGORY.equals(screen) ? PetStatusPanel.Situation.CATEGORY
+          : ScreenManager.LEARNING.equals(screen) ? PetStatusPanel.Situation.LEARNING : PetStatusPanel.Situation.QUIZ);
+      learningStatus.setVisible(true);
+    } catch (IOException | RuntimeException unavailable) {
+      learningStatus.setVisible(false);
+      System.getLogger(AppController.class.getName()).log(System.Logger.Level.WARNING,
+          "학습 사이드바를 불러오지 못했습니다: " + unavailable.getMessage());
+    }
   }
 
   private void selectCurrentTab() {
@@ -342,6 +381,19 @@ public final class AppController {
     currentCategory = null;
     session = null;
     categories.showCategories(learning.getCategories());
+    for (Category category : learning.getCategories()) {
+      categories.setCategoryAvailable(category, !learning.getContents(category.getCategoryId()).isEmpty());
+    }
+    try {
+      Map<Category, StatisticsService.Statistics> rates = new EnumMap<>(Category.class);
+      for (Category category : learning.getCategories()) {
+        rates.put(category, statistics.getCategoryStatistics(currentUser.getUserId(), category.getCategoryId()));
+      }
+      rates.forEach((category, rate) -> categories.showCategoryProgress(category,
+          rate.getTotalAttempts(), rate.getAccuracy()));
+    } catch (IOException | RuntimeException unavailable) {
+      for (Category category : learning.getCategories()) categories.showCategoryProgressUnavailable(category);
+    }
     screens.show(ScreenManager.CATEGORY);
   }
 

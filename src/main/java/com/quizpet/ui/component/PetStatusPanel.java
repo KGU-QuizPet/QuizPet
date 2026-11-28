@@ -18,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import main.java.com.quizpet.model.PetMood;
+import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.ui.UiStyle;
 
 /**
@@ -34,7 +35,10 @@ public final class PetStatusPanel extends JPanel {
     LEVEL_UP(PetMood.LEVEL_UP, "레벨 업! 함께 해냈어요!", "한 단계 더 성장했어요!", "새로운 도전이 기대돼요!"),
     BOSS_SELECT(PetMood.FOCUS, "어떤 보스에게 도전할까요?", "배운 실력을 보여 줘요!", "준비됐어요. 함께 도전해요!"),
     HISTORY(PetMood.HAPPY, "우리가 쌓은 기록을 살펴봐요!", "꾸준히 배운 흔적이 보여요!", "어떤 분야를 많이 풀었나요?"),
-    WRONG_NOTE(PetMood.FOCUS, "틀린 문제도 다시 도전해요!", "천천히 복습하면 괜찮아요.", "함께 하나씩 익혀 봐요!");
+    WRONG_NOTE(PetMood.FOCUS, "틀린 문제도 다시 도전해요!", "천천히 복습하면 괜찮아요.", "함께 하나씩 익혀 봐요!"),
+    CATEGORY(PetMood.IDLE, "어떤 분야부터 배워 볼까요?", "새로운 지식이 기다리고 있어요.", "마음에 드는 분야를 골라 주세요."),
+    LEARNING(PetMood.FOCUS, "카드를 읽으며 함께 익혀 봐요.", "하나씩 차근차근 살펴봐요.", "이 내용을 퀴즈에서 만나 볼까요?"),
+    QUIZ(PetMood.FOCUS, "두근두근, 문제를 풀어 봐요!", "답을 고른 뒤 제출해 주세요.", "끝까지 집중해 볼까요?");
 
     private final PetMood mood;
     private final String[] messages;
@@ -71,6 +75,9 @@ public final class PetStatusPanel extends JPanel {
   private final JPanel summary = new RoundedBox(UiStyle.SUNKEN, null);
   private final JLabel accuracyLabel = new JLabel("-");
   private final JLabel solvedLabel = new JLabel("-", SwingConstants.RIGHT);
+  private final JLabel summaryTitle = new JLabel("누적 정답률");
+  private final JLabel solvedTitle = new JLabel("푼 문제");
+  private final QuizProgressBar sessionProgress = new QuizProgressBar();
 
   private String spriteKey = "DUCK";
   private Situation situation;
@@ -240,10 +247,27 @@ public final class PetStatusPanel extends JPanel {
 
   /** 아래쪽 누적 정답률·푼 문제 요약을 표시합니다(accuracy는 0~100 퍼센트). */
   public void showSummary(double accuracy, int solved) {
+    summaryTitle.setText("누적 정답률");
+    solvedTitle.setText("푼 문제");
+    sessionProgress.setVisible(false);
     accuracyLabel.setText(String.format("%.1f%%", accuracy));
     solvedLabel.setText(String.valueOf(solved));
     summary.setVisible(true);
     revalidate();
+  }
+
+  /** 퀴즈 중에는 실제 세션의 정답 수와 문제별 진행을 보여 줍니다. */
+  public void showSessionSummary(QuizSession session) {
+    java.util.Objects.requireNonNull(session, "session은 필수입니다.");
+    summaryTitle.setText("이번 퀴즈");
+    solvedTitle.setText("진행");
+    accuracyLabel.setText(session.getCorrectCount() + " / " + session.getAnsweredCount() + " 정답");
+    solvedLabel.setText((session.getCurrentIndex() + 1) + " / " + session.getTotalCount());
+    sessionProgress.showSession(session);
+    sessionProgress.setVisible(true);
+    summary.setVisible(true);
+    revalidate();
+    repaint();
   }
 
   public void hideSummary() {
@@ -409,13 +433,16 @@ public final class PetStatusPanel extends JPanel {
   private JPanel createSummary() {
     summary.setLayout(new BorderLayout());
     summary.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
-    summary.add(summaryColumn("누적 정답률", accuracyLabel, SwingConstants.LEFT), BorderLayout.WEST);
-    summary.add(summaryColumn("푼 문제", solvedLabel, SwingConstants.RIGHT), BorderLayout.EAST);
+    summary.add(summaryColumn(summaryTitle, accuracyLabel, SwingConstants.LEFT), BorderLayout.WEST);
+    summary.add(summaryColumn(solvedTitle, solvedLabel, SwingConstants.RIGHT), BorderLayout.EAST);
+    sessionProgress.setPreferredSize(new Dimension(0, 12));
+    sessionProgress.setVisible(false);
+    summary.add(sessionProgress, BorderLayout.SOUTH);
     return summary;
   }
 
-  private static JPanel summaryColumn(String title, JLabel value, int alignment) {
-    JLabel titleLabel = new JLabel(title, alignment);
+  private static JPanel summaryColumn(JLabel titleLabel, JLabel value, int alignment) {
+    titleLabel.setHorizontalAlignment(alignment);
     titleLabel.setFont(CAPTION_FONT);
     titleLabel.setForeground(UiStyle.MUTED);
     value.setFont(SUMMARY_FONT);

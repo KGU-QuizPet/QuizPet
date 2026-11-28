@@ -9,6 +9,8 @@ import javax.swing.Scrollable;
 import javax.swing.JScrollPane;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
+import java.util.EnumMap;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -21,20 +23,31 @@ import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 
 public class CategoryPanel extends JPanel {
+  private static final int GRID_GAP = 20;
+  private static final int CONTENT_VERTICAL_PADDING = 28;
+  private static final int CONTENT_HORIZONTAL_PADDING = 32;
   private final JPanel grid = new CategoryGrid();
   private final JLabel selectionLabel = UiStyle.label("선택한 분야: 없음", UiStyle.SUBTITLE_FONT);
   private Consumer<String> onSelect = id -> { };
   private String selectedCategoryId;
+  private final Map<Category, CategoryCard> categoryCards = new EnumMap<>(Category.class);
 
   public CategoryPanel(ScreenManager screens) {
     Objects.requireNonNull(screens, "screens는 필수입니다.");
     setLayout(new BorderLayout(0, 20));
     setBackground(UiStyle.BACKGROUND);
-    setBorder(BorderFactory.createEmptyBorder(30, 24, 30, 24));
+    setBorder(BorderFactory.createEmptyBorder(CONTENT_VERTICAL_PADDING, CONTENT_HORIZONTAL_PADDING,
+        CONTENT_VERTICAL_PADDING, CONTENT_HORIZONTAL_PADDING));
     JPanel header = new JPanel(new BorderLayout(0, 10));
     header.setOpaque(false);
-    header.add(UiStyle.label("학습 분야 선택", UiStyle.TITLE_FONT), BorderLayout.NORTH);
-    header.add(UiStyle.label("학습할 분야를 골라 주세요.", UiStyle.BODY_FONT), BorderLayout.SOUTH);
+    JLabel title = UiStyle.label("무엇을 배워볼까요?", UiStyle.TITLE_FONT.deriveFont(32f));
+    title.setHorizontalAlignment(JLabel.LEFT);
+    title.setForeground(UiStyle.TEXT);
+    JLabel subtitle = UiStyle.label("분야를 고르면 학습 카드를 읽고, 퀴즈에 도전해요.", UiStyle.BODY_FONT);
+    subtitle.setHorizontalAlignment(JLabel.LEFT);
+    subtitle.setForeground(UiStyle.MUTED);
+    header.add(title, BorderLayout.NORTH);
+    header.add(subtitle, BorderLayout.SOUTH);
     add(header, BorderLayout.NORTH);
     grid.setOpaque(false);
     JScrollPane scroll = new JScrollPane(grid,
@@ -45,11 +58,14 @@ public class CategoryPanel extends JPanel {
     add(scroll, BorderLayout.CENTER);
     JPanel footer = new JPanel(new BorderLayout(0, 10));
     footer.setOpaque(false);
-    footer.add(selectionLabel, BorderLayout.NORTH);
+    selectionLabel.setHorizontalAlignment(JLabel.LEFT);
+    selectionLabel.setFont(UiStyle.BODY_FONT);
+    selectionLabel.setForeground(UiStyle.MUTED);
+    footer.add(selectionLabel, BorderLayout.CENTER);
     JButton back = new ImageButton("홈으로");
     back.setBackground(Color.WHITE);
     back.addActionListener(e -> screens.show(ScreenManager.HOME));
-    footer.add(back, BorderLayout.SOUTH);
+    footer.add(back, BorderLayout.EAST);
     add(footer, BorderLayout.SOUTH);
   }
 
@@ -57,9 +73,22 @@ public class CategoryPanel extends JPanel {
     selectedCategoryId = null;
     selectionLabel.setText(categories.isEmpty() ? "학습 가능한 분야가 없습니다." : "선택한 분야: 없음");
     grid.removeAll();
+    categoryCards.clear();
     for (Category category : categories) grid.add(createCategoryCard(category));
     revalidate();
     repaint();
+  }
+
+  public void setCategoryAvailable(Category category, boolean available) {
+    categoryCards.get(category).setContentAvailable(available);
+  }
+
+  public void showCategoryProgress(Category category, int attempts, double accuracy) {
+    categoryCards.get(category).showProgress(attempts, accuracy);
+  }
+
+  public void showCategoryProgressUnavailable(Category category) {
+    categoryCards.get(category).showProgressUnavailable();
   }
 
   public void setOnSelect(Consumer<String> action) {
@@ -71,7 +100,8 @@ public class CategoryPanel extends JPanel {
   }
 
   private JButton createCategoryCard(Category category) {
-    JButton button = new CategoryCard(category);
+    CategoryCard button = new CategoryCard(category);
+    categoryCards.put(category, button);
     button.addActionListener(e -> {
       selectedCategoryId = category.getCategoryId();
       selectionLabel.setText("선택한 분야: " + category.getName());
@@ -80,7 +110,7 @@ public class CategoryPanel extends JPanel {
     return button;
   }
   private static final class CategoryGrid extends JPanel implements Scrollable {
-    CategoryGrid() { super(new GridLayout(0, 3, 12, 12)); }
+    CategoryGrid() { super(new GridLayout(0, 3, GRID_GAP, GRID_GAP)); }
 
     @Override
     public void setBounds(int x, int y, int width, int height) {
