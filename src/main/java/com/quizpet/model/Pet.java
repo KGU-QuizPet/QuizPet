@@ -44,13 +44,28 @@ public final class Pet {
     }
   }
 
-  /** 경험치와 statType 능력치를 함께 올리고 변화량을 반환합니다. */
+  /**
+   * 경험치와 statType 능력치를 함께 올리고 변화량을 반환합니다.
+   * 모든 검사를 값 변경 전에 끝내므로, 예외가 나면 경험치·능력치 모두 원래 값을 유지합니다(부분 보상 없음).
+   *
+   * @throws IllegalArgumentException 보상이 음수이거나, statType이 잘못됐거나,
+   *     보상을 더하면 경험치 또는 능력치가 int 최대값을 넘는 경우
+   */
   public GrowthResult applyReward(int xp, String statType, int statAmount) {
     if (xp < 0 || statAmount < 0) {
       throw new IllegalArgumentException("보상은 음수가 될 수 없습니다.");
     }
     int levelBefore = getLevel();
     int statBefore = stats.get(statType);
+    // 더하기 전에 범위를 비교해 정수 오버플로로 음수가 되는 것을 막습니다.
+    if (xp > Integer.MAX_VALUE - totalXp) {
+      throw new IllegalArgumentException("경험치가 최대값을 넘어 보상을 적용할 수 없습니다: totalXp="
+          + totalXp + ", xp=" + xp);
+    }
+    if (statAmount > Integer.MAX_VALUE - statBefore) {
+      throw new IllegalArgumentException("능력치가 최대값을 넘어 보상을 적용할 수 없습니다: "
+          + statType + "=" + statBefore + ", amount=" + statAmount);
+    }
     stats.increase(statType, statAmount);
     totalXp += xp;
     return new GrowthResult(xp, statType, statAmount, statBefore, stats.get(statType),
