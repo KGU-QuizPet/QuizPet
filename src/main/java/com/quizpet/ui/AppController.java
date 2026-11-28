@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import javax.swing.JOptionPane;
@@ -295,19 +293,17 @@ public final class AppController {
     }
     home.showRecent(recent);
 
-    Set<String> solved = new HashSet<>();
-    for (LearningRecord record : all) {
-      if (record.isCorrect()) solved.add(record.getQuestionId());
-    }
-    Set<String> counted = new HashSet<>();
     Map<Category, Integer> wrongCounts = new EnumMap<>(Category.class);
-    for (LearningRecord record : all) {
-      String id = record.getQuestionId();
-      if (record.isCorrect() || solved.contains(id) || !counted.add(id)) continue;
-      recordQuestions.findById(id).ifPresent(
-          question -> wrongCounts.merge(question.getCategory(), 1, Integer::sum));
+    int unclassified = 0;
+    for (var wrong : wrongAnswers.getWrongAnswers(userId, null,
+        WrongAnswerService.ListPolicy.NEEDS_REVIEW_ONLY)) {
+      if (wrong.category().isPresent()) {
+        wrongCounts.merge(wrong.category().get(), 1, Integer::sum);
+      } else {
+        unclassified++;
+      }
     }
-    home.showWrongCounts(wrongCounts);
+    home.showWrongCounts(wrongCounts, unclassified);
   }
 
   private static Map<String, Integer> statMap(PetStats stats) {

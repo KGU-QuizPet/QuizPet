@@ -43,9 +43,9 @@ public final class HomeDashboardTest {
       home.showRecent(List.of(item, item, item, item));
       assert home.getRecentRowCount() == 3;
 
-      home.showWrongCounts(Map.of());
+      home.showWrongCounts(Map.of(), 0);
       assert home.getWrongCountText().contains("없어요");
-      home.showWrongCounts(Map.of(Category.LANGUAGE, 3, Category.COMMON, 2, Category.SPORTS, 2));
+      home.showWrongCounts(Map.of(Category.LANGUAGE, 3, Category.COMMON, 2, Category.SPORTS, 2), 0);
       assert home.getWrongCountText().contains("7개") : home.getWrongCountText();
 
       TopBar bar = new TopBar();

@@ -193,8 +193,8 @@ public class HomePanel extends JPanel {
     recentList.repaint();
   }
 
-  public void showWrongCounts(Map<Category, Integer> counts) {
-    int total = 0;
+  public void showWrongCounts(Map<Category, Integer> counts, int unclassified) {
+    int total = unclassified;
     wrongChips.removeAll();
     for (Category category : Category.values()) {
       int count = counts.getOrDefault(category, 0);
@@ -202,6 +202,10 @@ public class HomePanel extends JPanel {
       total += count;
       Color color = UiStyle.categoryColor(category);
       wrongChips.add(new Badge(category.getName() + " " + count, CategoryIcon.soft(color, 0.18), color,
+          new Font(Font.DIALOG, Font.BOLD, 14), 0));
+    }
+    if (unclassified > 0) {
+      wrongChips.add(new Badge("미분류 " + unclassified, UiStyle.SUNKEN, UiStyle.MUTED,
           new Font(Font.DIALOG, Font.BOLD, 14), 0));
     }
     wrongCountLabel.setText(total == 0
@@ -398,7 +402,7 @@ public class HomePanel extends JPanel {
     buttonHolder.setOpaque(false);
     buttonHolder.add(reviewButton);
     card.add(buttonHolder, BorderLayout.SOUTH);
-    showWrongCounts(Map.of());
+    showWrongCounts(Map.of(), 0);
     return card;
   }
 

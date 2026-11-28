@@ -25,6 +25,7 @@ public class AppControllerTest {
         failedSubmissionRetry();
         failedSubmissionExitRetry();
         topBarNavigation();
+        homeReviewCounts();
         rejectedSubmissionAllowsNavigation();
         partiallySavedSubmissionRetry();
       } catch (Exception e) {
@@ -301,6 +302,47 @@ public class AppControllerTest {
     assert bar.getSelectedTab().equals("HOME");
     app.showStart();
     assert !bar.isVisible();
+  }
+
+  private static void homeReviewCounts() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-home-review-");
+    AppController app = new AppController(save);
+    User user = app.createUser("복습집계");
+    app.createPet("복습펫", "DUCK");
+    var questions = new QuestionRepository().findByCategory(Category.SCIENCE);
+    RecordRepository records = new RecordRepository(save.resolve("record.txt"));
+    var time = java.time.LocalDateTime.of(2026, 11, 28, 12, 0);
+    String again = questions.get(0).getQuestionId();
+    String ambiguous = questions.get(1).getQuestionId();
+    String completed = questions.get(2).getQuestionId();
+    records.save(new LearningRecord("RIGHT", user.getUserId(), again, "S1", "O", true, 0, time));
+    records.save(new LearningRecord("WRONG", user.getUserId(), again, "S2", "X", false, 0, time.plusSeconds(1)));
+    app.showHome();
+    HomePanel home = findVisible(app.getView(), HomePanel.class);
+    assert home.getWrongCountText().contains("1개") : home.getWrongCountText();
+
+    records.save(new LearningRecord("AMB-R", user.getUserId(), ambiguous, "S3", "O", true, 0, time));
+    records.save(new LearningRecord("AMB-W", user.getUserId(), ambiguous, "S4", "X", false, 0, time));
+    app.showHome();
+    assert home.getWrongCountText().contains("2개") : home.getWrongCountText();
+
+    records.save(new LearningRecord("UNKNOWN", user.getUserId(), "MISSING", "S5", "X", false, 0, time));
+    records.save(new LearningRecord("DONE-W", user.getUserId(), completed, "S6", "X", false, 0, time));
+    records.save(new LearningRecord("DONE-R", user.getUserId(), completed, "S7", "O", true, 0, time.plusSeconds(1)));
+    records.save(new LearningRecord("OTHER", "OTHER-USER", questions.get(3).getQuestionId(),
+        "S8", "X", false, 0, time));
+    app.showHome();
+    assert home.getWrongCountText().contains("3개") : home.getWrongCountText();
+    assert texts(home).contains("미분류 1") : texts(home);
+    assert clickVisible(app.getView(), "틀린 문제 다시 보기") : "복습 버튼이 숨겨짐";
+    assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 3;
+
+    records.save(new LearningRecord("DONE-AGAIN", user.getUserId(), again, "S9", "O", true, 0, time.plusSeconds(2)));
+    records.save(new LearningRecord("DONE-AMB", user.getUserId(), ambiguous, "S10", "O", true, 0, time.plusSeconds(2)));
+    app.showHome();
+    assert home.getWrongCountText().contains("1개") : home.getWrongCountText();
+    assert clickVisible(app.getView(), "틀린 문제 다시 보기") : "미분류 오답만 있어도 복습 버튼 표시";
+    assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
   }
 
   private static void rejectedSubmissionAllowsNavigation() throws Exception {
