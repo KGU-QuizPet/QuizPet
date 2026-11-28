@@ -20,6 +20,9 @@ public class AppControllerTest {
         creationBackRefresh();
         fullFlow();
         growthFlow();
+        recordSidebar();
+        recordSidebarFailure();
+        missingScreenFails();
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
@@ -194,6 +197,86 @@ public class AppControllerTest {
     // 성장 강조는 한 번만 보여 준다.
     app.showHome();
     assert status.getStatDeltaText("INT").isEmpty();
+  }
+
+  private static void recordSidebar() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-record-sidebar-");
+    AppController app = new AppController(save);
+    User first = app.createUser("기록사용자");
+    Pet pet = app.createPet("기록펫", "DUCK");
+    app.showHistory(null);
+    assertRecordSidebar(app, "기록펫", "Lv.1", "EXP 0 / 50");
+
+    pet.applyReward(60, "INT", 6);
+    new PetRepository(save.resolve("pet.txt")).save(pet);
+    app.showWrongNote(null, false);
+    assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+    app.showHistory("SCIENCE");
+    assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+
+    app.createUser("다른사용자");
+    app.createPet("다른펫", "TURTLE");
+    app.showWrongNote(null, true);
+    assertRecordSidebar(app, "다른펫", "Lv.1", "EXP 0 / 50");
+    app.selectUser(first.getUserId());
+    app.showHistory(null);
+    assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+  }
+
+  private static void recordSidebarFailure() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-record-sidebar-failure-");
+    AppController app = new AppController(save);
+    User user = app.createUser("기록유지");
+    app.createPet("기록펫", "DUCK");
+    Question question = new QuestionRepository().findByCategory(Category.SCIENCE).get(0);
+    new RecordRepository(save.resolve("record.txt")).save(new LearningRecord(
+        "sidebar-failure", user.getUserId(), question.getQuestionId(), "session", "X", false, 0,
+        java.time.LocalDateTime.now()));
+    app.showHistory(null);
+    for (String petData : List.of("broken\n", "")) {
+      Files.writeString(save.resolve("pet.txt"), petData);
+      app.showHistory(null);
+      assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
+      assert findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class) == null;
+      app.showWrongNote(null, false);
+      assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
+      assert findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class) == null;
+    }
+  }
+
+  private static void missingScreenFails() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-missing-screen-"));
+    assert !visible(app, HistoryPanel.class) : "등록된 비활성 화면은 false여야 함";
+    Component history = findScreen(app.getView(), HistoryPanel.class);
+    history.getParent().remove(history);
+    boolean rejected = false;
+    try {
+      visible(app, HistoryPanel.class);
+    } catch (AssertionError expected) {
+      rejected = true;
+    }
+    assert rejected : "화면 자체가 없으면 실패해야 함";
+  }
+
+  private static void assertRecordSidebar(AppController app, String name, String level, String xp) {
+    var status = findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class);
+    assert status != null : "학습 기록과 오답노트에도 캐릭터 사이드바가 보여야 함";
+    String text = texts(status);
+    assert text.contains(name) && text.contains(level) && text.contains(xp) : text;
+    for (int width : new int[]{1280, 800}) {
+      app.getView().setSize(width, 736);
+      for (int i = 0; i < 8; i++) layoutRecordSidebar(app.getView());
+      HistoryPanel history = findVisible(app.getView(), HistoryPanel.class);
+      assert status.getWidth() == 320 && status.getStage().getHeight() > 0;
+      assert history.getWidth() == width - 320 : "캐릭터 오른쪽에 기록 본문이 배치되어야 함";
+    }
+  }
+
+  private static void layoutRecordSidebar(Container root) {
+    root.doLayout();
+    for (Component child : root.getComponents()) {
+      if (child instanceof Container container) layoutRecordSidebar(container);
+    }
   }
 
   private static void unavailableContent() throws Exception {
@@ -534,10 +617,19 @@ public class AppControllerTest {
   }
 
   private static boolean visible(AppController app, Class<?> type) {
-    for (Component component : app.getView().getComponents()) {
-      if (type.isInstance(component)) return component.isVisible();
+    if (findScreen(app.getView(), type) == null) throw new AssertionError("screen missing: " + type);
+    return findVisible(app.getView(), type) != null;
+  }
+
+  private static Component findScreen(Component root, Class<?> type) {
+    if (type.isInstance(root)) return root;
+    if (root instanceof Container container) {
+      for (Component child : container.getComponents()) {
+        Component found = findScreen(child, type);
+        if (found != null) return found;
+      }
     }
-    throw new AssertionError("screen missing: " + type);
+    return null;
   }
 
   private static String texts(Component component) {
