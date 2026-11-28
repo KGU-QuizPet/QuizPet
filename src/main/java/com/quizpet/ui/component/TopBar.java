@@ -106,7 +106,8 @@ public final class TopBar extends JPanel {
     logo.setFont(LOGO_FONT);
     logo.setForeground(UiStyle.TEXT);
     logo.setIcon(UiStyle.logoIcon(52));
-    logo.setIconTextGap(10);
+    if (logo.getIcon() != null) logo.setText("");
+    logo.getAccessibleContext().setAccessibleName("QuizPet");
     logo.setPreferredSize(new Dimension(272, HEIGHT));
     return logo;
   }
