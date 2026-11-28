@@ -21,6 +21,7 @@ public class AppControllerTest {
         fullFlow();
         growthFlow();
         recordSidebar();
+        recordSidebarRefreshKeepsAnimation();
         recordSidebarFailure();
         missingScreenFails();
         loadErrors();
@@ -206,11 +207,16 @@ public class AppControllerTest {
     Pet pet = app.createPet("기록펫", "DUCK");
     app.showHistory(null);
     assertRecordSidebar(app, "기록펫", "Lv.1", "EXP 0 / 50");
+    var stage = findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class).getStage();
+    assert stage.getMood() == PetMood.HAPPY;
+    String historyMessage = stage.getMessage();
 
     pet.applyReward(60, "INT", 6);
     new PetRepository(save.resolve("pet.txt")).save(pet);
     app.showWrongNote(null, false);
     assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+    assert stage.getMood() == PetMood.FOCUS;
+    assert !stage.getMessage().equals(historyMessage);
     app.showHistory("SCIENCE");
     assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
 
@@ -221,6 +227,41 @@ public class AppControllerTest {
     app.selectUser(first.getUserId());
     app.showHistory(null);
     assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+  }
+
+  private static void recordSidebarRefreshKeepsAnimation() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-sidebar-refresh-"));
+    app.createUser("재조회");
+    app.createPet("말랑이", "DUCK");
+    app.showHistory(null);
+    var status = findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class);
+    var stage = status.getStage();
+    var elapsedField = stage.getClass().getDeclaredField("ambientElapsedMs");
+    elapsedField.setAccessible(true);
+    var messageField = status.getClass().getDeclaredField("messageTimer");
+    messageField.setAccessible(true);
+    var messageTimer = (javax.swing.Timer) messageField.get(status);
+    int[] visibilityChanges = {0};
+    status.addHierarchyListener(event -> {
+      if ((event.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) visibilityChanges[0]++;
+    });
+    app.getView().addNotify();
+    try {
+      for (boolean wrongNote : new boolean[] {false, true}) {
+        if (wrongNote) app.showWrongNote(null, false);
+        for (var action : messageTimer.getActionListeners()) action.actionPerformed(null);
+        String currentMessage = stage.getMessage();
+        elapsedField.setInt(stage, 800);
+        visibilityChanges[0] = 0;
+        if (wrongNote) app.showWrongNote("SCIENCE", true);
+        else app.showHistory("SCIENCE");
+        assert visibilityChanges[0] == 0 : "분야 재조회에서 사이드바를 숨기면 안 된다";
+        assert elapsedField.getInt(stage) == 800 : "분야 재조회에서 기울이기 위상을 유지해야 한다";
+        assert stage.getMessage().equals(currentMessage) : "분야 재조회에서 말풍선을 유지해야 한다";
+      }
+    } finally {
+      app.getView().removeNotify();
+    }
   }
 
   private static void recordSidebarFailure() throws Exception {
