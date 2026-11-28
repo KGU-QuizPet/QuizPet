@@ -20,6 +20,7 @@ public class AppControllerTest {
         creationBackRefresh();
         fullFlow();
         growthFlow();
+        recordSidebar();
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
@@ -194,6 +195,51 @@ public class AppControllerTest {
     // 성장 강조는 한 번만 보여 준다.
     app.showHome();
     assert status.getStatDeltaText("INT").isEmpty();
+  }
+
+  private static void recordSidebar() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-record-sidebar-");
+    AppController app = new AppController(save);
+    User first = app.createUser("기록사용자");
+    Pet pet = app.createPet("기록펫", "DUCK");
+    app.showHistory(null);
+    assertRecordSidebar(app, "기록펫", "Lv.1", "EXP 0 / 50");
+
+    pet.applyReward(60, "INT", 6);
+    new PetRepository(save.resolve("pet.txt")).save(pet);
+    app.showWrongNote(null, false);
+    assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+    app.showHistory("SCIENCE");
+    assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+
+    app.createUser("다른사용자");
+    app.createPet("다른펫", "TURTLE");
+    app.showWrongNote(null, true);
+    assertRecordSidebar(app, "다른펫", "Lv.1", "EXP 0 / 50");
+    app.selectUser(first.getUserId());
+    app.showHistory(null);
+    assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+  }
+
+  private static void assertRecordSidebar(AppController app, String name, String level, String xp) {
+    var status = findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class);
+    assert status != null : "학습 기록과 오답노트에도 캐릭터 사이드바가 보여야 함";
+    String text = texts(status);
+    assert text.contains(name) && text.contains(level) && text.contains(xp) : text;
+    for (int width : new int[]{1280, 800}) {
+      app.getView().setSize(width, 736);
+      for (int i = 0; i < 8; i++) layoutRecordSidebar(app.getView());
+      HistoryPanel history = findVisible(app.getView(), HistoryPanel.class);
+      assert status.getWidth() == 320 && status.getStage().getHeight() > 0;
+      assert history.getWidth() == width - 320 : "캐릭터 오른쪽에 기록 본문이 배치되어야 함";
+    }
+  }
+
+  private static void layoutRecordSidebar(Container root) {
+    root.doLayout();
+    for (Component child : root.getComponents()) {
+      if (child instanceof Container container) layoutRecordSidebar(container);
+    }
   }
 
   private static void unavailableContent() throws Exception {
@@ -534,10 +580,7 @@ public class AppControllerTest {
   }
 
   private static boolean visible(AppController app, Class<?> type) {
-    for (Component component : app.getView().getComponents()) {
-      if (type.isInstance(component)) return component.isVisible();
-    }
-    throw new AssertionError("screen missing: " + type);
+    return findVisible(app.getView(), type) != null;
   }
 
   private static String texts(Component component) {

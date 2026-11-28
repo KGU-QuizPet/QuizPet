@@ -20,6 +20,7 @@ import main.java.com.quizpet.model.User;
 import main.java.com.quizpet.repository.*;
 import main.java.com.quizpet.service.*;
 import main.java.com.quizpet.ui.component.AnswerFeedbackPanel;
+import main.java.com.quizpet.ui.component.PetStatusPanel;
 import main.java.com.quizpet.ui.component.TopBar;
 import main.java.com.quizpet.ui.screen.*;
 import main.java.com.quizpet.ui.screen.HistoryPanel.HistoryView;
@@ -48,6 +49,7 @@ public final class AppController {
   private final AnswerFeedbackPanel feedback = new AnswerFeedbackPanel();
   private final QuizResultPanel result = new QuizResultPanel();
   private final HistoryPanel history = new HistoryPanel();
+  private final PetStatusPanel recordStatus = new PetStatusPanel();
   private final BattleService battles = new BattleService();
   private final BossBattlePanel bossBattle = new BossBattlePanel();
   private final TopBar topBar = new TopBar();
@@ -175,7 +177,10 @@ public final class AppController {
     screens.addScreen(ScreenManager.QUIZ, quiz);
     screens.addScreen(ScreenManager.ANSWER_FEEDBACK, feedback);
     screens.addScreen(ScreenManager.QUIZ_RESULT, result);
-    screens.addScreen(ScreenManager.HISTORY, history);
+    JPanel recordScreen = new JPanel(new BorderLayout());
+    recordScreen.add(recordStatus, BorderLayout.WEST);
+    recordScreen.add(history, BorderLayout.CENTER);
+    screens.addScreen(ScreenManager.HISTORY, recordScreen);
     screens.addScreen(ScreenManager.BOSS_BATTLE, bossBattle);
   }
 
@@ -525,12 +530,14 @@ public final class AppController {
 
   public void showHistory(String categoryId) throws IOException {
     requireUser();
+    recordStatus.setVisible(false);
     viewingWrongNote = false;
     history.showRecordPage();
     history.showHistoryError("기록을 불러오는 중입니다.");
     screens.show(ScreenManager.HISTORY);
     try {
       ready();
+      showRecordPet();
       boolean unresolved = records.getRecords(currentUser.getUserId()).stream()
           .anyMatch(record -> recordQuestions.findById(record.getQuestionId()).isEmpty());
       // 분야 집계 불가 시에도 계산 가능한 전체 통계와 기록은 유지.
@@ -571,6 +578,7 @@ public final class AppController {
 
   public void showWrongNote(String categoryId, boolean needsReviewOnly) throws IOException {
     requireUser();
+    recordStatus.setVisible(false);
     viewingWrongNote = true;
     history.setWrongCategoryId(categoryId);
     history.setWrongNeedsReviewOnly(needsReviewOnly);
@@ -578,6 +586,7 @@ public final class AppController {
     screens.show(ScreenManager.HISTORY);
     try {
       ready();
+      showRecordPet();
       Category selectedCategory = categoryId == null || categoryId.equals("UNCLASSIFIED")
           ? null
           : Category.valueOf(categoryId);
@@ -604,6 +613,16 @@ public final class AppController {
       history.showWrongNoteError("오답 기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }
+  }
+
+  private void showRecordPet() throws IOException {
+    Pet pet = currentPet();
+    var overall = statistics.getOverallStatistics(currentUser.getUserId());
+    recordStatus.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
+        Pet.XP_PER_LEVEL, pet.getStats().getStrength(), pet.getStats().getIntelligence(),
+        pet.getStats().getFocus(), pet.getStats().getWisdom());
+    recordStatus.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
+    recordStatus.setVisible(true);
   }
 
   private static String reviewReason(ReviewPreparationService.Reason reason) {
