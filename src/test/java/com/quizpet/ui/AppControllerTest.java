@@ -25,6 +25,7 @@ public class AppControllerTest {
         failedSubmissionRetry();
         failedSubmissionExitRetry();
         topBarNavigation();
+        battleStopsOnNavigation();
         homeReviewCounts();
         rejectedSubmissionAllowsNavigation();
         partiallySavedSubmissionRetry();
@@ -302,6 +303,46 @@ public class AppControllerTest {
     assert bar.getSelectedTab().equals("HOME");
     app.showStart();
     assert !bar.isVisible();
+  }
+
+  private static void battleStopsOnNavigation() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-battle-navigation-"));
+    User user = app.createUser("전투사용자");
+    app.createPet("전투펫", "DUCK");
+    for (String destination : List.of("HOME", "LEARN", "HISTORY", "WRONG_NOTE", "USER")) {
+      app.getTopBar().getTab("BATTLE").doClick();
+      BossBattlePanel panel = findVisible(app.getView(), BossBattlePanel.class);
+      assert clickVisible(panel, "전투 시작");
+      var timerField = BossBattlePanel.class.getDeclaredField("timer");
+      var effectField = BossBattlePanel.class.getDeclaredField("effectTimer");
+      var battleField = BossBattlePanel.class.getDeclaredField("battle");
+      timerField.setAccessible(true);
+      effectField.setAccessible(true);
+      battleField.setAccessible(true);
+      var timer = (javax.swing.Timer) timerField.get(panel);
+      var effectTimer = (javax.swing.Timer) effectField.get(panel);
+      var battle = (BattleSession) battleField.get(panel);
+      try {
+        assert timer.isRunning() && effectTimer.isRunning();
+        if (destination.equals("USER")) {
+          assert clickVisible(app.getTopBar(), "사용자 변경");
+        } else {
+          app.getTopBar().getTab(destination).doClick();
+        }
+        assert !visible(app, BossBattlePanel.class);
+        assert !timer.isRunning() : destination + " 이동 후 전투 타이머 실행 중";
+        assert !effectTimer.isRunning() : destination + " 이동 후 효과 타이머 실행 중";
+        assert battle.getState() == BattleSession.State.ABANDONED;
+      } finally {
+        panel.stopBattle();
+      }
+    }
+    app.selectUser(user.getUserId());
+    app.getTopBar().getTab("BATTLE").doClick();
+    BossBattlePanel panel = findVisible(app.getView(), BossBattlePanel.class);
+    assert clickVisible(panel, "전투 시작") : "재진입 후 새 전투를 시작할 수 없음";
+    app.showHome();
+    panel.stopBattle();
   }
 
   private static void homeReviewCounts() throws Exception {

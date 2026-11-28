@@ -121,6 +121,7 @@ public final class AppController {
       selectCurrentTab();
     });
     screens.setOnShow(name -> {
+      if (!ScreenManager.BOSS_BATTLE.equals(name)) bossBattle.stopBattle();
       topBar.setVisible(!ScreenManager.START.equals(name) && !ScreenManager.PET_CREATE.equals(name));
       selectCurrentTab();
     });
