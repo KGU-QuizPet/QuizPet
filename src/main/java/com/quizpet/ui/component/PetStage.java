@@ -92,9 +92,9 @@ public final class PetStage extends JPanel {
     repaint();
   }
 
-  double ambientBreath() {
+  double ambientTilt() {
     if (!ambientAnimation || motion != Motion.NONE) return 0;
-    return (1 - Math.cos(2 * Math.PI * ambientElapsedMs / 4000)) / 2;
+    return Math.toRadians(3) * Math.sin(2 * Math.PI * ambientElapsedMs / 4000);
   }
 
   /** 정답 반응입니다. 캐릭터가 통통 뛰고 effects 문구가 차례로 떠올랐다가 사라집니다. */
@@ -242,10 +242,9 @@ public final class PetStage extends JPanel {
 
     BufferedImage image = UiStyle.petImage(spriteKey, mood);
     Graphics2D body = (Graphics2D) g.create();
-    double breath = ambientBreath();
-    // 발밑을 기준으로 미세하게 숨 쉬도록 하여 몸 전체가 바닥에서 미끄러지지 않게 합니다.
+    // 이미지 비율을 유지하고 발밑을 축으로 좌우로 기울입니다.
     body.translate(x + size / 2.0, y + size);
-    body.scale(1 + breath * 0.012, 1 - breath * 0.04);
+    body.rotate(ambientTilt());
     body.translate(-size / 2.0, -size);
     if (image != null) {
       body.drawImage(image, 0, 0, size, size, null);
