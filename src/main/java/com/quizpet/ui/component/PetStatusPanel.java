@@ -76,7 +76,10 @@ public final class PetStatusPanel extends JPanel {
   private Situation situation;
   private int messageIndex;
   private final javax.swing.Timer messageTimer = new javax.swing.Timer(6000, e -> {
-    if (isShowing() && situation != null) showSituation(situation);
+    if (isShowing() && situation != null) {
+      messageIndex = (messageIndex + 1) % situation.messages.length;
+      stage.showPet(spriteKey, situation.mood, situation.messages[messageIndex]);
+    }
   });
 
   public PetStatusPanel() {
@@ -219,10 +222,11 @@ public final class PetStatusPanel extends JPanel {
     stage.showPet(spriteKey, mood, message);
   }
 
-  /** 현재 화면에 맞는 문구를 순환합니다. 숨겨진 동안에는 타이머를 멈춥니다. */
+  /** 화면 상황이 바뀌면 첫 문구를 표시합니다. 같은 상황은 현재 문구와 타이머를 유지합니다. */
   public void showSituation(Situation next) {
     java.util.Objects.requireNonNull(next, "상황은 필수입니다.");
-    messageIndex = situation == next ? (messageIndex + 1) % next.messages.length : 0;
+    if (situation == next) return;
+    messageIndex = 0;
     situation = next;
     stage.showPet(spriteKey, next.mood, next.messages[messageIndex]);
     if (isShowing()) messageTimer.restart();

@@ -530,7 +530,6 @@ public final class AppController {
 
   public void showHistory(String categoryId) throws IOException {
     requireUser();
-    recordStatus.setVisible(false);
     viewingWrongNote = false;
     history.showRecordPage();
     history.showHistoryError("기록을 불러오는 중입니다.");
@@ -571,6 +570,7 @@ public final class AppController {
       }
       history.showHistory(HistoryView.of(selected, rates, rows), wrongCount);
     } catch (IOException | RuntimeException e) {
+      recordStatus.setVisible(false);
       history.showHistoryError("기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }
@@ -578,7 +578,6 @@ public final class AppController {
 
   public void showWrongNote(String categoryId, boolean needsReviewOnly) throws IOException {
     requireUser();
-    recordStatus.setVisible(false);
     viewingWrongNote = true;
     history.setWrongCategoryId(categoryId);
     history.setWrongNeedsReviewOnly(needsReviewOnly);
@@ -610,6 +609,7 @@ public final class AppController {
       history.showWrongNote(WrongNotePresenter.toView(categoryId, all.size(), selected,
           categoryId != null || needsReviewOnly));
     } catch (IOException | RuntimeException e) {
+      recordStatus.setVisible(false);
       history.showWrongNoteError("오답 기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }

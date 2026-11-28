@@ -17,25 +17,8 @@ public class PetStatusPanelTest {
 
   private static void situations() {
     PetStatusPanel panel = new PetStatusPanel();
+    assert panel.getStage().getMessage().equals(PetStatusPanel.DEFAULT_MESSAGE);
     java.util.Set<String> messages = new java.util.HashSet<>();
-    for (PetStatusPanel.Situation situation : PetStatusPanel.Situation.values()) {
-      panel.showSituation(situation);
-      String first = panel.getStage().getMessage();
-      assert !first.isBlank();
-      for (int i = 0; i < 3; i++) {
-        assert messages.add(panel.getStage().getMessage()) : "문구가 중복됨: " + situation;
-        panel.showSituation(situation);
-      }
-      assert panel.getStage().getMessage().equals(first) : "세 문구가 순환해야 한다";
-    }
-    panel.showSituation(PetStatusPanel.Situation.LEVEL_UP);
-    assert panel.getStage().getMood() == PetMood.LEVEL_UP;
-    panel.showSituation(PetStatusPanel.Situation.WRONG_NOTE);
-    assert panel.getStage().getMood() == PetMood.FOCUS;
-    panel.showSituation(PetStatusPanel.Situation.HISTORY);
-    assert panel.getStage().getMood() == PetMood.HAPPY;
-    panel.showSituation(PetStatusPanel.Situation.HOME);
-    assert panel.getStage().getMood() == PetMood.IDLE;
     try {
       var field = PetStatusPanel.class.getDeclaredField("messageTimer");
       field.setAccessible(true);
@@ -47,11 +30,33 @@ public class PetStatusPanelTest {
       cards.addNotify();
       try {
         assert timer.isRunning();
-        String before = panel.getStage().getMessage();
-        for (var action : timer.getActionListeners()) action.actionPerformed(null);
-        assert !panel.getStage().getMessage().equals(before) : "타이머가 문구를 바꿔야 한다";
+        for (PetStatusPanel.Situation situation : PetStatusPanel.Situation.values()) {
+          panel.showSituation(situation);
+          String first = panel.getStage().getMessage();
+          assert !first.isBlank();
+          for (int i = 0; i < 3; i++) {
+            String current = panel.getStage().getMessage();
+            assert messages.add(current) : "문구가 중복됨: " + situation;
+            panel.showSituation(situation);
+            assert panel.getStage().getMessage().equals(current) : "같은 상황이면 문구를 유지해야 한다";
+            for (var action : timer.getActionListeners()) action.actionPerformed(null);
+          }
+          assert panel.getStage().getMessage().equals(first) : "타이머가 세 문구를 순환해야 한다";
+        }
+        panel.showSituation(PetStatusPanel.Situation.LEVEL_UP);
+        assert panel.getStage().getMood() == PetMood.LEVEL_UP;
+        panel.showSituation(PetStatusPanel.Situation.WRONG_NOTE);
+        assert panel.getStage().getMood() == PetMood.FOCUS;
+        panel.showSituation(PetStatusPanel.Situation.HISTORY);
+        assert panel.getStage().getMood() == PetMood.HAPPY;
+        panel.showSituation(PetStatusPanel.Situation.HOME);
+        assert panel.getStage().getMood() == PetMood.IDLE;
+        assert panel.getStage().getMessage().equals(PetStatusPanel.DEFAULT_MESSAGE);
         ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
         assert !timer.isRunning() : "숨겨진 화면의 타이머는 멈춰야 한다";
+        String hiddenMessage = panel.getStage().getMessage();
+        for (var action : timer.getActionListeners()) action.actionPerformed(null);
+        assert panel.getStage().getMessage().equals(hiddenMessage);
         ((java.awt.CardLayout) cards.getLayout()).show(cards, "pet");
         assert timer.isRunning() : "재진입하면 순환해야 한다";
         panel.setMood(PetMood.SAD, "직접 지정");
@@ -63,6 +68,11 @@ public class PetStatusPanelTest {
     } catch (ReflectiveOperationException e) {
       throw new AssertionError(e);
     }
+    HomePanel home = new HomePanel(new ScreenManager());
+    home.showPet("말랑이", "DUCK", 1, 0, 10, 10, 10, 10);
+    assert home.getStatusPanel().getStage().getMessage().equals(PetStatusPanel.DEFAULT_MESSAGE);
+    home.showPet("말랑이", "DUCK", 1, 0, 10, 10, 10, 10);
+    assert home.getStatusPanel().getStage().getMessage().equals(PetStatusPanel.DEFAULT_MESSAGE);
   }
 
   private static void run() {
