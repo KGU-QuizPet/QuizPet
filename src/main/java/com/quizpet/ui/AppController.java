@@ -615,14 +615,20 @@ public final class AppController {
     }
   }
 
-  private void showRecordPet() throws IOException {
-    Pet pet = currentPet();
-    var overall = statistics.getOverallStatistics(currentUser.getUserId());
-    recordStatus.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
-        Pet.XP_PER_LEVEL, pet.getStats().getStrength(), pet.getStats().getIntelligence(),
-        pet.getStats().getFocus(), pet.getStats().getWisdom());
-    recordStatus.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
-    recordStatus.setVisible(true);
+  private void showRecordPet() {
+    try {
+      Pet pet = currentPet();
+      var overall = statistics.getOverallStatistics(currentUser.getUserId());
+      recordStatus.showPet(pet.getName(), pet.getSpriteKey(), pet.getLevel(), pet.getXpInLevel(),
+          Pet.XP_PER_LEVEL, pet.getStats().getStrength(), pet.getStats().getIntelligence(),
+          pet.getStats().getFocus(), pet.getStats().getWisdom());
+      recordStatus.showSummary(overall.getAccuracy(), overall.getTotalAttempts());
+      recordStatus.setVisible(true);
+    } catch (IOException | RuntimeException unavailable) {
+      recordStatus.setVisible(false);
+      System.getLogger(AppController.class.getName()).log(System.Logger.Level.WARNING,
+          "캐릭터 사이드바를 불러오지 못했습니다: " + unavailable.getMessage());
+    }
   }
 
   private static String reviewReason(ReviewPreparationService.Reason reason) {

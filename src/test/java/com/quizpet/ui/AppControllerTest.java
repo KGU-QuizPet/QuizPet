@@ -21,6 +21,8 @@ public class AppControllerTest {
         fullFlow();
         growthFlow();
         recordSidebar();
+        recordSidebarFailure();
+        missingScreenFails();
         loadErrors();
         unavailableContent();
         failedSubmissionRetry();
@@ -219,6 +221,41 @@ public class AppControllerTest {
     app.selectUser(first.getUserId());
     app.showHistory(null);
     assertRecordSidebar(app, "기록펫", "Lv.2", "EXP 10 / 50");
+  }
+
+  private static void recordSidebarFailure() throws Exception {
+    Path save = Files.createTempDirectory("quizpet-record-sidebar-failure-");
+    AppController app = new AppController(save);
+    User user = app.createUser("기록유지");
+    app.createPet("기록펫", "DUCK");
+    Question question = new QuestionRepository().findByCategory(Category.SCIENCE).get(0);
+    new RecordRepository(save.resolve("record.txt")).save(new LearningRecord(
+        "sidebar-failure", user.getUserId(), question.getQuestionId(), "session", "X", false, 0,
+        java.time.LocalDateTime.now()));
+    app.showHistory(null);
+    for (String petData : List.of("broken\n", "")) {
+      Files.writeString(save.resolve("pet.txt"), petData);
+      app.showHistory(null);
+      assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
+      assert findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class) == null;
+      app.showWrongNote(null, false);
+      assert findVisible(app.getView(), javax.swing.JTable.class).getRowCount() == 1;
+      assert findVisible(app.getView(), main.java.com.quizpet.ui.component.PetStatusPanel.class) == null;
+    }
+  }
+
+  private static void missingScreenFails() throws Exception {
+    AppController app = new AppController(Files.createTempDirectory("quizpet-missing-screen-"));
+    assert !visible(app, HistoryPanel.class) : "등록된 비활성 화면은 false여야 함";
+    Component history = findScreen(app.getView(), HistoryPanel.class);
+    history.getParent().remove(history);
+    boolean rejected = false;
+    try {
+      visible(app, HistoryPanel.class);
+    } catch (AssertionError expected) {
+      rejected = true;
+    }
+    assert rejected : "화면 자체가 없으면 실패해야 함";
   }
 
   private static void assertRecordSidebar(AppController app, String name, String level, String xp) {
@@ -580,7 +617,19 @@ public class AppControllerTest {
   }
 
   private static boolean visible(AppController app, Class<?> type) {
+    if (findScreen(app.getView(), type) == null) throw new AssertionError("screen missing: " + type);
     return findVisible(app.getView(), type) != null;
+  }
+
+  private static Component findScreen(Component root, Class<?> type) {
+    if (type.isInstance(root)) return root;
+    if (root instanceof Container container) {
+      for (Component child : container.getComponents()) {
+        Component found = findScreen(child, type);
+        if (found != null) return found;
+      }
+    }
+    return null;
   }
 
   private static String texts(Component component) {
