@@ -37,6 +37,7 @@ public final class AppController {
   private final StatisticsService statistics;
   private final RecordQuestionLookup recordQuestions;
   private final WrongAnswerService wrongAnswers;
+  private final ReviewPreparationService reviewPreparation;
   private final SubmissionService submissions;
   private final StartPanel start = new StartPanel(screens);
   private final PetCreatePanel petCreate = new PetCreatePanel(screens);
@@ -62,6 +63,9 @@ public final class AppController {
   private boolean feedbackCard;
   private boolean viewingWrongNote;
   private String pendingAnswer;
+  private String wrongNoteUserId;
+  private String reviewCategoryId;
+  private boolean reviewNeedsReviewOnly;
 
   public AppController(Path saveDirectory) throws IOException {
     this(saveDirectory, Path.of("data/content"));
@@ -81,6 +85,7 @@ public final class AppController {
     recordQuestions = new RecordQuestionLookup(questions, contentDirectory.resolve("question-legacy.txt"));
     statistics = new StatisticsService(records, id -> recordQuestions.findById(id).map(Question::getCategory));
     wrongAnswers = new WrongAnswerService(records, recordQuestions);
+    reviewPreparation = new ReviewPreparationService(wrongAnswers, questions);
     submissions = new SubmissionService(saveDirectory);
     registerScreens();
     connectActions();
@@ -128,7 +133,11 @@ public final class AppController {
   }
 
   private void selectCurrentTab() {
-    topBar.select(ScreenManager.HISTORY.equals(screens.getCurrent()) && viewingWrongNote
+    String screen = screens.getCurrent();
+    boolean reviewing = session != null && session.isReview()
+        && (ScreenManager.QUIZ.equals(screen) || ScreenManager.ANSWER_FEEDBACK.equals(screen)
+            || ScreenManager.QUIZ_RESULT.equals(screen) || feedbackCard);
+    topBar.select((ScreenManager.HISTORY.equals(screen) && viewingWrongNote) || reviewing
         ? TopBar.TAB_WRONG_NOTE : tabOf(screens.getCurrent()));
   }
 
@@ -188,11 +197,15 @@ public final class AppController {
     feedback.setOnNext(() -> run(this::nextQuestion));
     feedback.setOnViewCard(() -> run(this::showFeedbackCard));
     result.setOnGoMain(() -> run(this::showHome));
-    result.setOnGoHistory(() -> run(() -> showHistory(null)));
+    result.setOnGoHistory(() -> run(() -> {
+      if (session != null && session.isReview()) showWrongNote(reviewCategoryId, reviewNeedsReviewOnly);
+      else showHistory(null);
+    }));
     history.setOnGoMain(() -> run(this::showHome));
     history.setOnCategoryChanged(id -> run(() -> showHistory(id)));
     history.setWrongNoteEnabled(true);
-    history.setReviewEnabled(false);
+    history.setReviewEnabled(true);
+    history.setOnReview(ids -> run(() -> startReview(new ReviewPreparationService.ReviewRequest(wrongNoteUserId, ids))));
     history.setOnOpenWrongNote(id -> run(() -> showWrongNote(id, false)));
     history.setOnWrongNoteCategoryChanged(id -> run(() -> showWrongNote(id, history.isNeedsReviewOnly())));
     history.setOnWrongNoteRefresh(
@@ -204,6 +217,7 @@ public final class AppController {
     ready();
     start.showProfiles(profiles.getProfiles());
     history.clearWrongNote();
+    wrongNoteUserId = null;
     currentUser = null;
     currentCategory = null;
     session = null;
@@ -223,6 +237,7 @@ public final class AppController {
     User selected = users.getUser(userId);
     Pet pet = pets.findPetByUserId(userId).orElse(null);
     history.clearWrongNote();
+    wrongNoteUserId = null;
     currentUser = selected;
     currentCategory = null;
     session = null;
@@ -358,6 +373,38 @@ public final class AppController {
     return session;
   }
 
+  public QuizSession startReview(ReviewPreparationService.ReviewRequest request) throws IOException {
+    requireUser();
+    if (request == null) throw new IllegalArgumentException("복습 요청은 필수입니다.");
+    if (session != null && !session.isFinished()) {
+      throw new IllegalStateException("진행 중인 퀴즈를 먼저 종료해 주세요.");
+    }
+    ready();
+    var preparation = reviewPreparation.revalidate(currentUser.getUserId(), request);
+    if (!preparation.ready()) {
+      throw new IllegalArgumentException("복습을 시작할 수 없습니다: " + preparation.rejections().stream()
+          .map(r -> r.questionId() + " (" + reviewReason(r.reason()) + ")")
+          .collect(java.util.stream.Collectors.joining(", ")));
+    }
+    var validated = preparation.request().orElseThrow();
+    QuizSession created = quizzes.startReviewSession(validated.userId(), validated.questionIds());
+    for (Question question : created.getQuestions()) {
+      if (!hasLearningCard(question)) throw new IllegalStateException("연결된 현재 학습 카드가 없습니다: " + question.getQuestionId());
+    }
+    Pet pet = currentPet();
+    reviewCategoryId = history.getWrongCategoryId();
+    reviewNeedsReviewOnly = history.isNeedsReviewOnly();
+    levelBefore = pet.getLevel();
+    statsBefore = statMap(pet.getStats());
+    pendingGrowth = null;
+    feedbackCard = false;
+    currentCategory = null;
+    session = created;
+    quiz.showSession(session);
+    screens.show(ScreenManager.QUIZ);
+    return session;
+  }
+
   public LearningRecord submitAnswer(String answer) throws IOException {
     requireSession();
     if (pendingAnswer != null && !pendingAnswer.equals(answer)) {
@@ -399,7 +446,7 @@ public final class AppController {
     if (!session.isCurrentQuestionAnswered()) {
       throw new IllegalStateException("답안을 제출한 뒤 학습 카드를 확인할 수 있습니다.");
     }
-    List<LearningContent> selectedCards = learning.getContents(session.getCategoryId());
+    List<LearningContent> selectedCards = learning.getContents(session.getCurrentQuestion().getCategoryId());
     String contentId = session.getCurrentQuestion().getContentId();
     int index = -1;
     for (int i = 0; i < selectedCards.size(); i++) {
@@ -410,7 +457,7 @@ public final class AppController {
       throw new IllegalStateException("연결된 학습 카드를 찾을 수 없습니다.");
     feedbackCard = true;
     cards.setQuizEnabled(false);
-    cards.showContents(session.getCategory(), selectedCards, index);
+    cards.showContents(session.getCurrentQuestion().getCategory(), selectedCards, index);
     screens.show(ScreenManager.LEARNING);
   }
 
@@ -451,8 +498,18 @@ public final class AppController {
     List<LearningRecord> saved = records.getSessionRecords(currentUser.getUserId(), session.getSessionId());
     int gainedXp = saved.stream().mapToInt(LearningRecord::getEarnedXp).sum();
     int statGain = (int) saved.stream().filter(record -> record.getEarnedXp() > 0).count();
-    result.showResult(session.getCategory(), session.getResult(), gainedXp, statGain,
-        levelBefore, pet.getLevel(), pet.getXpInLevel());
+    if (session.isReview()) {
+      result.showReviewResult(session.getResult(), gainedXp, statGain, levelBefore, pet.getLevel(), pet.getXpInLevel());
+      Map<String, LearningRecord> byQuestion = new java.util.HashMap<>();
+      for (LearningRecord record : saved) byQuestion.put(record.getQuestionId(), record);
+      result.showQuestionResults(session.getQuestions().stream()
+          .filter(q -> byQuestion.containsKey(q.getQuestionId()))
+          .map(q -> new QuizResultPanel.QuestionResult(q.getCategory().getName() + " · " + q.getPrompt(),
+              byQuestion.get(q.getQuestionId()).isCorrect(), byQuestion.get(q.getQuestionId()).getEarnedXp())).toList());
+    } else {
+      result.showResult(session.getCategory(), session.getResult(), gainedXp, statGain,
+          levelBefore, pet.getLevel(), pet.getXpInLevel());
+    }
     Map<String, Integer> statsAfter = statMap(pet.getStats());
     if (statsBefore != null) {
       result.showStatComparison(statsBefore, statsAfter);
@@ -524,7 +581,18 @@ public final class AppController {
       Category selectedCategory = categoryId == null || categoryId.equals("UNCLASSIFIED")
           ? null
           : Category.valueOf(categoryId);
-      var all = wrongAnswers.getWrongAnswers(currentUser.getUserId());
+      var candidates = reviewPreparation.getCandidates(currentUser.getUserId());
+      var all = candidates.stream().map(ReviewPreparationService.Candidate::wrongAnswer).toList();
+      Map<String, String> unavailable = new java.util.HashMap<>();
+      for (var candidate : candidates) {
+        if (!candidate.selectable()) {
+          unavailable.put(candidate.wrongAnswer().questionId(), reviewReason(candidate.unavailableReason().orElseThrow()));
+        } else if (!hasLearningCard(candidate.wrongAnswer().question().orElseThrow())) {
+          unavailable.put(candidate.wrongAnswer().questionId(), "연결된 현재 학습 카드가 없습니다.");
+        }
+      }
+      history.setReviewAvailability(unavailable);
+      wrongNoteUserId = currentUser.getUserId();
       var selected = all.stream()
           .filter(item -> categoryId == null || (categoryId.equals("UNCLASSIFIED") ? item.category().isEmpty()
               : item.category().filter(selectedCategory::equals).isPresent()))
@@ -536,6 +604,19 @@ public final class AppController {
       history.showWrongNoteError("오답 기록을 불러오지 못했습니다: " + e.getMessage());
       throw e;
     }
+  }
+
+  private static String reviewReason(ReviewPreparationService.Reason reason) {
+    return switch (reason) {
+      case INVALID_ID -> "잘못된 문제 ID입니다.";
+      case EMPTY_SELECTION -> "문제를 선택해 주세요.";
+      case NOT_WRONG_FOR_USER -> "현재 사용자의 오답 기록이 아닙니다.";
+      case ARCHIVED_ONLY -> "과거 문제로 현재 복습을 지원하지 않습니다.";
+      case CURRENT_QUESTION_MISSING -> "현재 문제 원문이 없습니다.";
+      case CONTENT_MISMATCH -> "현재 문제와 기록의 출제 정보가 다릅니다.";
+      case UNSUPPORTED_TYPE -> "지원하지 않는 문제 유형입니다.";
+      case INVALID_CONTENT -> "출제 정보가 올바르지 않습니다.";
+    };
   }
 
   private Pet currentPet() throws IOException {

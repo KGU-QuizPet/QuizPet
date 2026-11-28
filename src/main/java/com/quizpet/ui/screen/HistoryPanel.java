@@ -44,6 +44,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -492,6 +493,13 @@ public class HistoryPanel extends JPanel {
         for (int column = 2; column < 7; column++) {
             wrongTable.getColumnModel().getColumn(column).setCellRenderer(text);
         }
+        TableCellRenderer checkbox = wrongTable.getDefaultRenderer(Boolean.class);
+        wrongTable.getColumnModel().getColumn(0).setCellRenderer((table, value, selected, focus, row, column) -> {
+            Component cell = checkbox.getTableCellRendererComponent(table, value, selected, focus, row, column);
+            cell.setEnabled(wrongModel.isCellEditable(row, 0));
+            if (cell instanceof JComponent component) component.setToolTipText(wrongModel.unavailableReason(row));
+            return cell;
+        });
         wrongTable.getColumnModel().getColumn(1).setCellRenderer(new PillCellRenderer());
         wrongTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -582,21 +590,31 @@ public class HistoryPanel extends JPanel {
         }
         WrongNoteView.WrongItem item = wrongItems.get(row);
         if (!item.details().isEmpty()) {
-            wrongDetailArea.setText(item.details());
+            wrongDetailArea.setText(item.details() + unavailableDetail(row));
             wrongDetailArea.setCaretPosition(0);
             return;
         }
         wrongDetailArea.setText("문제: " + orDash(item.prompt())
                 + "\n내 답: " + orDash(item.lastAnswer())
                 + "    정답: " + orDash(item.correctAnswer())
-                + "\n해설: " + orDash(item.explanation()));
+                + "\n해설: " + orDash(item.explanation()) + unavailableDetail(row));
         wrongDetailArea.setCaretPosition(0);
+    }
+
+    private String unavailableDetail(int row) {
+        String reason = wrongModel.unavailableReason(row);
+        return reason == null ? "" : "\n\n복습 불가: " + reason;
+    }
+
+    public void setReviewAvailability(Map<String, String> unavailableReasons) {
+        wrongModel.unavailableReasons = Map.copyOf(unavailableReasons);
+        updateReviewButton();
     }
 
     private List<String> checkedQuestionIds() {
         List<String> ids = new ArrayList<>();
         for (int i = 0; i < wrongItems.size(); i++) {
-            if (wrongModel.isChecked(i)) {
+            if (wrongModel.isChecked(i) && wrongModel.isCellEditable(i, 0)) {
                 ids.add(wrongItems.get(i).questionId());
             }
         }
@@ -667,6 +685,7 @@ public class HistoryPanel extends JPanel {
             updatingFilters = false;
         }
         wrongItems = List.of();
+        wrongModel.unavailableReasons = Map.of();
         wrongModel.setItems(wrongItems);
         showWrongDetail(-1);
         wrongAccuracyLabel.setText(" ");
@@ -1079,6 +1098,12 @@ public class HistoryPanel extends JPanel {
     }
 
     private static final class WrongNoteTableModel extends DefaultTableModel {
+        private Map<String, String> unavailableReasons = Map.of();
+
+        String unavailableReason(int row) {
+            return row < 0 || row >= getRowCount() ? null : unavailableReasons.get(getValueAt(row, 6));
+        }
+
         WrongNoteTableModel() {
             super(new Object[]{"", "분야", "문제", "오답 횟수", "복습 상태", "최근 풀이", "문제 ID"}, 0);
         }
@@ -1102,7 +1127,7 @@ public class HistoryPanel extends JPanel {
 
         @Override
         public boolean isCellEditable(int row, int column) {
-            return column == 0;
+            return column == 0 && unavailableReason(row) == null;
         }
     }
 }

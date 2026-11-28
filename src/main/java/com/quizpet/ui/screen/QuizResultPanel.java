@@ -253,6 +253,7 @@ public class QuizResultPanel extends JPanel {
     public void showResult(QuizResultView view) {
         Objects.requireNonNull(view, "QuizResultView가 null입니다. 세션 집계 결과를 먼저 받아오세요.");
 
+        historyButton.setText("학습 기록 보기");
         boolean stoppedEarly = view.answeredCount() < view.totalCount();
         subtitleLabel.setText(orDash(view.categoryName()) + " · " + view.totalCount() + "문제"
                 + (stoppedEarly ? " 중 " + view.answeredCount() + "문제 풀이" : ""));
@@ -294,6 +295,16 @@ public class QuizResultPanel extends JPanel {
                 result.getCorrectCount(), result.getTotalCount(), result.getAccuracy(),
                 gainedXp, statGain, levelBefore, levelAfter, xpInLevel, DEFAULT_XP_PER_LEVEL,
                 result.getAnsweredCount()));
+    }
+
+    public void showReviewResult(QuizResult result, int gainedXp, int statGain,
+                                 int levelBefore, int levelAfter, int xpInLevel) {
+        Objects.requireNonNull(result, "복습 결과는 필수입니다.");
+        showResult(new QuizResultView("오답 복습", "합계", result.getCorrectCount(), result.getTotalCount(),
+                result.getAccuracy(), gainedXp, statGain, levelBefore, levelAfter, xpInLevel,
+                DEFAULT_XP_PER_LEVEL, result.getAnsweredCount()));
+        categoryChip.set("오답 복습", SUNKEN, INK_2);
+        historyButton.setText("오답노트로");
     }
 
     public void showQuestionResults(List<QuestionResult> results) {

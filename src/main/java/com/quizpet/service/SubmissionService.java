@@ -51,7 +51,7 @@ public final class SubmissionService {
           .orElseThrow(() -> new IllegalStateException("사용자의 캐릭터가 없습니다."));
       GrowthService.RewardDecision decision = growth.evaluateReward(session.getUserId(),
           session.getSessionId(), session.getCurrentQuestion().getQuestionId(),
-          session.getCategory(), selectedAnswer, correct);
+          session.getCurrentQuestion().getCategory(), selectedAnswer, correct);
       if (decision.isNewSubmission()) {
         PetStats stats = before.getStats();
         Pet after = new Pet(before.getPetId(), before.getUserId(), before.getName(),
