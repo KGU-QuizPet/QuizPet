@@ -56,12 +56,45 @@ public final class PetStage extends JPanel {
   private Motion motion = Motion.NONE;
   private java.util.List<Effect> effects = java.util.List.of();
   private int elapsedMs;
+  private boolean ambientAnimation;
+  private int ambientElapsedMs;
+  private final javax.swing.Timer ambientTimer = new javax.swing.Timer(33, e -> advanceAmbient(33));
   private final javax.swing.Timer timer = new javax.swing.Timer(FRAME_MS, e -> advance(FRAME_MS));
 
   public PetStage() {
     setOpaque(false);
     setPreferredSize(new Dimension(280, 270));
     setMinimumSize(new Dimension(200, 170));
+    addHierarchyListener(e -> {
+      if (ambientAnimation && (e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
+        if (isShowing()) {
+          ambientTimer.start();
+        } else {
+          ambientTimer.stop();
+          ambientElapsedMs = 0;
+          stopAnimation();
+        }
+      }
+    });
+  }
+
+  /** 사이드바에서만 평상시 작은 움직임을 켭니다. 표시 중에만 반복합니다. */
+  public void setAmbientAnimation(boolean enabled) {
+    ambientAnimation = enabled;
+    ambientTimer.stop();
+    ambientElapsedMs = 0;
+    if (enabled && isShowing()) ambientTimer.start();
+    repaint();
+  }
+
+  void advanceAmbient(int ms) {
+    ambientElapsedMs = (ambientElapsedMs + ms) % 3200;
+    repaint();
+  }
+
+  double ambientTilt() {
+    if (!ambientAnimation || motion != Motion.NONE) return 0;
+    return Math.toRadians(3) * Math.sin(2 * Math.PI * ambientElapsedMs / 3200);
   }
 
   /** 정답 반응입니다. 캐릭터가 통통 뛰고 effects 문구가 차례로 떠올랐다가 사라집니다. */
@@ -151,6 +184,8 @@ public final class PetStage extends JPanel {
 
   @Override
   public void removeNotify() {
+    ambientTimer.stop();
+    ambientElapsedMs = 0;
     stopAnimation();
     super.removeNotify();
   }
@@ -206,11 +241,17 @@ public final class PetStage extends JPanel {
     g.fillOval(w / 2 - shadowW / 2, floorY + size / 20, shadowW, Math.max(8, size / 9));
 
     BufferedImage image = UiStyle.petImage(spriteKey, mood);
+    Graphics2D body = (Graphics2D) g.create();
+    // 이미지 비율을 유지하고 발밑을 축으로 좌우로 기울입니다.
+    body.translate(x + size / 2.0, y + size);
+    body.rotate(ambientTilt());
+    body.translate(-size / 2.0, -size);
     if (image != null) {
-      g.drawImage(image, x, y, size, size, null);
+      body.drawImage(image, 0, 0, size, size, null);
     } else {
-      paintFallback(g, x + size / 8, y + size / 8, size * 3 / 4);
+      paintFallback(body, size / 8, size / 8, size * 3 / 4);
     }
+    body.dispose();
     if (motion == Motion.HOP && elapsedMs < HOP_MS) {
       paintSparkles(g, x, y, size);
     }

@@ -21,12 +21,92 @@ public class GrowthVisualTest {
   }
 
   private static void run() {
+    ambientAnimations();
+    feedbackVisibilityPreservesReaction();
     petStageAnimations();
     feedbackReactions();
     gaugeGain();
     weakestStats();
     sidebarGrowth();
     resultComparison();
+  }
+
+  private static void ambientAnimations() {
+    PetStage stage = new PetStatusPanel().getStage();
+    stage.setSize(280, 270);
+    stage.advanceAmbient(800);
+    double tilt = stage.ambientTilt();
+    assert Math.abs(tilt - Math.toRadians(3)) < 1e-9 : "오른쪽으로 3도 기울어야 한다";
+    stage.advanceAmbient(1600);
+    assert Math.abs(stage.ambientTilt() + tilt) < 1e-9 : "왼쪽으로 같은 폭만큼 기울어야 한다";
+    stage.advanceAmbient(16);
+    assert Math.abs(stage.ambientTilt() + tilt) < 0.002 : "프레임 사이 변화가 작고 연속적이어야 한다";
+    stage.advanceAmbient(3200 - 2416);
+    assert Math.abs(stage.ambientTilt()) < 1e-9 : "주기 경계에서 처음 자세로 이어져야 한다";
+    stage.advanceAmbient(800);
+    paint(stage);
+    stage.celebrate(List.of());
+    assert stage.ambientTilt() == 0 : "점프 중에는 평상시 움직임을 겹치지 않는다";
+    stage.advance(PetStage.HOP_MS);
+    assert !stage.isAnimating() && stage.ambientTilt() > 0 : "점프가 끝나면 평상시 움직임으로 돌아간다";
+    stage.shake();
+    assert stage.ambientTilt() == 0;
+    stage.advance(PetStage.SHAKE_MS);
+    PetStage feedbackStage = new PetStage();
+    feedbackStage.advanceAmbient(800);
+    assert feedbackStage.ambientTilt() == 0;
+    try {
+      var field = PetStage.class.getDeclaredField("ambientTimer");
+      field.setAccessible(true);
+      javax.swing.Timer timer = (javax.swing.Timer) field.get(stage);
+      assert timer.getDelay() == 33 : "기본 동작은 약 30fps로 갱신해야 한다";
+      assert !timer.isRunning();
+      javax.swing.JPanel cards = new javax.swing.JPanel(new java.awt.CardLayout());
+      cards.add(stage, "pet");
+      cards.add(new javax.swing.JPanel(), "other");
+      cards.addNotify();
+      try {
+        assert timer.isRunning();
+        stage.celebrate(List.of());
+        ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
+        assert !timer.isRunning() && !stage.isAnimating() : "숨겨지면 모든 타이머를 멈춘다";
+        assert stage.ambientTilt() == 0;
+        ((java.awt.CardLayout) cards.getLayout()).show(cards, "pet");
+        assert timer.isRunning();
+        for (var action : timer.getActionListeners()) action.actionPerformed(null);
+        stage.advanceAmbient(800);
+        assert stage.ambientTilt() > 0;
+        stage.setAmbientAnimation(false);
+        assert !timer.isRunning() && stage.ambientTilt() == 0;
+        stage.setAmbientAnimation(true);
+        assert timer.isRunning();
+      } finally {
+        cards.removeNotify();
+      }
+      assert !timer.isRunning() && !stage.isAnimating();
+    } catch (ReflectiveOperationException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static void feedbackVisibilityPreservesReaction() {
+    PetStage stage = new PetStage();
+    javax.swing.JPanel cards = new javax.swing.JPanel(new java.awt.CardLayout());
+    cards.add(stage, "feedback");
+    cards.add(new javax.swing.JPanel(), "other");
+    cards.addNotify();
+    List<PetStage.Effect> effects = List.of(new PetStage.Effect("+10 EXP", UiStyle.EXP_DARK));
+    try {
+      stage.celebrate(effects);
+      ((java.awt.CardLayout) cards.getLayout()).show(cards, "other");
+      assert stage.isCelebrating() && stage.getEffects().equals(effects)
+          : "사이드바 외의 화면은 숨김 시에도 기존 반응 종료 방식을 유지해야 한다";
+      stage.advance(stage.getDurationMs());
+      assert !stage.isAnimating() && stage.getEffects().isEmpty();
+    } finally {
+      stage.stopAnimation();
+      cards.removeNotify();
+    }
   }
 
   private static void petStageAnimations() {

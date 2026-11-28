@@ -29,7 +29,6 @@ import javax.swing.Scrollable;
 import javax.swing.ScrollPaneConstants;
 import main.java.com.quizpet.model.Category;
 import main.java.com.quizpet.model.Pet;
-import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.ui.ScreenManager;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.ui.component.Badge;
@@ -139,7 +138,7 @@ public class HomePanel extends JPanel {
   public void showPet(String petName, String spriteKey, int level, int expInLevel,
       int str, int intel, int foc, int wis) {
     status.showPet(petName, spriteKey, level, expInLevel, EXP_PER_LEVEL, str, intel, foc, wis);
-    status.setMood(PetMood.IDLE, PetStatusPanel.DEFAULT_MESSAGE);
+    status.showSituation(PetStatusPanel.Situation.HOME);
     int remain = EXP_PER_LEVEL - Math.max(0, Math.min(expInLevel, EXP_PER_LEVEL));
     headlineLabel.setText("<html>" + escape(petName) + subjectParticle(petName) + " Lv." + (level + 1)
         + "까지 <font color='#FFC233'>" + remain + " EXP</font> 남았어요</html>");
@@ -153,9 +152,9 @@ public class HomePanel extends JPanel {
   public void showGrowth(java.util.Map<String, Integer> statsBefore, int gainedXp, boolean leveledUp) {
     status.showGrowth(statsBefore, gainedXp, leveledUp);
     if (leveledUp) {
-      status.setMood(PetMood.LEVEL_UP, "레벨이 올랐어요. 잘하고 있어요!");
+      status.showSituation(PetStatusPanel.Situation.LEVEL_UP);
     } else if (gainedXp > 0) {
-      status.setMood(PetMood.HAPPY, "이번 학습으로 능력치가 올랐어요.");
+      status.showSituation(PetStatusPanel.Situation.GROWTH);
     }
     if (gainedXp > 0) {
       status.getStage().celebrate(java.util.List.of());
