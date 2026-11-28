@@ -6,7 +6,6 @@ import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
-import java.util.function.IntSupplier;
 import javax.imageio.ImageIO;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -22,6 +21,9 @@ public final class BossBattleLayoutTest {
       try {
         BossBattlePanel panel = new BossBattlePanel();
         panel.showBattle(new Pet("P1", "U1", "말랑이", PetAppearance.DUCK));
+        Method choose = BossBattlePanel.class.getDeclaredMethod("selectBoss", int.class);
+        choose.setAccessible(true);
+        choose.invoke(panel, 0);
         for (int[] size : new int[][] {{1280, 736}, {1024, 616}, {1920, 1016}}) {
           panel.setSize(size[0], size[1]);
           layout(panel);
@@ -44,20 +46,17 @@ public final class BossBattleLayoutTest {
         }
         Pet[] pets = {
             new Pet("P1", "U1", "말랑이", PetAppearance.DUCK),
-            new Pet("P1", "U1", "말랑이", PetAppearance.DUCK),
+            new Pet("P1", "U1", "말랑이", PetAppearance.DUCK, 350, new PetStats(1, 1, 1, 1)),
             new Pet("P2", "U1", "튼튼이", PetAppearance.TURTLE, Integer.MAX_VALUE,
                 new PetStats(Integer.MAX_VALUE, 0, 0, 0))};
         for (int scenario = 0; scenario < pets.length; scenario++) {
-          int bossIndex = scenario == 1 ? 2 : 0;
-          Field picker = BossBattlePanel.class.getDeclaredField("bossIndexPicker");
-          picker.setAccessible(true);
-          picker.set(panel, (IntSupplier) () -> bossIndex);
+          int bossIndex = scenario == 1 ? 3 : 0;
           panel.showBattle(pets[scenario]);
-          Method start = BossBattlePanel.class.getDeclaredMethod("startBattle");
+          Method start = BossBattlePanel.class.getDeclaredMethod("selectBoss", int.class);
           Method next = BossBattlePanel.class.getDeclaredMethod("nextTurn");
           start.setAccessible(true);
           next.setAccessible(true);
-          start.invoke(panel);
+          start.invoke(panel, bossIndex);
           BattleSession battle = (BattleSession) field(panel, "battle");
           while (battle.isRunning()) next.invoke(panel);
           JPanel overlay = (JPanel) field(panel, "resultOverlay");

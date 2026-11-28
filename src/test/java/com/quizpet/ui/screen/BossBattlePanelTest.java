@@ -5,7 +5,7 @@ import java.awt.Container;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.IntSupplier;
+import main.java.com.quizpet.model.PetStats;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
@@ -22,15 +22,18 @@ public final class BossBattlePanelTest {
     SwingUtilities.invokeAndWait(() -> {
       try {
         BossBattlePanel panel = new BossBattlePanel();
-        int[] picks = { 0, 2 };
-        AtomicInteger pickCursor = new AtomicInteger();
-        setField(panel, "bossIndexPicker", (IntSupplier) () -> picks[pickCursor.getAndIncrement() % picks.length]);
-
         Pet pet = new Pet("P1", "U1", "화면펫", PetAppearance.TURTLE);
         panel.showBattle(pet);
 
-        assert (int) field(panel, "selectedBossIndex") == 0 : "첫 보스가 랜덤 선택되어야 합니다.";
-        assert field(panel, "currentPetMood") == PetMood.IDLE : "전투 준비 시 펫 표정은 IDLE이어야 합니다.";
+        assert field(panel, "battle") == null : "입장 시에는 보스 선택 화면을 표시합니다.";
+        BossSelectPanel selection = (BossSelectPanel) field(panel, "selection");
+        assert selection.isVisible();
+        Method select = BossBattlePanel.class.getDeclaredMethod("selectBoss", int.class);
+        select.setAccessible(true);
+        select.invoke(panel, 3);
+        assert field(panel, "battle") == null : "레벨이 부족한 보스로 전투를 시작할 수 없습니다.";
+        select.invoke(panel, 0);
+        assert !selection.isVisible();
         JLabel petImage = (JLabel) field(panel, "petImage");
         assert petImage.getIcon() != null : "선택한 펫 외형 이미지가 로드되어야 합니다.";
         JLabel bossBadge = (JLabel) field(panel, "bossBadge");
@@ -46,12 +49,12 @@ public final class BossBattlePanelTest {
         Timer effectTimer = (Timer) field(panel, "effectTimer");
         assert timer.getDelay() == 1000;
         assert timer.getInitialDelay() == 1000;
-        assert !timer.isRunning();
+        assert timer.isRunning();
 
-        JButton start = button(panel, "전투 시작");
+        JButton start = (JButton) field(panel, "start");
         JButton speed = button(panel, "배속 1x");
-        JButton exit = button(panel, "나가기");
-        assert start != null && start.isEnabled();
+        JButton exit = (JButton) field(panel, "exit");
+        assert start != null && !start.isEnabled();
         assert speed != null && speed.isEnabled();
         assert exit != null && exit.isEnabled();
 
@@ -63,7 +66,6 @@ public final class BossBattlePanelTest {
         assert "배속 1x".equals(speed.getText());
         assert timer.getDelay() == 1000;
 
-        start.doClick();
         assert timer.isRunning();
         assert !start.isEnabled();
         BattleSession battle = (BattleSession) field(panel, "battle");
@@ -75,7 +77,7 @@ public final class BossBattlePanelTest {
         speed.doClick();
         assert timer.getDelay() == 500;
 
-        // 전투 턴별 펫 표정 전환(공격 FOCUS, 피격 SAD, 승리 HAPPY) 및 재도전 시 보스 재추첨·화면 갱신 검증.
+        // 전투 턴별 펫 표정 전환(공격 FOCUS, 피격 SAD, 승리 HAPPY) 및 재도전 시 선택 보스 유지·화면 갱신 검증.
         Method nextTurn = BossBattlePanel.class.getDeclaredMethod("nextTurn");
         nextTurn.setAccessible(true);
         nextTurn.invoke(panel);
@@ -97,25 +99,30 @@ public final class BossBattlePanelTest {
         ((JButton) field(panel, "resultRetry")).doClick();
         assert !overlay.isVisible() : "재도전 시 결과 카드를 닫아야 합니다.";
         assert field(panel, "currentPetMood") == PetMood.IDLE : "재도전 시작 시 펫 표정은 IDLE로 초기화되어야 합니다.";
-        assert (int) field(panel, "selectedBossIndex") == 2 : "재도전 시 보스를 다시 추첨해야 합니다.";
+        assert (int) field(panel, "selectedBossIndex") == 0 : "재도전 시 선택한 보스를 유지해야 합니다.";
         BattleSession retryBattle = (BattleSession) field(panel, "battle");
-        assert retryBattle.getBoss().equals(BattleService.BOSSES.get(2));
-        assert bossBadge.getText().contains(BattleService.BOSSES.get(2).name()) : "재도전 시 보스 배지가 갱신되어야 합니다.";
+        assert retryBattle.getBoss().equals(BattleService.BOSSES.get(0));
+        assert bossBadge.getText().contains(BattleService.BOSSES.get(0).name()) : "재도전 시 보스 배지가 갱신되어야 합니다.";
         JLabel bossName = (JLabel) field(panel, "bossName");
         Object bossHp = field(panel, "bossHp");
         Method getMaximum = bossHp.getClass().getDeclaredMethod("getMaximum");
         getMaximum.setAccessible(true);
-        assert bossName.getText().contains(BattleService.BOSSES.get(2).name()) : "재도전 시 보스 이름이 갱신되어야 합니다.";
-        assert (int) getMaximum.invoke(bossHp) == BattleService.BOSSES.get(2).maxHp() : "재도전 시 보스 최대 HP가 갱신되어야 합니다.";
+        assert bossName.getText().contains(BattleService.BOSSES.get(0).name()) : "재도전 시 보스 이름이 갱신되어야 합니다.";
+        assert (int) getMaximum.invoke(bossHp) == BattleService.BOSSES.get(0).maxHp() : "재도전 시 보스 최대 HP가 갱신되어야 합니다.";
 
         exit.doClick();
         assert !timer.isRunning();
         assert !effectTimer.isRunning();
         assert retryBattle.getState() == BattleSession.State.ABANDONED;
+        assert selection.isVisible();
+        assert button(selection, "다시 도전") != null : "클리어한 보스는 다시 도전으로 표시합니다.";
+        panel.showBattle(new Pet("P1", "OTHER", "다른펫", PetAppearance.DUCK));
+        assert button(selection, "다시 도전") == null : "다른 사용자의 클리어 표시가 섞이면 안 됩니다.";
 
-        setField(panel, "bossIndexPicker", (IntSupplier) () -> 2);
-        panel.showBattle(pet);
-        button(panel, "전투 시작").doClick();
+        Pet vulnerable = new Pet("P2", "U1", "연습펫", PetAppearance.TURTLE, 350,
+            new PetStats(1, 1, 1, 1));
+        panel.showBattle(vulnerable);
+        select.invoke(panel, 3);
         BattleSession lost = (BattleSession) field(panel, "battle");
         while (lost.isRunning()) nextTurn.invoke(panel);
         assert lost.getState() == BattleSession.State.LOST;
@@ -125,13 +132,14 @@ public final class BossBattlePanelTest {
         AtomicInteger resultExits = new AtomicInteger();
         panel.setOnExit(resultExits::incrementAndGet);
         ((JButton) field(panel, "resultExit")).doClick();
-        assert resultExits.get() == 1;
+        assert selection.isVisible();
+        assert resultExits.get() == 0 : "보스 목록 이동은 홈 이동과 구분합니다.";
         assert !effectTimer.isRunning() && !timer.isRunning();
 
         AtomicInteger exits = new AtomicInteger();
         panel.setOnExit(exits::incrementAndGet);
         panel.showBattle(pet);
-        button(panel, "나가기").doClick();
+        button(selection, "홈으로").doClick();
         assert exits.get() == 1;
       } catch (Exception error) {
         throw new AssertionError(error);
@@ -144,12 +152,6 @@ public final class BossBattlePanelTest {
     Field field = target.getClass().getDeclaredField(name);
     field.setAccessible(true);
     return field.get(target);
-  }
-
-  private static void setField(Object target, String name, Object value) throws Exception {
-    Field field = target.getClass().getDeclaredField(name);
-    field.setAccessible(true);
-    field.set(target, value);
   }
 
   private static JButton button(Container root, String text) {

@@ -3,7 +3,7 @@ package main.java.com.quizpet.ui.screen;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Cursor;
+import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -21,7 +21,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.IntSupplier;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -40,6 +43,7 @@ import main.java.com.quizpet.model.PetMood;
 import main.java.com.quizpet.service.BattleService;
 import main.java.com.quizpet.ui.UiStyle;
 import main.java.com.quizpet.ui.component.RoundCard;
+import main.java.com.quizpet.ui.component.GameButton;
 
 // UI-09 무대와 승패 결과를 표시하는 자동 전투 화면.
 public final class BossBattlePanel extends JPanel {
@@ -52,6 +56,10 @@ public final class BossBattlePanel extends JPanel {
   private static final Color HP_WARN = new Color(0xF59E0B);
   private static final Color HP_DANGER = new Color(0xEF4444);
 
+  private final CardLayout viewLayout = new CardLayout();
+  private final JPanel views = new JPanel(viewLayout);
+  private final BossSelectPanel selection = new BossSelectPanel();
+  private final Map<List<String>, Set<Integer>> victories = new HashMap<>();
   private final BattleService service = new BattleService();
   private final JLabel bossBadge = createBossBadge();
   private final JLabel bossImage = new SpriteLabel("보스");
@@ -63,9 +71,9 @@ public final class BossBattlePanel extends JPanel {
   private final JTextArea battleLog = new JTextArea(3, 28);
   private final HpBar bossHp = new HpBar(BOSS_HP_HEALTHY);
   private final HpBar petHp = new HpBar(PET_HP_HEALTHY);
-  private final StyledButton start = new StyledButton("전투 시작", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
-  private final StyledButton speedToggle = new StyledButton("배속 1x", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
-  private final StyledButton exit = new StyledButton("나가기", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
+  private final GameButton start = new GameButton("전투 시작", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
+  private final GameButton speedToggle = new GameButton("배속 1x", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
+  private final GameButton exit = new GameButton("보스 목록", Color.WHITE, UiStyle.TEXT, new Color(0xF3E6D0));
   private final JLabel[] statValues = new JLabel[4];
   private final JLabel turnPill = UiStyle.label("READY", UiStyle.SUBTITLE_FONT);
   private final Arena arena = new Arena();
@@ -77,8 +85,8 @@ public final class BossBattlePanel extends JPanel {
   private final JLabel resultHp = UiStyle.label("", UiStyle.TITLE_FONT.deriveFont(24f));
   private final JLabel resultPet = new SpriteLabel("내 펫");
   private final JLabel resultBoss = new SpriteLabel("보스");
-  private final StyledButton resultRetry = new StyledButton("다시 도전", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
-  private final StyledButton resultExit = new StyledButton("홈으로", Color.WHITE, UiStyle.TEXT, UiStyle.BACKGROUND);
+  private final GameButton resultRetry = new GameButton("다시 도전", UiStyle.BRAND, Color.WHITE, new Color(0xE07600));
+  private final GameButton resultExit = new GameButton("홈으로", Color.WHITE, UiStyle.TEXT, UiStyle.BACKGROUND);
   private final ResultOverlay resultOverlay = new ResultOverlay();
   private final Timer timer = new Timer(NORMAL_TURN_DELAY_MS, event -> nextTurn());
   private final Timer effectTimer = new Timer(EFFECT_TICK_MS, event -> tickEffects());
@@ -87,8 +95,6 @@ public final class BossBattlePanel extends JPanel {
   private PetMood currentPetMood = PetMood.IDLE;
   private int selectedBossIndex;
   private boolean fastMode;
-  private Runnable onExit = () -> { };
-  private IntSupplier bossIndexPicker = () -> (int) (Math.random() * BattleService.BOSSES.size());
 
   public BossBattlePanel() {
     setLayout(new OverlayLayout(this));
@@ -97,7 +103,10 @@ public final class BossBattlePanel extends JPanel {
     content.add(arena, BorderLayout.CENTER);
     content.add(buildBottom(), BorderLayout.SOUTH);
     add(resultOverlay);
-    add(content);
+    views.add(selection, "selection");
+    views.add(content, "battle");
+    selection.setOnSelect(this::selectBoss);
+    add(views);
 
     start.setEnabled(false);
     start.setPreferredSize(new Dimension(140, 40));
@@ -106,12 +115,13 @@ public final class BossBattlePanel extends JPanel {
 
     start.addActionListener(event -> startBattle());
     speedToggle.addActionListener(event -> toggleSpeed());
-    exit.addActionListener(event -> { stopBattle(); onExit.run(); });
+    exit.addActionListener(event -> showBossSelection());
     resultRetry.addActionListener(event -> startBattle());
-    resultExit.addActionListener(event -> { stopBattle(); onExit.run(); });
+    resultExit.setText("보스 목록");
+    resultExit.addActionListener(event -> showBossSelection());
   }
 
-  public void setOnExit(Runnable action) { onExit = Objects.requireNonNull(action, "onExit는 필수입니다."); }
+  public void setOnExit(Runnable action) { selection.setOnExit(Objects.requireNonNull(action, "onExit는 필수입니다.")); }
 
   @Override public boolean isOptimizedDrawingEnabled() { return false; }
 
@@ -119,13 +129,31 @@ public final class BossBattlePanel extends JPanel {
     stopBattle();
     battle = null;
     currentPet = Objects.requireNonNull(pet, "pet은 필수입니다.");
-    // 전투에 들어갈 때마다 보스를 랜덤 선택.
-    selectRandomBoss();
+    showBossSelection();
   }
 
-  private void selectRandomBoss() {
-    selectedBossIndex = Math.floorMod(bossIndexPicker.getAsInt(), BattleService.BOSSES.size());
+  private Set<Integer> clearedBosses() {
+    // shortcut: 클리어 표시는 실행 중에만 유지하며, 영구 이력이 필요하면 저장 계층에 연결합니다.
+    return victories.computeIfAbsent(List.of(currentPet.getUserId(), currentPet.getPetId()), key -> new HashSet<>());
+  }
+
+  private void showBossSelection() {
+    stopBattle();
+    battle = null;
+    resultOverlay.setVisible(false);
+    selection.showPet(currentPet, clearedBosses());
+    viewLayout.show(views, "selection");
+  }
+
+  private void selectBoss(int index) {
+    if (currentPet == null || index < 0 || index >= BattleService.BOSSES.size()
+        || currentPet.getLevel() < BattleService.BOSSES.get(index).requiredLevel()) return;
+    stopBattle();
+    battle = null;
+    selectedBossIndex = index;
     updatePreview();
+    viewLayout.show(views, "battle");
+    startBattle();
   }
 
   private void toggleSpeed() {
@@ -254,7 +282,7 @@ public final class BossBattlePanel extends JPanel {
 
   private void startBattle() {
     if (currentPet == null || battle != null && battle.isRunning()) return;
-    if (battle != null) selectRandomBoss();
+    if (battle != null) updatePreview();
     battle = service.createBattle(currentPet, selectedBossIndex);
     battle.start();
     arena.resetEffects();
@@ -305,6 +333,7 @@ public final class BossBattlePanel extends JPanel {
 
   private void showResult() {
     boolean won = battle.getState() == BattleSession.State.WON;
+    if (won) clearedBosses().add(selectedBossIndex);
     resultTitle.setText(won ? "승리!" : "패배");
     resultTitle.setBackground(won ? UiStyle.CORRECT : UiStyle.TEXT);
     resultSummary.setText(won ? battle.getBoss().name() + "을 물리쳤어요!" : "조금 더 성장해서 다시 도전해요");
@@ -498,57 +527,6 @@ public final class BossBattlePanel extends JPanel {
       g2.setColor(UiStyle.MUTED);
       g2.drawString(text, 0, 34);
       g2.dispose();
-    }
-  }
-
-  // QuizPet 테마에 맞춘 둥근 버튼.
-  private static final class StyledButton extends JButton {
-    private Color bg;
-    private Color fg;
-    private Color hoverBg;
-
-    StyledButton(String text, Color bg, Color fg, Color hoverBg) {
-      super(text);
-      this.bg = bg;
-      this.fg = fg;
-      this.hoverBg = hoverBg;
-      setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 14f));
-      setForeground(fg);
-      setFocusPainted(false);
-      setContentAreaFilled(false);
-      setBorderPainted(false);
-      setOpaque(false);
-      setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    }
-
-    void setPalette(Color bg, Color fg, Color hoverBg) {
-      this.bg = bg;
-      this.fg = fg;
-      this.hoverBg = hoverBg;
-      setForeground(fg);
-      repaint();
-    }
-
-    @Override protected void paintComponent(Graphics g) {
-      Graphics2D g2 = (Graphics2D) g.create();
-      g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-      Color fill;
-      if (!isEnabled()) fill = new Color(0xD8D3C8);
-      else if (getModel().isRollover() || getModel().isPressed()) fill = hoverBg;
-      else fill = bg;
-      g2.setColor(fill);
-      g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-      if (bg.equals(Color.WHITE) && isEnabled()) {
-        g2.setColor(UiStyle.BORDER);
-        g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
-      }
-      if (hasFocus()) {
-        g2.setColor(UiStyle.TEXT);
-        g2.setStroke(new BasicStroke(2));
-        g2.drawRoundRect(4, 4, getWidth() - 9, getHeight() - 9, 10, 10);
-      }
-      g2.dispose();
-      super.paintComponent(g);
     }
   }
 
