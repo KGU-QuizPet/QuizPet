@@ -315,7 +315,7 @@ public class AppControllerTest {
     for (String destination : List.of("HOME", "LEARN", "HISTORY", "WRONG_NOTE", "USER")) {
       app.getTopBar().getTab("BATTLE").doClick();
       BossBattlePanel panel = findVisible(app.getView(), BossBattlePanel.class);
-      assert clickVisible(panel, "전투 시작");
+      assert clickVisible(panel, "도전하기");
       var timerField = BossBattlePanel.class.getDeclaredField("timer");
       var effectField = BossBattlePanel.class.getDeclaredField("effectTimer");
       var battleField = BossBattlePanel.class.getDeclaredField("battle");
@@ -343,7 +343,7 @@ public class AppControllerTest {
     app.selectUser(user.getUserId());
     app.getTopBar().getTab("BATTLE").doClick();
     BossBattlePanel panel = findVisible(app.getView(), BossBattlePanel.class);
-    assert clickVisible(panel, "전투 시작") : "재진입 후 새 전투를 시작할 수 없음";
+    assert clickVisible(panel, "도전하기") : "재진입 후 새 전투를 시작할 수 없음";
     app.showHome();
     panel.stopBattle();
   }
