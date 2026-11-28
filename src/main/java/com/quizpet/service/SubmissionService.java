@@ -9,6 +9,7 @@ import main.java.com.quizpet.model.PetStats;
 import main.java.com.quizpet.model.QuizSession;
 import main.java.com.quizpet.repository.PetRepository;
 import main.java.com.quizpet.repository.RecordRepository;
+import main.java.com.quizpet.repository.SubmissionRejectedException;
 import main.java.com.quizpet.repository.SubmissionStore;
 import main.java.com.quizpet.repository.UserRepository;
 
@@ -56,7 +57,12 @@ public final class SubmissionService {
         Pet after = new Pet(before.getPetId(), before.getUserId(), before.getName(),
             before.getAppearance(), before.getTotalXp(), new PetStats(stats.getStrength(),
             stats.getIntelligence(), stats.getFocus(), stats.getWisdom()));
-        after.applyReward(decision.getPlannedXp(), decision.getStatType(), decision.getPlannedStatGain());
+        try {
+          after.applyReward(decision.getPlannedXp(), decision.getStatType(), decision.getPlannedStatGain());
+        } catch (IllegalArgumentException e) {
+          // 보상 한도 초과(#74)는 저장 시도 전 거부입니다. 재시도 대기 없이 화면을 이동할 수 있게 합니다.
+          throw new SubmissionRejectedException(e);
+        }
         store.commit(before, after, decision.getRecord());
       }
       if (!session.isCurrentQuestionAnswered()) session.submitAnswer(selectedAnswer);
