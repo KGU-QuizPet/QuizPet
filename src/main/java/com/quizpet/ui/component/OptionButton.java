@@ -97,7 +97,7 @@ public final class OptionButton extends JToggleButton {
       int baseline = (getHeight() - 30 + drawing.getFontMetrics().getAscent()) / 2 - 8;
       drawing.drawString(getActionCommand(), symbolX, baseline);
       String caption = Boolean.TRUE.equals(correct) ? "정답" : chosen && correct != null ? "내가 고른 답"
-          : "O".equals(getActionCommand()) ? "맞다" : "아니다";
+          : "O".equals(getActionCommand()) ? "맞다 · 키보드 O" : "아니다 · 키보드 X";
       drawing.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 14f));
       drawing.setColor(Boolean.TRUE.equals(correct) ? UiStyle.CORRECT
           : chosen && correct != null ? UiStyle.WRONG : UiStyle.MUTED);

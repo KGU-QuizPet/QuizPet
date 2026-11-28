@@ -26,6 +26,9 @@ public final class CategoryCard extends ImageButton {
   private final Category category;
   private final CategoryIcon icon;
   private final JTextArea description = new JTextArea();
+  private Integer attempts;
+  private double accuracy;
+  private boolean progressUnavailable;
 
   public CategoryCard(Category category) {
     super(Objects.requireNonNull(category, "category는 필수입니다.").getName());
@@ -44,9 +47,47 @@ public final class CategoryCard extends ImageButton {
   }
 
   @Override public Dimension getPreferredSize() {
-    return new Dimension(240, getWidth() > 0 && getWidth() < 260 ? 260 : 220);
+    return new Dimension(240, getWidth() > 0 && getWidth() < 320 ? getWidth() < 260 ? 260 : 230 : 220);
   }
   @Override public Dimension getMinimumSize() { return getPreferredSize(); }
+
+  public void showProgress(int attempts, double accuracy) {
+    if (attempts < 0 || !Double.isFinite(accuracy) || accuracy < 0 || accuracy > 100) {
+      throw new IllegalArgumentException("유효한 풀이 수와 정답률이 필요합니다.");
+    }
+    this.attempts = attempts;
+    this.accuracy = accuracy;
+    progressUnavailable = false;
+    updateDescription();
+    repaint();
+  }
+
+  public void showProgressUnavailable() {
+    attempts = null;
+    progressUnavailable = true;
+    updateDescription();
+    repaint();
+  }
+
+  public void setContentAvailable(boolean available) {
+    setEnabled(available);
+    setCursor(Cursor.getPredefinedCursor(available ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+    updateDescription();
+    repaint();
+  }
+
+  public String getProgressText() {
+    if (!isEnabled()) return "준비 중";
+    if (progressUnavailable) return "집계 불가";
+    if (attempts == null) return "학습하기 →";
+    return attempts == 0 ? "NEW" : String.format(java.util.Locale.ROOT, "정답률 %.1f%%", accuracy);
+  }
+
+  private void updateDescription() {
+    String text = category.getDescription() + " · " + category.getStatType() + " +1 · " + getProgressText();
+    setToolTipText(text);
+    getAccessibleContext().setAccessibleDescription(text);
+  }
 
   @Override
   protected void paintComponent(Graphics graphics) {
@@ -86,13 +127,25 @@ public final class CategoryCard extends ImageButton {
     g.drawString(category.getStatType(), chipX + 8, 127);
 
     int textWidth = Math.max(1, getWidth() - PADDING * 2);
-    description.setSize(textWidth, Math.max(1, height - 190));
+    description.setSize(textWidth, Math.max(1, height - 174));
     Graphics text = g.create(PADDING, 144, textWidth, description.getHeight());
     description.paint(text);
     text.dispose();
-    g.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD));
-    g.setColor(isEnabled() ? color : UiStyle.MUTED);
-    g.drawString(isEnabled() ? "학습하기 →" : "준비 중", PADDING, height - 18);
+    g.setFont(UiStyle.BODY_FONT.deriveFont(Font.BOLD, 13f));
+    String caption = getProgressText();
+    int captionWidth = g.getFontMetrics().stringWidth(caption);
+    if (isEnabled() && attempts != null) {
+      int barWidth = Math.max(20, getWidth() - PADDING * 2 - captionWidth - 12);
+      g.setColor(UiStyle.BORDER);
+      g.fillRoundRect(PADDING, height - 28, barWidth, 10, 10, 10);
+      g.setColor(color);
+      g.fillRoundRect(PADDING, height - 28, (int) Math.round(barWidth * accuracy / 100), 10, 10, 10);
+      g.setColor(UiStyle.MUTED);
+      g.drawString(caption, getWidth() - PADDING - captionWidth, height - 18);
+    } else {
+      g.setColor(UiStyle.MUTED);
+      g.drawString(caption, PADDING, height - 18);
+    }
     g.dispose();
   }
 }

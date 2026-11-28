@@ -14,7 +14,7 @@ public final class QuestionCard extends RoundCard {
   private boolean compact;
 
   public QuestionCard(JTextArea prompt) {
-    super(new BorderLayout(0, 8));
+    super(new BorderLayout(0, 8), 26, 6);
     this.prompt = prompt;
     prompt.setFont(UiStyle.TITLE_FONT.deriveFont(34f));
     prompt.setForeground(UiStyle.TEXT);

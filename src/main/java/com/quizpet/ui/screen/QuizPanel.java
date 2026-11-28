@@ -29,9 +29,13 @@ import main.java.com.quizpet.ui.component.QuizProgressBar;
 import main.java.com.quizpet.ui.component.ShortAnswerPanel;
 import main.java.com.quizpet.ui.component.CategoryIcon;
 import main.java.com.quizpet.ui.component.QuestionCard;
+import main.java.com.quizpet.ui.component.Badge;
 
 public class QuizPanel extends JPanel {
   private final JLabel questionTypeLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
+  private final Badge typeBadge = new Badge("", UiStyle.SUNKEN, UiStyle.MUTED,
+      UiStyle.BODY_FONT.deriveFont(java.awt.Font.BOLD, 13f), 0);
+  private final JPanel progressDetails = new JPanel(new BorderLayout(16, 0));
   private final QuizProgressBar progressBar = new QuizProgressBar();
   private final JLabel progressLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
   private final JLabel statusLabel = UiStyle.label("", UiStyle.BODY_FONT);
@@ -50,18 +54,30 @@ public class QuizPanel extends JPanel {
     setLayout(new BorderLayout(0, 20));
     setBackground(UiStyle.BACKGROUND);
     setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
-    JPanel header = new JPanel(new BorderLayout(0, 10));
+    JPanel header = new JPanel(new BorderLayout(0, 10)) {
+      @Override public void doLayout() {
+        Container target = QuizPanel.this.getWidth() >= 760 ? progressDetails : this;
+        if (progressBar.getParent() != target) {
+          if (progressBar.getParent() != null) progressBar.getParent().remove(progressBar);
+          target.add(progressBar, target == this ? BorderLayout.SOUTH : BorderLayout.WEST);
+        }
+        super.doLayout();
+      }
+    };
     header.setOpaque(false);
     JPanel information = new JPanel(new BorderLayout());
     information.setOpaque(false);
-    information.add(questionTypeLabel, BorderLayout.WEST);
+    JPanel category = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+    category.setOpaque(false);
+    category.add(questionTypeLabel);
+    category.add(typeBadge);
+    information.add(category, BorderLayout.WEST);
     questionTypeLabel.setHorizontalAlignment(JLabel.LEFT);
     progressLabel.setForeground(UiStyle.MUTED);
-    JPanel actions = new JPanel(new BorderLayout(16, 0));
-    actions.setOpaque(false);
-    actions.add(progressLabel, BorderLayout.CENTER);
-    actions.add(endButton, BorderLayout.EAST);
-    information.add(actions, BorderLayout.EAST);
+    progressDetails.setOpaque(false);
+    progressDetails.add(progressLabel, BorderLayout.CENTER);
+    progressDetails.add(endButton, BorderLayout.EAST);
+    information.add(progressDetails, BorderLayout.EAST);
     header.add(information, BorderLayout.CENTER);
     header.add(progressBar, BorderLayout.SOUTH);
     add(header, BorderLayout.NORTH);
@@ -81,6 +97,12 @@ public class QuizPanel extends JPanel {
     add(footer, BorderLayout.SOUTH);
     submitButton.setEnabled(false);
     endButton.setEnabled(false);
+    bindQuizKey("ENTER", "quiz.submit", () -> submitButton.doClick());
+    for (String answer : java.util.List.of("O", "X", "1", "2", "3", "4")) {
+      bindQuizKey(answer, "quiz.answer." + answer, () -> {
+        if (shortAnswerPanel == null) selectAnswer(questionContainer, answer);
+      });
+    }
   }
 
   public void setOnSubmit(Consumer<String> action) {
@@ -114,16 +136,17 @@ public class QuizPanel extends JPanel {
     if (question instanceof MultipleChoiceQuestion multipleChoice) {
       multipleChoicePanel = new MultipleChoicePanel(question.getPrompt(), multipleChoice.getOptions());
       questionContainer.add(multipleChoicePanel, BorderLayout.CENTER);
-      questionTypeLabel.setText(categoryName + " · 4지선다");
+      typeBadge.setText("4지선다");
     } else if (question instanceof ShortAnswerQuestion) {
       shortAnswerPanel = new ShortAnswerPanel(question.getPrompt());
       questionContainer.add(shortAnswerPanel, BorderLayout.CENTER);
-      questionTypeLabel.setText(categoryName + " · 단답형");
+      typeBadge.setText("단답형");
     } else {
       oxQuestionPanel = new OXQuestionPanel(question.getPrompt());
       questionContainer.add(oxQuestionPanel, BorderLayout.CENTER);
-      questionTypeLabel.setText(categoryName + " · OX");
+      typeBadge.setText("OX");
     }
+    questionTypeLabel.setText(categoryName);
     progressBar.showSession(session);
     for (Component child : questionContainer.getComponents()) {
       if (child instanceof Container container) setQuestionNumber(container, session.getCurrentIndex() + 1);
@@ -160,6 +183,7 @@ public class QuizPanel extends JPanel {
       } else if (child instanceof JList<?> list) {
         list.addListSelectionListener(e -> updateSelection());
       } else if (child instanceof JTextField field) {
+        field.addActionListener(e -> submitButton.doClick());
         field.getDocument().addDocumentListener(new DocumentListener() {
           @Override public void insertUpdate(DocumentEvent e) { updateSelection(); }
           @Override public void removeUpdate(DocumentEvent e) { updateSelection(); }
@@ -167,6 +191,21 @@ public class QuizPanel extends JPanel {
         });
       }
       if (child instanceof Container nested) observeAnswerSelection(nested);
+    }
+  }
+
+  private void bindQuizKey(String stroke, String name, Runnable action) {
+    getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(javax.swing.KeyStroke.getKeyStroke(stroke), name);
+    getActionMap().put(name, new javax.swing.AbstractAction() {
+      @Override public void actionPerformed(java.awt.event.ActionEvent event) { action.run(); }
+    });
+  }
+
+  private static void selectAnswer(Container root, String answer) {
+    for (Component child : root.getComponents()) {
+      if (child instanceof JToggleButton button && answer.equals(button.getActionCommand()) && button.isEnabled()) {
+        button.doClick();
+      } else if (child instanceof Container nested) selectAnswer(nested, answer);
     }
   }
 

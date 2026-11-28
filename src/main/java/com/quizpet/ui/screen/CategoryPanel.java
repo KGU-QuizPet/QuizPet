@@ -9,6 +9,8 @@ import javax.swing.Scrollable;
 import javax.swing.JScrollPane;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
+import java.util.EnumMap;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -28,6 +30,7 @@ public class CategoryPanel extends JPanel {
   private final JLabel selectionLabel = UiStyle.label("선택한 분야: 없음", UiStyle.SUBTITLE_FONT);
   private Consumer<String> onSelect = id -> { };
   private String selectedCategoryId;
+  private final Map<Category, CategoryCard> categoryCards = new EnumMap<>(Category.class);
 
   public CategoryPanel(ScreenManager screens) {
     Objects.requireNonNull(screens, "screens는 필수입니다.");
@@ -70,9 +73,22 @@ public class CategoryPanel extends JPanel {
     selectedCategoryId = null;
     selectionLabel.setText(categories.isEmpty() ? "학습 가능한 분야가 없습니다." : "선택한 분야: 없음");
     grid.removeAll();
+    categoryCards.clear();
     for (Category category : categories) grid.add(createCategoryCard(category));
     revalidate();
     repaint();
+  }
+
+  public void setCategoryAvailable(Category category, boolean available) {
+    categoryCards.get(category).setContentAvailable(available);
+  }
+
+  public void showCategoryProgress(Category category, int attempts, double accuracy) {
+    categoryCards.get(category).showProgress(attempts, accuracy);
+  }
+
+  public void showCategoryProgressUnavailable(Category category) {
+    categoryCards.get(category).showProgressUnavailable();
   }
 
   public void setOnSelect(Consumer<String> action) {
@@ -84,7 +100,8 @@ public class CategoryPanel extends JPanel {
   }
 
   private JButton createCategoryCard(Category category) {
-    JButton button = new CategoryCard(category);
+    CategoryCard button = new CategoryCard(category);
+    categoryCards.put(category, button);
     button.addActionListener(e -> {
       selectedCategoryId = category.getCategoryId();
       selectionLabel.setText("선택한 분야: " + category.getName());

@@ -35,7 +35,16 @@ public class LearningPanel extends JPanel {
   private final JButton quizButton = new ImageButton("퀴즈 시작");
   private boolean quizEnabled = true;
   private final JLabel progressLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
-  private final JLabel cardTitleLabel = UiStyle.label("", UiStyle.SUBTITLE_FONT);
+  private final JLabel cardTitleLabel = new JLabel("", SwingConstants.LEFT) {
+    @Override public void setBounds(int x, int y, int width, int height) {
+      Font font = UiStyle.TITLE_FONT.deriveFont(44f);
+      while (width > 0 && font.getSize() > 22 && getFontMetrics(font).stringWidth(getText()) > width) {
+        font = font.deriveFont((float) font.getSize() - 2);
+      }
+      if (!font.equals(getFont())) setFont(font);
+      super.setBounds(x, y, width, height);
+    }
+  };
   private final JTextArea descriptionArea = new JTextArea();
   private final WrapPanel keywords = new WrapPanel();
   private final LearningProgressBar progressBar = new LearningProgressBar();
@@ -53,6 +62,9 @@ public class LearningPanel extends JPanel {
     add(createHeader(), BorderLayout.NORTH);
     add(createLearningCard(), BorderLayout.CENTER);
     add(createFooter(), BorderLayout.SOUTH);
+    bindNavigationKey("LEFT", "learning.previous", previousButton);
+    bindNavigationKey("RIGHT", "learning.next", nextButton);
+    bindNavigationKey("ENTER", "learning.quiz", quizButton);
     showCurrentCard();
   }
 
@@ -93,8 +105,11 @@ public class LearningPanel extends JPanel {
     information.setOpaque(false);
     categoryLabel.setHorizontalAlignment(SwingConstants.LEFT);
     progressLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-    information.add(categoryLabel, BorderLayout.WEST);
-    information.add(UiStyle.label("학습 카드", UiStyle.SUBTITLE_FONT), BorderLayout.CENTER);
+    JPanel heading = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 12, 0));
+    heading.setOpaque(false);
+    heading.add(categoryLabel);
+    heading.add(UiStyle.label("학습 카드", UiStyle.SUBTITLE_FONT));
+    information.add(heading, BorderLayout.WEST);
     information.add(progressLabel, BorderLayout.EAST);
     header.add(information, BorderLayout.NORTH);
     header.add(progressBar, BorderLayout.SOUTH);
@@ -102,7 +117,7 @@ public class LearningPanel extends JPanel {
   }
 
   private JPanel createLearningCard() {
-    RoundCard card = new RoundCard(new BorderLayout(0, 20)) {
+    RoundCard card = new RoundCard(new BorderLayout(0, 20), 26, 6) {
       @Override protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
         if (category == null) return;
@@ -118,7 +133,7 @@ public class LearningPanel extends JPanel {
     heading.add(keywords, BorderLayout.NORTH);
     cardTitleLabel.setHorizontalAlignment(SwingConstants.LEFT);
     cardTitleLabel.setForeground(UiStyle.TEXT);
-    cardTitleLabel.setFont(UiStyle.TITLE_FONT.deriveFont(40f));
+    cardTitleLabel.setFont(UiStyle.TITLE_FONT.deriveFont(44f));
     heading.add(cardTitleLabel, BorderLayout.CENTER);
     card.add(heading, BorderLayout.NORTH);
     configureTextArea(descriptionArea);
@@ -169,9 +184,19 @@ public class LearningPanel extends JPanel {
     backButton.addActionListener(e -> onBack.run());
     footer.add(backButton);
     quizButton.setForeground(UiStyle.SURFACE);
+    quizButton.setPreferredSize(new Dimension(150, 60));
     quizButton.addActionListener(e -> onQuiz.run());
     footer.add(quizButton);
     return footer;
+  }
+
+  private void bindNavigationKey(String stroke, String name, JButton button) {
+    getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(javax.swing.KeyStroke.getKeyStroke(stroke), name);
+    getActionMap().put(name, new javax.swing.AbstractAction() {
+      @Override public void actionPerformed(java.awt.event.ActionEvent event) {
+        if (button.isEnabled()) button.doClick();
+      }
+    });
   }
 
   private void moveCard(int offset) {
